@@ -1,4 +1,4 @@
-.PHONY: all setup db migrate api worker frontend dev run run-dev test test-backend lint build clean up
+.PHONY: all setup db migrate api worker frontend dev run run-dev test test-backend lint build clean up restart restart-backend
 
 # Project root — resolves symlinks, works when make is invoked from any directory.
 ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -114,6 +114,24 @@ build:
 clean:
 	cd backend && go clean ./...
 	rm -rf frontend/dist
+
+# Restart backend processes without touching Postgres or frontend.
+# Run in a separate terminal while make run-dev is active.
+restart-backend:
+	@echo "=== Killing existing Go processes ==="
+	pkill -f "go run.*cmd/api" 2>/dev/null || true
+	pkill -f "go run.*cmd/worker" 2>/dev/null || true
+	sleep 1
+	echo "=== Starting API (background) ==="
+	cd $(B) && go run ./cmd/api &
+	sleep 2
+	echo "=== Starting Worker (background) ==="
+	cd $(B) && go run ./cmd/worker &
+
+# Restart everything — Postgres + backend + frontend.
+restart:
+	$(MAKE) restart-backend
+	@echo "=== Frontend unchanged (Vite hot-reloads automatically) ==="
 
 # Full setup from scratch: db → migrate → dev
 up: setup db migrate api
