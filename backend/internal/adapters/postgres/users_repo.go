@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rodrigo-militao/forge/internal/core/domain"
@@ -38,7 +37,7 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 }
 
 func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	u, err := r.q.GetUserByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	u, err := r.q.GetUserByID(ctx, uuidToPgtype(id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrNotFound
@@ -61,7 +60,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.
 
 func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 	u, err := r.q.UpdateUser(ctx, UpdateUserParams{
-		ID:           pgtype.UUID{Bytes: user.ID, Valid: true},
+		ID:           uuidToPgtype(user.ID),
 		Email:        user.Email,
 		Name:         user.Name,
 		PasswordHash: user.PasswordHash,

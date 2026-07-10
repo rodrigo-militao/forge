@@ -4,6 +4,7 @@ import { Check, FileText, RefreshCw, Sparkles, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api } from "../api/client";
+import { useJobPolling } from "../hooks/useJobPolling";
 
 export function DigestPage() {
   const { t } = useTranslation();
@@ -20,62 +21,56 @@ export function DigestPage() {
 
   const items = content?.filter((c) => c.product === "digest") ?? [];
 
+  useJobPolling(running, items.length, {
+    interval: 5000,
+    filter: (c) => c.product === "digest",
+    onComplete: (newItems) => {
+      setRunning(false);
+      toast.success(`${newItems.length} new articles — review below`);
+    },
+    onTimeout: () => {
+      setRunning(false);
+      toast("Check for new articles");
+    },
+  });
+
+  useJobPolling(assembling, items.length, {
+    interval: 3000,
+    timeout: 90_000,
+    filter: (c) => c.product === "digest",
+    onComplete: () => {
+      setAssembling(false);
+      toast.success("Edition ready!");
+    },
+    onTimeout: () => {
+      setAssembling(false);
+      toast("Check for new articles");
+    },
+  });
+
   const handleRun = useCallback(async () => {
     setRunning(true);
     runningRef.current = true;
-    const prevCount = items.length;
 
     try {
       await api.digest.run();
       toast.success("Job queued");
-
-      const startTime = Date.now();
-      const poll = setInterval(async () => {
-        await queryClient.refetchQueries({ queryKey: ["content"] });
-        const fresh = queryClient.getQueryData(["content"]);
-        const freshItems = Array.isArray(fresh) ? fresh.filter((c: any) => c.product === "digest") : [];
-
-        if (freshItems.length > prevCount) {
-          clearInterval(poll);
-          setRunning(false);
-          toast.success(`${freshItems.length - prevCount} new articles — review below`);
-        } else if (Date.now() - startTime > 60_000) {
-          clearInterval(poll);
-          setRunning(false);
-          toast("Check for new articles");
-        }
-      }, 5000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
       setRunning(false);
     }
-  }, [items.length, queryClient]);
+  }, []);
 
   const handleAssembleEdition = useCallback(async () => {
     setAssembling(true);
-    const prevCount = items.length;
     try {
       await api.digest.assembleEdition();
       toast.success("Edition assembly queued");
-      const start = Date.now();
-      const poll = setInterval(async () => {
-        await queryClient.refetchQueries({ queryKey: ["content"] });
-        const fresh = queryClient.getQueryData(["content"]);
-        const freshItems = Array.isArray(fresh) ? fresh.filter((c: any) => c.product === "digest") : [];
-
-        if (freshItems.length > prevCount || Date.now() - start > 90_000) {
-          clearInterval(poll);
-          setAssembling(false);
-          if (freshItems.length > prevCount) {
-            toast.success("Edition ready!");
-          }
-        }
-      }, 3000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
       setAssembling(false);
     }
-  }, [items.length, queryClient]);
+  }, []);
 
   const handleApprove = useCallback(
     async (id: string) => {

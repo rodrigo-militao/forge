@@ -15,6 +15,7 @@ import (
 
 	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 	"github.com/rodrigo-militao/forge/internal/worker"
+	"github.com/rodrigo-militao/forge/internal/wiring"
 )
 
 func main() {
@@ -47,7 +48,11 @@ func main() {
 
 	// Job runner
 	runner := worker.NewRunner(jobs, interval)
-	handlers := worker.NewHandlers(pool, llmAPIKey, llmBaseURL)
+	handlers := wiring.BuildWorkerHandlers(wiring.WorkerConfig{
+		Pool:       pool,
+		LLMAPIKey:  llmAPIKey,
+		LLMBaseURL: llmBaseURL,
+	})
 	for jobType, fn := range handlers {
 		runner.Register(jobType, fn)
 	}

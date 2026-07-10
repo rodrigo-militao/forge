@@ -29,9 +29,6 @@ func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs
 	// Handlers
 	authH := NewAuthHandler(users)
 	contentH := NewContentHandler(content)
-	digestH := NewDigestHandler(jobs)
-	composeH := NewComposeHandler(jobs)
-	editionH := NewEditionHandler(jobs)
 
 	// Public routes
 	r.Route("/api/auth", func(r chi.Router) {
@@ -50,13 +47,13 @@ func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs
 		r.Post("/api/content/{id}/approve", contentH.Approve)
 		r.Post("/api/content/{id}/reject", contentH.Reject)
 
-		r.Post("/api/digest/run", digestH.Run)
-		r.Post("/api/digest/assemble-edition", editionH.Assemble)
+		r.Post("/api/digest/run", enqueueJob(jobs, "curate_digest", false))
+		r.Post("/api/digest/assemble-edition", enqueueJob(jobs, "assemble_edition", false))
 
-		r.Post("/api/compose/generate-topic", composeH.GenerateTopic)
-		r.Post("/api/compose/generate-draft", composeH.GenerateDraft)
-		r.Post("/api/compose/transform", composeH.Transform)
-		r.Post("/api/compose/write", composeH.WriteArticle)
+		r.Post("/api/compose/generate-topic", enqueueJob(jobs, "generate_topic", false))
+		r.Post("/api/compose/generate-draft", enqueueJob(jobs, "compose_generate_draft", true))
+		r.Post("/api/compose/transform", enqueueJob(jobs, "compose_transform", true))
+		r.Post("/api/compose/write", enqueueJob(jobs, "compose_write", true))
 	})
 
 	// Health check

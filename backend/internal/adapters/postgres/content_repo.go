@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rodrigo-militao/forge/internal/core/domain"
@@ -34,7 +33,7 @@ func (r *ContentRepository) Create(ctx context.Context, content *domain.Generate
 		origin = "ai_generated"
 	}
 	c, err := r.q.CreateContent(ctx, CreateContentParams{
-		UserID:       pgtype.UUID{Bytes: content.UserID, Valid: true},
+		UserID:       uuidToPgtype(content.UserID),
 		Product:      content.Product,
 		Status:       content.Status,
 		SourceType:   content.SourceType,
@@ -53,7 +52,7 @@ func (r *ContentRepository) Create(ctx context.Context, content *domain.Generate
 }
 
 func (r *ContentRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.GeneratedContent, error) {
-	c, err := r.q.GetContentByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	c, err := r.q.GetContentByID(ctx, uuidToPgtype(id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrNotFound
@@ -64,7 +63,7 @@ func (r *ContentRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.
 }
 
 func (r *ContentRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
-	rows, err := r.q.ListContentByUser(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	rows, err := r.q.ListContentByUser(ctx, uuidToPgtype(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -77,14 +76,14 @@ func (r *ContentRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([
 
 func (r *ContentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
 	_, err := r.q.UpdateContentStatus(ctx, UpdateContentStatusParams{
-		ID:     pgtype.UUID{Bytes: id, Valid: true},
+		ID:     uuidToPgtype(id),
 		Status: status,
 	})
 	return err
 }
 
 func (r *ContentRepository) ListApprovedDigest(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
-	rows, err := r.q.ListApprovedDigest(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	rows, err := r.q.ListApprovedDigest(ctx, uuidToPgtype(userID))
 	if err != nil {
 		return nil, err
 	}

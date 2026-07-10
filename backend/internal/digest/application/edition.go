@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,13 +26,13 @@ type AssembleEditionResult struct {
 
 // EditionService assembles newsletter editions from approved digest items.
 type EditionService struct {
-	llm     ports.LLMClient
-	content ports.ContentRepository
+	llm      coredomain.LLMClient
+	content  ports.ContentRepository
 	editions digest.EditionRepository
 }
 
 // NewEditionService creates an edition assembly service.
-func NewEditionService(llm ports.LLMClient, content ports.ContentRepository, editions digest.EditionRepository) *EditionService {
+func NewEditionService(llm coredomain.LLMClient, content ports.ContentRepository, editions digest.EditionRepository) *EditionService {
 	return &EditionService{
 		llm:      llm,
 		content:  content,
@@ -102,10 +101,10 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 	}
 
 	// Generate introduction via LLM
-	prompt := buildEditionPrompt(itemDescriptions)
-	resp, err := s.llm.Complete(ctx, ports.LLMRequest{
+	prompt := BuildEditionPrompt(itemDescriptions)
+	resp, err := s.llm.Complete(ctx, coredomain.LLMRequest{
 		SystemPrompt: editionSystemPrompt,
-		Messages:     []ports.LLMMessage{{Role: "user", Content: prompt}},
+		Messages:     []coredomain.LLMMessage{{Role: "user", Content: prompt}},
 		MaxTokens:    2048,
 		Temperature:  0.5,
 	})
@@ -113,7 +112,7 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 		return nil, fmt.Errorf("LLM edition generation: %w", err)
 	}
 
-	intro, editionTitle := parseEditionResponse(resp.Content)
+	intro, editionTitle := ParseEditionResponse(resp.Content)
 
 	edition := &digest.Edition{
 		Title:        editionTitle,
@@ -155,36 +154,4 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 		EditionID: edition.ID.String(),
 		ItemCount: len(editionItems),
 	}, nil
-}
-
-const editionSystemPrompt = `You are an editorial assistant assembling a newsletter edition.
-
-Given a list of approved articles (title + summary), produce:
-1. A compelling newsletter title (one line, no quotes)
-2. A short introductory paragraph that hooks the reader and summarizes
-   what's in this edition. Write in a warm, professional tone — like a
-   curator writing to a knowledgeable audience.
-
-Format your response as:
-TITLE: <the title>
-INTRODUCTION: <the intro text>`
-
-func buildEditionPrompt(items []string) string {
-	return "Assemble a newsletter edition from these articles:\n\n" + strings.Join(items, "\n\n")
-}
-
-func parseEditionResponse(raw string) (introduction, title string) {
-	lines := strings.Split(raw, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "TITLE:") {
-			title = strings.TrimSpace(strings.TrimPrefix(line, "TITLE:"))
-		} else if strings.HasPrefix(line, "INTRODUCTION:") {
-			introduction = strings.TrimSpace(strings.TrimPrefix(line, "INTRODUCTION:"))
-		}
-	}
-	if title == "" {
-		title = "Newsletter Edition"
-	}
-	return introduction, title
 }

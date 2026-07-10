@@ -2,10 +2,7 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/rodrigo-militao/forge/internal/compose/domain"
@@ -15,13 +12,13 @@ import (
 
 // WriterService generates complete articles via LLM using voice routing.
 type WriterService struct {
-	llm     ports.LLMClient
+	llm     coredomain.LLMClient
 	content ports.ContentRepository
 	userID  uuid.UUID
 }
 
 // NewWriterService creates a writer service.
-func NewWriterService(llm ports.LLMClient, content ports.ContentRepository, userID uuid.UUID) *WriterService {
+func NewWriterService(llm coredomain.LLMClient, content ports.ContentRepository, userID uuid.UUID) *WriterService {
 	return &WriterService{
 		llm:     llm,
 		content: content,
@@ -54,10 +51,10 @@ func (s *WriterService) Generate(ctx context.Context, params GenerateParams) (*W
 		tlw = 1500
 	}
 
-	systemPrompt := buildWriterSystemPrompt(params.Topic, voiceProfile.Instruction, tlw)
-	resp, err := s.llm.Complete(ctx, ports.LLMRequest{
+	systemPrompt := BuildWriterSystemPrompt(params.Topic, voiceProfile.Instruction, tlw)
+	resp, err := s.llm.Complete(ctx, coredomain.LLMRequest{
 		SystemPrompt: systemPrompt,
-		Messages:     []ports.LLMMessage{{Role: "user", Content: "Write the article now. Follow all the rules above strictly."}},
+		Messages:     []coredomain.LLMMessage{{Role: "user", Content: "Write the article now. Follow all the rules above strictly."}},
 		MaxTokens:    4096,
 		Temperature:  0.7,
 	})
@@ -65,7 +62,7 @@ func (s *WriterService) Generate(ctx context.Context, params GenerateParams) (*W
 		return nil, fmt.Errorf("LLM article generation: %w", err)
 	}
 
-	article, err := parseArticleJSON(resp.Content)
+	article, err := ParseArticleJSON(resp.Content)
 	if err != nil {
 		return nil, fmt.Errorf("parsing article: %w", err)
 	}
@@ -91,78 +88,4 @@ func (s *WriterService) Generate(ctx context.Context, params GenerateParams) (*W
 	}, nil
 }
 
-// --- prompt building ---
-
-func buildWriterSystemPrompt(topic domain.Topic, voiceInstruction string, targetWords int) string {
-	replacer := strings.NewReplacer(
-		"{{TOPIC}}", topic.Topic,
-		"{{ONE_LINE_PITCH}}", topic.OneLinePitch,
-		"{{THEME_AREA}}", string(topic.ThemeArea),
-		"{{FORMAT}}", string(topic.Format),
-		"{{TARGET_LENGTH_WORDS}}", fmt.Sprintf("%d", targetWords),
-		"{{VOICE_PROFILE_BLOCK}}", voiceInstruction,
-	)
-	return replacer.Replace(writerTemplate)
-}
-
-const writerTemplate = `You are the Writer for a technical publication. You write ONE
-complete, publish-ready article per run, using the VOICE PROFILE selected below
-based on this article's theme_area and format. Do not blend voice profiles.
-
-TOPIC FOR THIS ARTICLE:
-{{TOPIC}}
-{{ONE_LINE_PITCH}}
-Theme area: {{THEME_AREA}}
-Format: {{FORMAT}}
-Target length: {{TARGET_LENGTH_WORDS}} words
-
-VOICE PROFILE:
-{{VOICE_PROFILE_BLOCK}}
-
-General rules (apply regardless of voice):
-- Output valid Markdown, ready to paste into Substack.
-- Do not use generic AI-blog-post patterns unless the voice profile explicitly calls for them.
-- If the topic is technical, back claims with concrete mechanisms/examples.
-- Never fabricate named case studies, companies, or people as if real.
-
-Output strictly as JSON:
-{
-  "title": "string",
-  "subtitle": "string, one line",
-  "body_markdown": "string, the full article in markdown"
-}`
-
-// --- JSON parsing ---
-
-type articleJSON struct {
-	Title        string `json:"title"`
-	Subtitle     string `json:"subtitle"`
-	BodyMarkdown string `json:"body_markdown"`
-}
-
-func parseArticleJSON(raw string) (*domain.Article, error) {
-	var aj articleJSON
-	if err := json.Unmarshal([]byte(raw), &aj); err == nil && aj.Title != "" && aj.BodyMarkdown != "" {
-		return mapArticle(aj), nil
-	}
-	start := strings.Index(raw, "{")
-	end := strings.LastIndex(raw, "}")
-	if start >= 0 && end > start {
-		if err := json.Unmarshal([]byte(raw[start:end+1]), &aj); err == nil && aj.Title != "" && aj.BodyMarkdown != "" {
-			return mapArticle(aj), nil
-		}
-	}
-	return nil, fmt.Errorf("could not parse article JSON from model output")
-}
-
-func mapArticle(aj articleJSON) *domain.Article {
-	return &domain.Article{
-		Title:        aj.Title,
-		Subtitle:     aj.Subtitle,
-		BodyMarkdown: aj.BodyMarkdown,
-	}
-}
-
 func strPtrWriter(s string) *string { return &s }
-
-var _ = time.Now

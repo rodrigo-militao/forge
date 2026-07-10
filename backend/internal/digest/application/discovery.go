@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,14 +17,14 @@ import (
 // DiscoveryService orchestrates the daily content curation pipeline:
 // fetch sources → classify via LLM → persist digest.
 type DiscoveryService struct {
-	llm     ports.LLMClient
+	llm     domain.LLMClient
 	sources []digest.ContentSource
 	content ports.ContentRepository
 	userID  uuid.UUID
 }
 
 // NewDiscoveryService creates a discovery service.
-func NewDiscoveryService(llm ports.LLMClient, sources []digest.ContentSource, content ports.ContentRepository, userID uuid.UUID) *DiscoveryService {
+func NewDiscoveryService(llm domain.LLMClient, sources []digest.ContentSource, content ports.ContentRepository, userID uuid.UUID) *DiscoveryService {
 	return &DiscoveryService{
 		llm:     llm,
 		sources: sources,
@@ -42,47 +40,17 @@ type RunResult struct {
 	MediumCount   int
 }
 
-const discoverySystemPrompt = `You are a technical editorial curator.
-
-Analyze each article and classify it as one of:
-- HIGH: real case + concrete data or strong contrast + applicable technical lesson
-- MEDIUM: solid technical content without specific case
-- LOW: opinion without data, shallow news, generic content
-
-For HIGH and MEDIUM articles, generate a 1-2 sentence summary in English.
-
-Output format (one article per line):
-ARTICLE_NUMBER | CLASSIFICATION | SUMMARY
-
-IMPORTANT: Always include the article number as the first field. Match it to the "--- Article N ---" numbering in the input.`
-
 // Run executes one discovery cycle.
 func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult, error) {
-	var allArticles []digest.SourceItem
-	seen := make(map[string]bool)
-
-	for _, src := range s.sources {
-		articles, err := src.Fetch(ctx)
-		if err != nil {
-			continue
-		}
-		for _, a := range articles {
-			if a.URL == "" || seen[a.URL] {
-				continue
-			}
-			seen[a.URL] = true
-			allArticles = append(allArticles, a)
-		}
-	}
-
-	if len(allArticles) == 0 {
+	articles := s.fetchFromSources(ctx)
+	if len(articles) == 0 {
 		return nil, fmt.Errorf("no articles found from any source")
 	}
 
-	prompt := buildPrompt(allArticles)
-	resp, err := s.llm.Complete(ctx, ports.LLMRequest{
+	prompt := BuildDiscoveryPrompt(articles)
+	resp, err := s.llm.Complete(ctx, domain.LLMRequest{
 		SystemPrompt: discoverySystemPrompt,
-		Messages:     []ports.LLMMessage{{Role: "user", Content: prompt}},
+		Messages:     []domain.LLMMessage{{Role: "user", Content: prompt}},
 		MaxTokens:    4096,
 		Temperature:  0.3,
 	})
@@ -91,11 +59,11 @@ func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult,
 	}
 
 	slog.Info("LLM classification response",
-		"total_articles", len(allArticles),
+		"total_articles", len(articles),
 		"response", resp.Content,
 	)
 
-	high, medium := parseResponse(resp.Content, allArticles)
+	high, medium := ParseDiscoveryResponse(resp.Content, articles)
 
 	slog.Info("digest classification complete",
 		"high_count", len(high),
@@ -139,13 +107,30 @@ func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult,
 	}
 
 	return &RunResult{
-		TotalArticles: len(allArticles),
+		TotalArticles: len(articles),
 		HighCount:     len(high),
 		MediumCount:   len(medium),
 	}, nil
 }
 
-// --- helpers ---
+func (s *DiscoveryService) fetchFromSources(ctx context.Context) []digest.SourceItem {
+	var allArticles []digest.SourceItem
+	seen := make(map[string]bool)
+	for _, src := range s.sources {
+		articles, err := src.Fetch(ctx)
+		if err != nil {
+			continue
+		}
+		for _, a := range articles {
+			if a.URL == "" || seen[a.URL] {
+				continue
+			}
+			seen[a.URL] = true
+			allArticles = append(allArticles, a)
+		}
+	}
+	return allArticles
+}
 
 func buildMetadata(item digest.DigestItem) json.RawMessage {
 	m := map[string]string{
@@ -154,99 +139,6 @@ func buildMetadata(item digest.DigestItem) json.RawMessage {
 	}
 	b, _ := json.Marshal(m)
 	return json.RawMessage(b)
-}
-
-func buildPrompt(articles []digest.SourceItem) string {
-	var b strings.Builder
-	b.WriteString("Analyze the following articles and classify each one:\n\n")
-	for i, a := range articles {
-		fmt.Fprintf(&b, "--- Article %d ---\n", i+1)
-		fmt.Fprintf(&b, "Title: %s\n", a.Title)
-		fmt.Fprintf(&b, "Source: %s\n", a.SourceName)
-		fmt.Fprintf(&b, "URL: %s\n", a.URL)
-		fmt.Fprintf(&b, "Content: %s\n", truncate(a.Content, 2000))
-		b.WriteString("\n")
-	}
-	return b.String()
-}
-
-func parseResponse(response string, articles []digest.SourceItem) (high, medium []digest.DigestItem) {
-	// Strip markdown code blocks — LLMs often wrap output in ```.
-	response = stripCodeFences(response)
-
-	linePattern := regexp.MustCompile(`^\s*(\d+)\s*[|\-,:]\s*(HIGH|MEDIUM|LOW)\s*[|\-,:]\s*(.+)$`)
-	for _, line := range strings.Split(response, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		m := linePattern.FindStringSubmatch(line)
-		if m == nil {
-			continue
-		}
-		articleNum := atoi(m[1])
-		classification := m[2]
-		summary := strings.TrimSpace(m[3])
-
-		if classification == "LOW" {
-			continue
-		}
-
-		item := digest.DigestItem{
-			Summary: summary,
-			Score:   4,
-			Status:  digest.ItemPending,
-		}
-		idx := articleNum - 1
-		if idx >= 0 && idx < len(articles) {
-			a := articles[idx]
-			item.Title = a.Title
-			item.URL = a.URL
-			item.SourceName = a.SourceName
-		} else {
-			// Fallback: use first ~80 chars of summary as title
-			item.Title = truncate(summary, 80)
-		}
-
-		switch classification {
-		case "HIGH":
-			item.Score = 5
-			high = append(high, item)
-		case "MEDIUM":
-			medium = append(medium, item)
-		}
-	}
-	return high, medium
-}
-
-// stripCodeFences removes markdown ``` ... ``` or ` ... ` around content.
-func stripCodeFences(s string) string {
-	s = strings.TrimSpace(s)
-	// Remove leading ``` (possibly with language tag)
-	s = regexp.MustCompile("(?s)^```[a-zA-Z0-9]*\n?").ReplaceAllString(s, "")
-	// Remove trailing ```
-	s = regexp.MustCompile("(?s)\n?```$").ReplaceAllString(s, "")
-	// Remove inline backticks if that's all that's wrapping
-	s = strings.TrimPrefix(s, "`")
-	s = strings.TrimSuffix(s, "`")
-	return strings.TrimSpace(s)
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n]
-}
-
-func atoi(s string) int {
-	n := 0
-	for _, c := range s {
-		if c >= '0' && c <= '9' {
-			n = n*10 + int(c-'0')
-		}
-	}
-	return n
 }
 
 func strPtr(s string) *string { return &s }

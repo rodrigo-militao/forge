@@ -7,6 +7,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import toast from "react-hot-toast";
 import { api } from "../api/client";
+import { useJobPolling } from "../hooks/useJobPolling";
 
 type Mode = "ai" | "blank";
 
@@ -21,6 +22,7 @@ export function ComposePage() {
   const [aiRunning, setAiRunning] = useState(false);
   const aiRunningRef = useRef(false);
   const [selectedItem, setSelectedItem] = useState<{ id: string; title: string; body: string } | null>(null);
+  const [transformAction, setTransformAction] = useState<string | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -40,33 +42,73 @@ export function ComposePage() {
 
   const items = content?.filter((c) => c.product === "compose") ?? [];
 
+  useJobPolling(generating, items.length, {
+    interval: 3000,
+    timeout: 60_000,
+    filter: (c) => c.product === "compose",
+    onComplete: () => {
+      setGenerating(false);
+      runningRef.current = false;
+      toast.success("Draft ready in Library");
+    },
+    onTimeout: () => {
+      setGenerating(false);
+      runningRef.current = false;
+    },
+  });
+
+  useJobPolling(aiRunning, items.length, {
+    interval: 3000,
+    timeout: 90_000,
+    filter: (c) => c.product === "compose",
+    onComplete: () => {
+      setAiRunning(false);
+      aiRunningRef.current = false;
+      toast.success("Topic ready in Library");
+    },
+    onTimeout: () => {
+      setAiRunning(false);
+      aiRunningRef.current = false;
+    },
+  });
+
+  useJobPolling(transformAction !== null, items.length, {
+    interval: 3000,
+    filter: (c) => c.source_type === transformAction,
+    onComplete: (newItems) => {
+      const result = newItems[newItems.length - 1];
+      if (editor) {
+        const { from, to } = editor.state.selection;
+        editor
+          .chain()
+          .focus()
+          .deleteRange({ from, to })
+          .insertContent(result.body_markdown ?? "")
+          .run();
+      }
+      runningRef.current = false;
+      setTransformAction(null);
+      toast.success("Applied");
+    },
+    onTimeout: () => {
+      runningRef.current = false;
+      setTransformAction(null);
+    },
+  });
+
   const handleGenerateDraft = useCallback(async () => {
     if (!theme.trim()) return;
     setGenerating(true);
     runningRef.current = true;
-    const prevCount = items.length;
-
     try {
       await api.compose.generateDraft(theme);
       toast.success("Draft generation queued");
-      const start = Date.now();
-      const poll = setInterval(async () => {
-        await queryClient.refetchQueries({ queryKey: ["content"] });
-        const fresh = queryClient.getQueryData(["content"]);
-        const ci = Array.isArray(fresh) ? fresh.filter((c: any) => c.product === "compose") : [];
-        if (ci.length > prevCount || Date.now() - start > 60_000) {
-          clearInterval(poll);
-          setGenerating(false);
-          runningRef.current = false;
-          if (ci.length > prevCount) toast.success("Draft ready in Library");
-        }
-      }, 3000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
       setGenerating(false);
       runningRef.current = false;
     }
-  }, [theme, items.length, queryClient]);
+  }, [theme]);
 
   const handleTransform = useCallback(
     async (action: "expand" | "rewrite") => {
@@ -81,65 +123,29 @@ export function ComposePage() {
       runningRef.current = true;
       try {
         await api.compose.transform(selected, action);
+        setTransformAction(action);
         toast.success(`${action} job queued`);
-        const poll = setInterval(async () => {
-          await queryClient.refetchQueries({ queryKey: ["content"] });
-          const fresh = queryClient.getQueryData(["content"]);
-          const transforms = Array.isArray(fresh)
-            ? fresh.filter((c: any) => c.source_type === action)
-            : [];
-          if (transforms.length > 0) {
-            clearInterval(poll);
-            runningRef.current = false;
-            const result = transforms[transforms.length - 1];
-            editor
-              .chain()
-              .focus()
-              .deleteRange({ from, to })
-              .insertContent(result.body_markdown ?? "")
-              .run();
-            toast.success("Applied");
-          }
-        }, 3000);
-        setTimeout(() => {
-          clearInterval(poll);
-          runningRef.current = false;
-        }, 60_000);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed");
         runningRef.current = false;
       }
     },
-    [editor, queryClient],
+    [editor],
   );
 
   // ─── AI generation mode ─────────────────────────────────────────
   const handleGenerateTopic = useCallback(async () => {
     setAiRunning(true);
     aiRunningRef.current = true;
-    const prevCount = items.length;
-
     try {
       await api.compose.generateTopic();
       toast.success("Topic generation queued");
-      const start = Date.now();
-      const poll = setInterval(async () => {
-        await queryClient.refetchQueries({ queryKey: ["content"] });
-        const fresh = queryClient.getQueryData(["content"]);
-        const ci = Array.isArray(fresh) ? fresh.filter((c: any) => c.product === "compose") : [];
-        if (ci.length > prevCount || Date.now() - start > 90_000) {
-          clearInterval(poll);
-          setAiRunning(false);
-          aiRunningRef.current = false;
-          if (ci.length > prevCount) toast.success("Topic ready in Library");
-        }
-      }, 3000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
       setAiRunning(false);
       aiRunningRef.current = false;
     }
-  }, [items.length, queryClient]);
+  }, []);
 
   // ─── Mode selector ──────────────────────────────────────────────
   if (!mode) {

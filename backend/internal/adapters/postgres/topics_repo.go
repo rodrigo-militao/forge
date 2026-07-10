@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rodrigo-militao/forge/internal/compose/domain"
@@ -21,7 +20,7 @@ func NewTopicRepository(pool *pgxpool.Pool) *TopicRepository {
 }
 
 func (r *TopicRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.Topic, error) {
-	rows, err := r.q.ListTopicsByUser(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	rows, err := r.q.ListTopicsByUser(ctx, uuidToPgtype(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +33,7 @@ func (r *TopicRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]d
 
 func (r *TopicRepository) Create(ctx context.Context, topic *domain.Topic) error {
 	row, err := r.q.CreateTopic(ctx, CreateTopicParams{
-		UserID:       pgtype.UUID{Bytes: topic.UserID, Valid: true},
+		UserID:       uuidToPgtype(topic.UserID),
 		Topic:        topic.Topic,
 		ThemeArea:    (*string)(&topic.ThemeArea),
 		Format:       (*string)(&topic.Format),
@@ -51,7 +50,7 @@ func (r *TopicRepository) Create(ctx context.Context, topic *domain.Topic) error
 
 func (r *TopicRepository) History(ctx context.Context, userID uuid.UUID, limit int) ([]domain.HistoryEntry, error) {
 	rows, err := r.q.TopicHistory(ctx, TopicHistoryParams{
-		UserID: pgtype.UUID{Bytes: userID, Valid: true},
+		UserID: uuidToPgtype(userID),
 		Limit:  int32(limit),
 	})
 	if err != nil {

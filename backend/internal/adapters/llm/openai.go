@@ -1,4 +1,4 @@
-// Package llm implements ports.LLMClient for OpenAI-compatible Chat Completions API.
+// Package llm implements domain.LLMClient for OpenAI-compatible Chat Completions API.
 package llm
 
 import (
@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/rodrigo-militao/forge/internal/core/ports"
+	"github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
@@ -25,7 +25,7 @@ const (
 	rateLimitRequests = 4
 )
 
-// Client implements ports.LLMClient for OpenAI-compatible APIs.
+// Client implements domain.LLMClient for OpenAI-compatible APIs.
 type Client struct {
 	apiKey     string
 	baseURL    string
@@ -77,13 +77,13 @@ func WithHTTPClient(hc *http.Client) Option {
 }
 
 // Complete sends a chat completion request and returns the response.
-func (c *Client) Complete(ctx context.Context, req ports.LLMRequest) (*ports.LLMResponse, error) {
+func (c *Client) Complete(ctx context.Context, req domain.LLMRequest) (*domain.LLMResponse, error) {
 	if err := c.limiter.Wait(ctx); err != nil {
 		return nil, fmt.Errorf("rate limit wait: %w", err)
 	}
 
 	apiReq := c.buildRequest(req)
-	return lib.Do(ctx, maxRetries, func() (*ports.LLMResponse, error) {
+	return lib.Do(ctx, maxRetries, func() (*domain.LLMResponse, error) {
 		return c.doRequest(ctx, apiReq)
 	})
 }
@@ -123,7 +123,7 @@ type apiErr struct {
 
 // --- request / response ---
 
-func (c *Client) buildRequest(req ports.LLMRequest) chatRequest {
+func (c *Client) buildRequest(req domain.LLMRequest) chatRequest {
 	messages := []chatMessage{}
 	if req.SystemPrompt != "" {
 		messages = append(messages, chatMessage{Role: "system", Content: req.SystemPrompt})
@@ -139,7 +139,7 @@ func (c *Client) buildRequest(req ports.LLMRequest) chatRequest {
 	}
 }
 
-func (c *Client) doRequest(ctx context.Context, req chatRequest) (*ports.LLMResponse, error) {
+func (c *Client) doRequest(ctx context.Context, req chatRequest) (*domain.LLMResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
@@ -178,9 +178,9 @@ func (c *Client) doRequest(ctx context.Context, req chatRequest) (*ports.LLMResp
 		return nil, fmt.Errorf("no choices in response")
 	}
 
-	r := &ports.LLMResponse{
+	r := &domain.LLMResponse{
 		Content: apiResp.Choices[0].Message.Content,
-		Usage: ports.LLMUsage{
+		Usage: domain.LLMUsage{
 			InputTokens:  apiResp.Usage.PromptTokens,
 			OutputTokens: apiResp.Usage.CompletionTokens,
 		},
@@ -203,4 +203,4 @@ func parseAPIError(statusCode int, body []byte) error {
 }
 
 // Compile-time interface check.
-var _ ports.LLMClient = (*Client)(nil)
+var _ domain.LLMClient = (*Client)(nil)

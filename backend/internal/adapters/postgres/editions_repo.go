@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rodrigo-militao/forge/internal/core/domain"
@@ -33,7 +32,7 @@ func (r *EditionRepository) Create(ctx context.Context, edition *digest.Edition)
 	qtx := r.q.WithTx(tx)
 
 	row, err := qtx.CreateEdition(ctx, CreateEditionParams{
-		UserID:       pgtype.UUID{Bytes: edition.UserID, Valid: true},
+		UserID:       uuidToPgtype(edition.UserID),
 		Title:        edition.Title,
 		Introduction: edition.Introduction,
 	})
@@ -46,8 +45,8 @@ func (r *EditionRepository) Create(ctx context.Context, edition *digest.Edition)
 
 	for i, item := range edition.Items {
 		eItem, err := qtx.CreateEditionItem(ctx, CreateEditionItemParams{
-			EditionID: pgtype.UUID{Bytes: row.ID.Bytes, Valid: true},
-			ContentID: pgtype.UUID{Bytes: item.ContentID, Valid: true},
+			EditionID: uuidToPgtype(uuid.UUID(row.ID.Bytes)),
+			ContentID: uuidToPgtype(item.ContentID),
 			SortOrder: int32(i + 1),
 		})
 		if err != nil {
@@ -60,7 +59,7 @@ func (r *EditionRepository) Create(ctx context.Context, edition *digest.Edition)
 }
 
 func (r *EditionRepository) GetByID(ctx context.Context, id uuid.UUID) (*digest.Edition, error) {
-	row, err := r.q.GetEditionByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	row, err := r.q.GetEditionByID(ctx, uuidToPgtype(id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrNotFound
@@ -68,7 +67,7 @@ func (r *EditionRepository) GetByID(ctx context.Context, id uuid.UUID) (*digest.
 		return nil, err
 	}
 
-	itemRows, err := r.q.ListEditionItems(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	itemRows, err := r.q.ListEditionItems(ctx, uuidToPgtype(id))
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +96,7 @@ func (r *EditionRepository) GetByID(ctx context.Context, id uuid.UUID) (*digest.
 }
 
 func (r *EditionRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]digest.Edition, error) {
-	rows, err := r.q.ListEditionsByUser(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	rows, err := r.q.ListEditionsByUser(ctx, uuidToPgtype(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +117,7 @@ func (r *EditionRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([
 
 func (r *EditionRepository) UpdateBody(ctx context.Context, id uuid.UUID, title, introduction string) error {
 	_, err := r.q.UpdateEditionBody(ctx, UpdateEditionBodyParams{
-		ID:           pgtype.UUID{Bytes: id, Valid: true},
+		ID:           uuidToPgtype(id),
 		Title:        title,
 		Introduction: introduction,
 	})
@@ -127,7 +126,7 @@ func (r *EditionRepository) UpdateBody(ctx context.Context, id uuid.UUID, title,
 
 func (r *EditionRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status digest.EditionStatus) error {
 	_, err := r.q.UpdateEditionStatus(ctx, UpdateEditionStatusParams{
-		ID:     pgtype.UUID{Bytes: id, Valid: true},
+		ID:     uuidToPgtype(id),
 		Status: string(status),
 	})
 	return err

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rodrigo-militao/forge/internal/core/domain"
@@ -23,7 +22,7 @@ func NewJobRepository(pool *pgxpool.Pool) *JobRepository {
 
 func (r *JobRepository) Create(ctx context.Context, job *domain.Job) error {
 	j, err := r.q.CreateJob(ctx, CreateJobParams{
-		UserID:  pgtype.UUID{Bytes: job.UserID, Valid: true},
+		UserID:  uuidToPgtype(job.UserID),
 		Type:    job.Type,
 		Payload: job.Payload,
 	})
@@ -47,7 +46,7 @@ func (r *JobRepository) ClaimNext(ctx context.Context) (*domain.Job, error) {
 
 func (r *JobRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.JobStatus, errMsg *string) error {
 	_, err := r.q.UpdateJobStatus(ctx, UpdateJobStatusParams{
-		ID:     pgtype.UUID{Bytes: id, Valid: true},
+		ID:     uuidToPgtype(id),
 		Status: status,
 		Error:  errMsg,
 	})

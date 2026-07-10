@@ -1,6 +1,4 @@
-// Package ports defines interfaces implemented by adapters.
-// Domain and application layers import ports, never adapters directly.
-package ports
+package domain
 
 import "context"
 

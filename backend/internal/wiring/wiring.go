@@ -1,4 +1,6 @@
-package worker
+// Package wiring is the composition root for Forge's worker process.
+// It constructs and wires all adapters and application services.
+package wiring
 
 import (
 	"context"
@@ -8,34 +10,40 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/rodrigo-militao/forge/internal/adapters/llm"
 	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 	composeApp "github.com/rodrigo-militao/forge/internal/compose/application"
 	composeDomain "github.com/rodrigo-militao/forge/internal/compose/domain"
 	coredomain "github.com/rodrigo-militao/forge/internal/core/domain"
-	"github.com/rodrigo-militao/forge/internal/core/ports"
 	digestApp "github.com/rodrigo-militao/forge/internal/digest/application"
 	digestDomain "github.com/rodrigo-militao/forge/internal/digest/domain"
 	"github.com/rodrigo-militao/forge/internal/digest/adapters/rss"
 	"github.com/rodrigo-militao/forge/internal/digest/adapters/search"
+	"github.com/rodrigo-militao/forge/internal/worker"
 )
 
-// NewHandlers creates the job handler functions and a map keyed by job type.
-func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Handler {
-	contentRepo := postgres.NewContentRepository(pool)
-	topicsRepo := postgres.NewTopicRepository(pool)
-	editionsRepo := postgres.NewEditionRepository(pool)
+// WorkerConfig contains the runtime configuration for the worker process.
+type WorkerConfig struct {
+	Pool       *pgxpool.Pool
+	LLMAPIKey  string
+	LLMBaseURL string
+}
 
-	llmClient := llm.NewClient(llmAPIKey, llmBaseURL)
+// BuildWorkerHandlers constructs all adapters and returns the job handler map.
+func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
+	contentRepo := postgres.NewContentRepository(cfg.Pool)
+	topicsRepo := postgres.NewTopicRepository(cfg.Pool)
+	editionsRepo := postgres.NewEditionRepository(cfg.Pool)
+	llmClient := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL)
 
-	return map[string]Handler{
+	return map[string]worker.Handler{
 		"curate_digest": func(ctx context.Context, userID string, payload []byte) error {
 			id, err := uuid.Parse(userID)
 			if err != nil {
 				return fmt.Errorf("invalid user id: %w", err)
 			}
 
-			// TODO: load user's source configs from DB
 			sources := []digestDomain.ContentSource{
 				rss.NewFeed("Go Blog", "https://go.dev/blog/feed.atom"),
 				search.NewDuckDuckGo([]string{"golang best practices 2026"}),
@@ -109,7 +117,6 @@ func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Ha
 				TargetLengthWords: 1200,
 			}
 
-			// Select voice for the topic
 			voice, err := composeDomain.SelectVoice(topic.ThemeArea, topic.Format)
 			if err != nil {
 				voice = composeDomain.VoiceConfessional
@@ -132,7 +139,7 @@ func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Ha
 		"compose_transform": func(ctx context.Context, userID string, payload []byte) error {
 			var req struct {
 				Text   string `json:"text"`
-				Action string `json:"action"` // "expand" | "rewrite"
+				Action string `json:"action"`
 			}
 			if err := json.Unmarshal(payload, &req); err != nil || req.Text == "" {
 				return fmt.Errorf("invalid payload: text required")
@@ -150,9 +157,9 @@ func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Ha
 				return fmt.Errorf("unknown action: %s", req.Action)
 			}
 
-			resp, err := llmClient.Complete(ctx, ports.LLMRequest{
+			resp, err := llmClient.Complete(ctx, coredomain.LLMRequest{
 				SystemPrompt: "You are a writing assistant. Respond only with the transformed text, no explanations.",
-				Messages:     []ports.LLMMessage{{Role: "user", Content: actionPrompt}},
+				Messages:     []coredomain.LLMMessage{{Role: "user", Content: actionPrompt}},
 				MaxTokens:    2048,
 				Temperature:  0.6,
 			})
@@ -160,7 +167,6 @@ func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Ha
 				return fmt.Errorf("LLM transform: %w", err)
 			}
 
-			// Store result in generated_content so frontend can poll and retrieve it
 			title := fmt.Sprintf("AI %s suggestion", req.Action)
 			if err := contentRepo.Create(ctx, &coredomain.GeneratedContent{
 				UserID:       uuid.MustParse(userID),
@@ -175,5 +181,11 @@ func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Ha
 
 			return nil
 		},
+
+		"compose_write": func(ctx context.Context, userID string, payload []byte) error {
+			return fmt.Errorf("compose_write handler not yet implemented")
+		},
 	}
 }
+
+func strPtr(s string) *string { return &s }
