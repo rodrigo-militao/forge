@@ -144,7 +144,7 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 		UserID:       uid,
 		Product:      coredomain.ProductDigest,
 		Status:       coredomain.ContentDraft,
-		SourceType:   strPtr("edition"),
+		SourceType:   strPtr("discovery"),
 		Title:        &edition.Title,
 		BodyMarkdown: &editionBody,
 	}); err != nil {
