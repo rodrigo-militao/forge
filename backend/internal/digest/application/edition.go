@@ -53,7 +53,24 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 	if err != nil {
 		return nil, fmt.Errorf("loading approved items: %w", err)
 	}
+
+	// Debug: check all user's content
 	if len(items) == 0 {
+		allItems, listErr := s.content.ListByUser(ctx, uid)
+		if listErr == nil {
+			for _, it := range allItems {
+				title := ""
+				if it.Title != nil {
+					title = *it.Title
+				}
+				slog.Info("user content item",
+					"id", it.ID,
+					"product", it.Product,
+					"status", it.Status,
+					"title", title,
+				)
+			}
+		}
 		return nil, fmt.Errorf("no approved items available for edition")
 	}
 
