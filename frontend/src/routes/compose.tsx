@@ -20,6 +20,7 @@ export function ComposePage() {
 
   const [aiRunning, setAiRunning] = useState(false);
   const aiRunningRef = useRef(false);
+  const [selectedItem, setSelectedItem] = useState<{ id: string; title: string; body: string } | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -195,25 +196,48 @@ export function ComposePage() {
             {aiRunning ? "Generating\u2026" : t("compose.generateTopic")}
           </button>
         </div>
-        <div className="space-y-3">
-          {items.length === 0 && !aiRunning && (
-            <p className="text-sm text-[var(--color-text-muted)]">{t("compose.noTopics")}</p>
-          )}
-          {aiRunning && items.length === 0 && (
-            <p className="animate-pulse text-sm text-[var(--color-accent-primary)]">Generating topic\u2026</p>
-          )}
-          {items.map((item) => (
-            <div key={item.id} className="rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4">
-              <h3 className="font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
-              {item.body_markdown && (
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.body_markdown}</p>
-              )}
-              <span className="mt-2 inline-block rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
-                {item.status}
-              </span>
-            </div>
-          ))}
-        </div>
+        {selectedItem ? (
+          <div className="space-y-4">
+            <button
+              onClick={() => setSelectedItem(null)}
+              className="cursor-pointer text-sm text-[var(--color-accent-primary)] hover:underline"
+            >
+              &larr; Back to list
+            </button>
+            <input
+              defaultValue={selectedItem.title}
+              className="w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+            />
+            <textarea
+              defaultValue={selectedItem.body}
+              className="h-96 w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 text-sm leading-relaxed text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+            />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {items.length === 0 && !aiRunning && (
+              <p className="text-sm text-[var(--color-text-muted)]">{t("compose.noTopics")}</p>
+            )}
+            {aiRunning && items.length === 0 && (
+              <p className="animate-pulse text-sm text-[var(--color-accent-primary)]">Generating topic\u2026</p>
+            )}
+            {items.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => setSelectedItem({ id: item.id, title: item.title ?? "", body: item.body_markdown ?? "" })}
+                className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 transition-colors hover:border-[var(--color-accent-primary)]"
+              >
+                <h3 className="font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
+                {item.body_markdown && (
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.body_markdown}</p>
+                )}
+                <span className="mt-2 inline-block rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+                  {item.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
