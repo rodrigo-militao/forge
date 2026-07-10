@@ -20,8 +20,9 @@ const (
 type ContentProduct string
 
 const (
-	ProductDigest  ContentProduct = "digest"
-	ProductCompose ContentProduct = "compose"
+	ProductDigest     ContentProduct = "digest"
+	ProductCompose    ContentProduct = "compose"
+	ProductNewsletter ContentProduct = "newsletter"
 )
 
 // ContentOrigin tracks how the content was created (ADR 0030).

@@ -142,9 +142,9 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 	}
 	if err := s.content.Create(ctx, &coredomain.GeneratedContent{
 		UserID:       uid,
-		Product:      coredomain.ProductDigest,
+		Product:      coredomain.ProductNewsletter,
 		Status:       coredomain.ContentDraft,
-		SourceType:   strPtr("discovery"),
+		SourceType:   strPtr("edition"),
 		Title:        &edition.Title,
 		BodyMarkdown: &editionBody,
 	}); err != nil {

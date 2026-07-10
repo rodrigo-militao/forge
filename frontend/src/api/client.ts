@@ -22,7 +22,7 @@ export interface AuthResponse {
 export interface ContentItem {
   id: string;
   user_id: string;
-  product: "digest" | "compose";
+  product: "digest" | "compose" | "newsletter";
   status: "draft" | "approved" | "rejected";
   source_type: string | null;
   title: string | null;

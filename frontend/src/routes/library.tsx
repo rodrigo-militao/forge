@@ -12,7 +12,7 @@ export function LibraryPage() {
   const { data: content, isLoading } = useQuery({
     queryKey: ["content"],
     queryFn: api.content.list,
-    select: (data) => data.filter((c) => c.product === "compose"),
+    select: (data) => data.filter((c) => c.product === "compose" || c.product === "newsletter"),
   });
 
   const handleApprove = useCallback(
