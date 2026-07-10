@@ -18,6 +18,9 @@ export function ComposePage() {
   const [generating, setGenerating] = useState(false);
   const runningRef = useRef(false);
 
+  const [aiRunning, setAiRunning] = useState(false);
+  const aiRunningRef = useRef(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -145,9 +148,6 @@ export function ComposePage() {
   }
 
   // ─── AI generation mode ─────────────────────────────────────────
-  const [aiRunning, setAiRunning] = useState(false);
-  const aiRunningRef = useRef(false);
-
   const handleGenerateTopic = useCallback(async () => {
     setAiRunning(true);
     aiRunningRef.current = true;
