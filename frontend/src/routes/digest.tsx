@@ -53,19 +53,29 @@ export function DigestPage() {
 
   const handleAssembleEdition = useCallback(async () => {
     setAssembling(true);
+    const prevCount = items.length;
     try {
       await api.digest.assembleEdition();
       toast.success("Edition assembly queued");
-      // Worker takes ~10-40s; toast when likely done
-      setTimeout(() => {
-        setAssembling(false);
-        toast.success("Edition ready — check the database");
-      }, 45_000);
+      const start = Date.now();
+      const poll = setInterval(async () => {
+        await queryClient.refetchQueries({ queryKey: ["content"] });
+        const fresh = queryClient.getQueryData(["content"]);
+        const freshItems = Array.isArray(fresh) ? fresh.filter((c: any) => c.product === "digest") : [];
+
+        if (freshItems.length > prevCount || Date.now() - start > 90_000) {
+          clearInterval(poll);
+          setAssembling(false);
+          if (freshItems.length > prevCount) {
+            toast.success("Edition ready!");
+          }
+        }
+      }, 3000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
       setAssembling(false);
     }
-  }, []);
+  }, [items.length, queryClient]);
 
   const handleApprove = useCallback(
     async (id: string) => {

@@ -135,6 +135,22 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 		"item_count", len(editionItems),
 	)
 
+	// Save a copy as generated_content so frontend can detect it
+	editionBody := fmt.Sprintf("# %s\n\n%s\n\n---\n\n", edition.Title, edition.Introduction)
+	for _, item := range editionItems {
+		editionBody += fmt.Sprintf("## %s\n%s\n\n", item.Title, item.BodySummary)
+	}
+	if err := s.content.Create(ctx, &coredomain.GeneratedContent{
+		UserID:       uid,
+		Product:      coredomain.ProductDigest,
+		Status:       coredomain.ContentDraft,
+		SourceType:   strPtr("edition"),
+		Title:        &edition.Title,
+		BodyMarkdown: &editionBody,
+	}); err != nil {
+		slog.Warn("failed to persist edition as content", "error", err)
+	}
+
 	return &AssembleEditionResult{
 		EditionID: edition.ID.String(),
 		ItemCount: len(editionItems),
