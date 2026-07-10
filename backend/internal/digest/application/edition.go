@@ -66,12 +66,25 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 		slog.Info("user content summary", "total", len(allItems), "approved_digest", approvedDigest)
 	}
 
+	// TEMP: filter in Go instead of using sqlc query to isolate the bug
 	items, err := s.content.ListApprovedDigestNotInEdition(ctx, uid)
 	if err != nil {
 		slog.Error("ListApprovedDigestNotInEdition failed", "error", err)
-		return nil, fmt.Errorf("loading approved items: %w", err)
+		// Fallback to Go-level filter
+		items = nil
 	}
-
+	if len(items) == 0 {
+		// Fallback: filter approved digest items in Go
+		all, listErr := s.content.ListByUser(ctx, uid)
+		if listErr == nil {
+			for _, it := range all {
+				if it.Product == coredomain.ProductDigest && it.Status == coredomain.ContentApproved {
+					items = append(items, it)
+				}
+			}
+			slog.Info("Go-level filter result", "count", len(items))
+		}
+	}
 	if len(items) == 0 {
 		return nil, fmt.Errorf("no approved items available for edition")
 	}
