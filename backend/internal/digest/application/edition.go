@@ -49,21 +49,27 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 	}
 
 	// Load approved items not yet in any edition.
+	slog.Info("edition assembly", "user_id", uid)
+
 	items, err := s.content.ListApprovedDigestNotInEdition(ctx, uid)
 	if err != nil {
+		slog.Error("ListApprovedDigestNotInEdition failed", "error", err)
 		return nil, fmt.Errorf("loading approved items: %w", err)
 	}
 
-	// Debug: check all user's content
 	if len(items) == 0 {
+		// Debug: list ALL user content to see what's available
 		allItems, listErr := s.content.ListByUser(ctx, uid)
-		if listErr == nil {
+		if listErr != nil {
+			slog.Error("ListByUser failed", "error", listErr)
+		} else {
+			slog.Info("all user content", "count", len(allItems))
 			for _, it := range allItems {
 				title := ""
 				if it.Title != nil {
 					title = *it.Title
 				}
-				slog.Info("user content item",
+				slog.Info("item",
 					"id", it.ID,
 					"product", it.Product,
 					"status", it.Status,
