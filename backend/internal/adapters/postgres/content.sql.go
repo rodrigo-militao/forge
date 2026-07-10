@@ -13,9 +13,9 @@ import (
 )
 
 const createContent = `-- name: CreateContent :one
-INSERT INTO generated_content (user_id, product, status, source_type, title, body_markdown, metadata)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at
+INSERT INTO generated_content (user_id, product, status, source_type, title, body_markdown, metadata, origin)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin
 `
 
 type CreateContentParams struct {
@@ -26,6 +26,7 @@ type CreateContentParams struct {
 	Title        *string
 	BodyMarkdown *string
 	Metadata     []byte
+	Origin       string
 }
 
 // Generated content
@@ -38,6 +39,7 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (G
 		arg.Title,
 		arg.BodyMarkdown,
 		arg.Metadata,
+		arg.Origin,
 	)
 	var i GeneratedContent
 	err := row.Scan(
@@ -51,12 +53,13 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (G
 		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Origin,
 	)
 	return i, err
 }
 
 const getContentByID = `-- name: GetContentByID :one
-SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at FROM generated_content WHERE id = $1
+SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin FROM generated_content WHERE id = $1
 `
 
 func (q *Queries) GetContentByID(ctx context.Context, id pgtype.UUID) (GeneratedContent, error) {
@@ -73,12 +76,58 @@ func (q *Queries) GetContentByID(ctx context.Context, id pgtype.UUID) (Generated
 		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Origin,
 	)
 	return i, err
 }
 
+const listApprovedDigestNotInEdition = `-- name: ListApprovedDigestNotInEdition :many
+SELECT gc.id, gc.user_id, gc.product, gc.status, gc.source_type, gc.title, gc.body_markdown, gc.metadata, gc.created_at, gc.updated_at, gc.origin FROM generated_content gc
+WHERE gc.user_id = $1
+  AND gc.product = 'digest'
+  AND gc.status = 'approved'
+  AND gc.id NOT IN (
+    SELECT content_id FROM newsletter_edition_items nei
+    JOIN newsletter_editions ne ON ne.id = nei.edition_id
+    WHERE ne.user_id = $1
+  )
+ORDER BY gc.updated_at DESC
+`
+
+func (q *Queries) ListApprovedDigestNotInEdition(ctx context.Context, userID pgtype.UUID) ([]GeneratedContent, error) {
+	rows, err := q.db.Query(ctx, listApprovedDigestNotInEdition, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GeneratedContent
+	for rows.Next() {
+		var i GeneratedContent
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Product,
+			&i.Status,
+			&i.SourceType,
+			&i.Title,
+			&i.BodyMarkdown,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Origin,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listContentByUser = `-- name: ListContentByUser :many
-SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at FROM generated_content
+SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin FROM generated_content
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -103,6 +152,7 @@ func (q *Queries) ListContentByUser(ctx context.Context, userID pgtype.UUID) ([]
 			&i.Metadata,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Origin,
 		); err != nil {
 			return nil, err
 		}
@@ -118,7 +168,7 @@ const updateContentStatus = `-- name: UpdateContentStatus :one
 UPDATE generated_content
 SET status = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin
 `
 
 type UpdateContentStatusParams struct {
@@ -140,6 +190,7 @@ func (q *Queries) UpdateContentStatus(ctx context.Context, arg UpdateContentStat
 		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Origin,
 	)
 	return i, err
 }

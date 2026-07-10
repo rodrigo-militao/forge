@@ -29,6 +29,10 @@ func (r *ContentRepository) Create(ctx context.Context, content *domain.Generate
 	if metadata == nil {
 		metadata = json.RawMessage("{}")
 	}
+	origin := string(content.Origin)
+	if origin == "" {
+		origin = "ai_generated"
+	}
 	c, err := r.q.CreateContent(ctx, CreateContentParams{
 		UserID:       pgtype.UUID{Bytes: content.UserID, Valid: true},
 		Product:      content.Product,
@@ -37,6 +41,7 @@ func (r *ContentRepository) Create(ctx context.Context, content *domain.Generate
 		Title:        content.Title,
 		BodyMarkdown: content.BodyMarkdown,
 		Metadata:     metadata,
+		Origin:       origin,
 	})
 	if err != nil {
 		return err
@@ -78,6 +83,18 @@ func (r *ContentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 	return err
 }
 
+func (r *ContentRepository) ListApprovedDigestNotInEdition(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
+	rows, err := r.q.ListApprovedDigestNotInEdition(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]domain.GeneratedContent, len(rows))
+	for i, c := range rows {
+		result[i] = *contentFromModel(c)
+	}
+	return result, nil
+}
+
 func contentFromModel(c GeneratedContent) *domain.GeneratedContent {
 	return &domain.GeneratedContent{
 		ID:           c.ID.Bytes,
@@ -90,6 +107,7 @@ func contentFromModel(c GeneratedContent) *domain.GeneratedContent {
 		Metadata:     c.Metadata,
 		CreatedAt:    c.CreatedAt.Time,
 		UpdatedAt:    c.UpdatedAt.Time,
+		Origin:       domain.ContentOrigin(c.Origin),
 	}
 }
 

@@ -21,6 +21,7 @@ import (
 func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Handler {
 	contentRepo := postgres.NewContentRepository(pool)
 	topicsRepo := postgres.NewTopicRepository(pool)
+	editionsRepo := postgres.NewEditionRepository(pool)
 
 	llmClient := llm.NewClient(llmAPIKey, llmBaseURL)
 
@@ -71,6 +72,16 @@ func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Ha
 				return fmt.Errorf("persisting topic: %w", err)
 			}
 
+			return nil
+		},
+
+		"assemble_edition": func(ctx context.Context, userID string, payload []byte) error {
+			svc := digestApp.NewEditionService(llmClient, contentRepo, editionsRepo)
+			result, err := svc.Assemble(ctx, userID)
+			if err != nil {
+				return fmt.Errorf("edition assembly: %w", err)
+			}
+			_ = result
 			return nil
 		},
 

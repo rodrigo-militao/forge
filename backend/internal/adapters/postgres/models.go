@@ -20,6 +20,7 @@ type GeneratedContent struct {
 	Metadata     []byte
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+	Origin       string
 }
 
 type Job struct {
@@ -31,6 +32,24 @@ type Job struct {
 	Error     *string
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type NewsletterEdition struct {
+	ID           pgtype.UUID
+	UserID       pgtype.UUID
+	Title        string
+	Introduction string
+	Status       string
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type NewsletterEditionItem struct {
+	ID        pgtype.UUID
+	EditionID pgtype.UUID
+	ContentID pgtype.UUID
+	SortOrder int32
+	CreatedAt pgtype.Timestamptz
 }
 
 type Source struct {

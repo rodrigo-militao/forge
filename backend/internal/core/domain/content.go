@@ -24,6 +24,14 @@ const (
 	ProductCompose ContentProduct = "compose"
 )
 
+// ContentOrigin tracks how the content was created (ADR 0030).
+type ContentOrigin string
+
+const (
+	OriginAIGenerated ContentOrigin = "ai_generated"
+	OriginManual      ContentOrigin = "manual"
+)
+
 // GeneratedContent is shared output from any product (Digest or Compose).
 type GeneratedContent struct {
 	ID           uuid.UUID       `json:"id"`
@@ -34,6 +42,7 @@ type GeneratedContent struct {
 	Title        *string         `json:"title"`
 	BodyMarkdown *string         `json:"body_markdown"`
 	Metadata     json.RawMessage `json:"metadata"`
+	Origin       ContentOrigin   `json:"origin"`
 	CreatedAt    time.Time       `json:"created_at"`
 	UpdatedAt    time.Time       `json:"updated_at"`
 }

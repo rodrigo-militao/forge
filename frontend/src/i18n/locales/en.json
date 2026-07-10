@@ -19,13 +19,16 @@
     "title": "Digest",
     "run": "Run discovery",
     "running": "Running…",
-    "noContent": "No curated content yet. Run a discovery to get started."
+    "noContent": "No curated content yet. Run a discovery to get started.",
+    "assembleEdition": "Assemble edition"
   },
   "compose": {
     "title": "Compose",
     "generateTopic": "Generate topic",
     "writeArticle": "Write article",
-    "noTopics": "No topics yet. Generate one to start writing."
+    "noTopics": "No topics yet. Generate one to start writing.",
+    "generateWithAI": "Generate with AI",
+    "startBlank": "Start blank"
   },
   "library": {
     "title": "Library",

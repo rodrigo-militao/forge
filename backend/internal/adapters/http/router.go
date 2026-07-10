@@ -31,6 +31,7 @@ func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs
 	contentH := NewContentHandler(content)
 	digestH := NewDigestHandler(jobs)
 	composeH := NewComposeHandler(jobs)
+	editionH := NewEditionHandler(jobs)
 
 	// Public routes
 	r.Route("/api/auth", func(r chi.Router) {
@@ -50,6 +51,8 @@ func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs
 		r.Post("/api/content/{id}/reject", contentH.Reject)
 
 		r.Post("/api/digest/run", digestH.Run)
+		r.Post("/api/digest/assemble-edition", editionH.Assemble)
+
 		r.Post("/api/compose/generate-topic", composeH.GenerateTopic)
 		r.Post("/api/compose/write", composeH.WriteArticle)
 	})

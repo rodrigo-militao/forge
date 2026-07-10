@@ -21,6 +21,7 @@ type ContentRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.GeneratedContent, error)
 	ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error
+	ListApprovedDigestNotInEdition(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error)
 }
 
 // JobRepository persists the async job queue (ADR 0028).

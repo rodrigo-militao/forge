@@ -28,6 +28,7 @@ export interface ContentItem {
   title: string | null;
   body_markdown: string | null;
   metadata: Record<string, unknown>;
+  origin: "ai_generated" | "manual";
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +49,8 @@ export const api = {
   },
   digest: {
     run: () => request<{ job_id: string; status: string }>("/digest/run", { method: "POST" }),
+    assembleEdition: () =>
+      request<{ job_id: string; status: string }>("/digest/assemble-edition", { method: "POST" }),
   },
   compose: {
     generateTopic: () =>

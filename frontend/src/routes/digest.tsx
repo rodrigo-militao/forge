@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, RefreshCw, Sparkles, X } from "lucide-react";
+import { Check, FileText, RefreshCw, Sparkles, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api } from "../api/client";
@@ -50,6 +50,15 @@ export function DigestPage() {
     }
   }, [items.length, queryClient]);
 
+  const handleAssembleEdition = useCallback(async () => {
+    try {
+      await api.digest.assembleEdition();
+      toast.success("Edition assembly queued");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
+  }, []);
+
   const handleApprove = useCallback(
     async (id: string) => {
       await api.content.approve(id);
@@ -88,6 +97,13 @@ export function DigestPage() {
           >
             <Sparkles size={16} className={running ? "animate-pulse" : ""} />
             {running ? t("digest.running") : t("digest.run")}
+          </button>
+          <button
+            onClick={handleAssembleEdition}
+            className="cursor-pointer flex items-center gap-2 rounded-lg border border-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)] hover:text-white"
+          >
+            <FileText size={16} />
+            {t("digest.assembleEdition")}
           </button>
         </div>
       </div>

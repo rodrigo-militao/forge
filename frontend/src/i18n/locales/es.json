@@ -19,13 +19,16 @@
     "title": "Digest",
     "run": "Ejecutar descubrimiento",
     "running": "Ejecutando…",
-    "noContent": "Sin contenido curado. Ejecuta un descubrimiento para empezar."
+    "noContent": "Sin contenido curado. Ejecuta un descubrimiento para empezar.",
+    "assembleEdition": "Montar edición"
   },
   "compose": {
     "title": "Redactar",
     "generateTopic": "Generar tema",
     "writeArticle": "Escribir artículo",
-    "noTopics": "Sin temas aún. Genera uno para empezar a escribir."
+    "noTopics": "Sin temas aún. Genera uno para empezar a escribir.",
+    "generateWithAI": "Generar con IA",
+    "startBlank": "Empezar en blanco"
   },
   "library": {
     "title": "Biblioteca",
