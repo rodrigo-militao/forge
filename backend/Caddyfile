@@ -1,0 +1,23 @@
+# Caddy reverse-proxy config (ADR 0021)
+# Place this on the VPS alongside the docker-compose stack.
+
+forge.pages.dev {
+    # Reverse-proxy to the Go API
+    handle_path /api/* {
+        reverse_proxy api:8080
+    }
+
+    # Serve the SPA
+    handle {
+        root * /var/www/forge
+        try_files {path} /index.html
+        file_server
+    }
+
+    # TLS is automatic via Let's Encrypt (Caddy default)
+    header / {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

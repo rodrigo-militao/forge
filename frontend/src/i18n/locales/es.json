@@ -1,0 +1,46 @@
+{
+  "nav": {
+    "digest": "Digest",
+    "compose": "Redactar",
+    "library": "Biblioteca",
+    "settings": "Ajustes"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "register": "Crear cuenta",
+    "email": "Correo",
+    "password": "Contraseña",
+    "name": "Nombre",
+    "logout": "Cerrar sesión",
+    "noAccount": "¿No tienes cuenta?",
+    "hasAccount": "¿Ya tienes cuenta?"
+  },
+  "digest": {
+    "title": "Digest",
+    "run": "Ejecutar descubrimiento",
+    "running": "Ejecutando…",
+    "noContent": "Sin contenido curado. Ejecuta un descubrimiento para empezar."
+  },
+  "compose": {
+    "title": "Redactar",
+    "generateTopic": "Generar tema",
+    "writeArticle": "Escribir artículo",
+    "noTopics": "Sin temas aún. Genera uno para empezar a escribir."
+  },
+  "library": {
+    "title": "Biblioteca",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "draft": "Borrador",
+    "approved": "Aprobado",
+    "rejected": "Rechazado",
+    "empty": "Sin contenido aún."
+  },
+  "settings": {
+    "title": "Ajustes",
+    "language": "Idioma",
+    "sources": "Fuentes de contenido",
+    "digest": "Ajustes de Digest",
+    "compose": "Ajustes de Compose"
+  }
+}

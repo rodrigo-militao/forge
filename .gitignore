@@ -1,2 +1,4 @@
 legacy/
 .DS_Store
+backend/.env
+*.local

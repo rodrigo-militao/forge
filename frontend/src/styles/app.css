@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* Design system tokens — ADR 0010, docs/design-system.md */
+@theme {
+  --color-bg-base: #1d1f24;
+  --color-bg-surface: #f7f6f3;
+  --color-bg-surface-elevated: #ffffff;
+  --color-accent-primary: #c96b2c;
+  --color-accent-success: #567a61;
+  --color-accent-danger: #b33c3c;
+  --color-border: #e2e0db;
+  --color-text-secondary: #5c5b58;
+  --color-text-muted: #8c8a86;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", monospace;
+}
+
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-bg-surface);
+  font-family: var(--font-body);
+}

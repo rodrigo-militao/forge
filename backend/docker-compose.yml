@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: forge
+      POSTGRES_DB: forge
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["api"]
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://forge:forge@postgres:5432/forge?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: https://code.verboo.ai/router/v1
+      PORT: "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["worker"]
+    environment:
+      DATABASE_URL: postgres://forge:forge@postgres:5432/forge?sslmode=disable
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: https://code.verboo.ai/router/v1
+      POLL_INTERVAL: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

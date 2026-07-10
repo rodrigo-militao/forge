@@ -1,0 +1,46 @@
+{
+  "nav": {
+    "digest": "Digest",
+    "compose": "Compose",
+    "library": "Library",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Create account",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "logout": "Log out",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?"
+  },
+  "digest": {
+    "title": "Digest",
+    "run": "Run discovery",
+    "running": "Running…",
+    "noContent": "No curated content yet. Run a discovery to get started."
+  },
+  "compose": {
+    "title": "Compose",
+    "generateTopic": "Generate topic",
+    "writeArticle": "Write article",
+    "noTopics": "No topics yet. Generate one to start writing."
+  },
+  "library": {
+    "title": "Library",
+    "approve": "Approve",
+    "reject": "Reject",
+    "draft": "Draft",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "empty": "No content yet."
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "sources": "Content sources",
+    "digest": "Digest settings",
+    "compose": "Compose settings"
+  }
+}

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none">
+  <!-- Accent mark — stylized anvil/hammer strike -->
+  <rect x="0" y="28" width="28" height="4" rx="2" fill="#C96B2C"/>
+  <rect x="4" y="18" width="4" height="24" rx="2" fill="#C96B2C"/>
+  <rect x="12" y="38" width="20" height="4" rx="2" fill="#C96B2C"/>
+
+  <!-- Wordmark -->
+  <text x="44" y="52" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="600" fill="#F7F6F3" letter-spacing="1">Forge</text>
+</svg>
