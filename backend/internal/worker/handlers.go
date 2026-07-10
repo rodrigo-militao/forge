@@ -9,6 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rodrigo-militao/forge/internal/adapters/llm"
 	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
+	composeApp "github.com/rodrigo-militao/forge/internal/compose/application"
+	coredomain "github.com/rodrigo-militao/forge/internal/core/domain"
 	digestApp "github.com/rodrigo-militao/forge/internal/digest/application"
 	digestDomain "github.com/rodrigo-militao/forge/internal/digest/domain"
 	"github.com/rodrigo-militao/forge/internal/digest/adapters/rss"
@@ -18,11 +20,7 @@ import (
 // NewHandlers creates the job handler functions and a map keyed by job type.
 func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Handler {
 	contentRepo := postgres.NewContentRepository(pool)
-	topicsRepo := struct {
-		*postgres.ContentRepository
-		*postgres.UserRepository
-	}{}
-	_ = topicsRepo
+	topicsRepo := postgres.NewTopicRepository(pool)
 
 	llmClient := llm.NewClient(llmAPIKey, llmBaseURL)
 
@@ -50,9 +48,29 @@ func NewHandlers(pool *pgxpool.Pool, llmAPIKey, llmBaseURL string) map[string]Ha
 		},
 
 		"generate_topic": func(ctx context.Context, userID string, payload []byte) error {
-			// Stub: topic generation requires TopicRepository
-			// which is a separate postgres adapter not yet wired.
-			// Will be implemented when compose postgres adapter is complete.
+			id, err := uuid.Parse(userID)
+			if err != nil {
+				return fmt.Errorf("invalid user id: %w", err)
+			}
+
+			svc := composeApp.NewTopicGeneratorService(llmClient, topicsRepo, id)
+			result, err := svc.Generate(ctx)
+			if err != nil {
+				return fmt.Errorf("topic generation: %w", err)
+			}
+
+			title := result.Topic.Topic
+			if err := contentRepo.Create(ctx, &coredomain.GeneratedContent{
+				UserID:       id,
+				Product:      coredomain.ProductCompose,
+				Status:       coredomain.ContentDraft,
+				SourceType:   strPtr("topic"),
+				Title:        &title,
+				BodyMarkdown: &result.Topic.OneLinePitch,
+			}); err != nil {
+				return fmt.Errorf("persisting topic: %w", err)
+			}
+
 			return nil
 		},
 
