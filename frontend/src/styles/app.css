@@ -21,3 +21,21 @@ body {
   color: var(--color-bg-surface);
   font-family: var(--font-body);
 }
+
+/* TipTap editor placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--color-text-muted);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror {
+  min-height: 300px;
+  outline: none;
+}
+
+.ProseMirror p {
+  margin: 0.5em 0;
+}

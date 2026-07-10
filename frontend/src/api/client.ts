@@ -55,6 +55,10 @@ export const api = {
   compose: {
     generateTopic: () =>
       request<{ job_id: string; status: string }>("/compose/generate-topic", { method: "POST" }),
+    generateDraft: (theme: string) =>
+      request<{ job_id: string; status: string }>("/compose/generate-draft", { method: "POST", body: JSON.stringify({ theme }) }),
+    transform: (text: string, action: "expand" | "rewrite") =>
+      request<{ job_id: string; status: string }>("/compose/transform", { method: "POST", body: JSON.stringify({ text, action }) }),
     writeArticle: (data: { topic_id: string; voice: string }) =>
       request<{ job_id: string; status: string }>("/compose/write", { method: "POST", body: JSON.stringify(data) }),
   },

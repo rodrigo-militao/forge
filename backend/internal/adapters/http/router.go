@@ -54,6 +54,8 @@ func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs
 		r.Post("/api/digest/assemble-edition", editionH.Assemble)
 
 		r.Post("/api/compose/generate-topic", composeH.GenerateTopic)
+		r.Post("/api/compose/generate-draft", composeH.GenerateDraft)
+		r.Post("/api/compose/transform", composeH.Transform)
 		r.Post("/api/compose/write", composeH.WriteArticle)
 	})
 
