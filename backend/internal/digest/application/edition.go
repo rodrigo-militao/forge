@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	coredomain "github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
@@ -51,6 +52,20 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 	// Load approved items not yet in any edition.
 	slog.Info("edition assembly", "user_id", uid)
 
+	// First: get ALL approved digest items (ignoring edition check)
+	allItems, listErr := s.content.ListByUser(ctx, uid)
+	if listErr != nil {
+		slog.Error("ListByUser failed", "error", listErr)
+	} else {
+		var approvedDigest int
+		for _, it := range allItems {
+			if it.Product == coredomain.ProductDigest && it.Status == coredomain.ContentApproved {
+				approvedDigest++
+			}
+		}
+		slog.Info("user content summary", "total", len(allItems), "approved_digest", approvedDigest)
+	}
+
 	items, err := s.content.ListApprovedDigestNotInEdition(ctx, uid)
 	if err != nil {
 		slog.Error("ListApprovedDigestNotInEdition failed", "error", err)
@@ -58,25 +73,6 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 	}
 
 	if len(items) == 0 {
-		// Debug: list ALL user content to see what's available
-		allItems, listErr := s.content.ListByUser(ctx, uid)
-		if listErr != nil {
-			slog.Error("ListByUser failed", "error", listErr)
-		} else {
-			slog.Info("all user content", "count", len(allItems))
-			for _, it := range allItems {
-				title := ""
-				if it.Title != nil {
-					title = *it.Title
-				}
-				slog.Info("item",
-					"id", it.ID,
-					"product", it.Product,
-					"status", it.Status,
-					"title", title,
-				)
-			}
-		}
 		return nil, fmt.Errorf("no approved items available for edition")
 	}
 
