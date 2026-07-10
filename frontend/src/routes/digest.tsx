@@ -108,8 +108,21 @@ export function DigestPage() {
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="font-medium text-[var(--color-bg-surface)]">
-                  {item.title || "(no title)"}
+                <h3 className="font-medium">
+                  {(item.metadata as { source_url?: string })?.source_url ? (
+                    <a
+                      href={(item.metadata as { source_url?: string }).source_url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="cursor-pointer text-[var(--color-bg-surface)] transition-colors hover:text-[var(--color-accent-primary)]"
+                    >
+                      {item.title || "(no title)"}
+                    </a>
+                  ) : (
+                    <span className="text-[var(--color-bg-surface)]">
+                      {item.title || "(no title)"}
+                    </span>
+                  )}
                 </h3>
                 {item.body_markdown && (
                   <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
