@@ -145,6 +145,36 @@ export function ComposePage() {
   }
 
   // ─── AI generation mode ─────────────────────────────────────────
+  const [aiRunning, setAiRunning] = useState(false);
+  const aiRunningRef = useRef(false);
+
+  const handleGenerateTopic = useCallback(async () => {
+    setAiRunning(true);
+    aiRunningRef.current = true;
+    const prevCount = items.length;
+
+    try {
+      await api.compose.generateTopic();
+      toast.success("Topic generation queued");
+      const start = Date.now();
+      const poll = setInterval(async () => {
+        await queryClient.refetchQueries({ queryKey: ["content"] });
+        const fresh = queryClient.getQueryData(["content"]);
+        const ci = Array.isArray(fresh) ? fresh.filter((c: any) => c.product === "compose") : [];
+        if (ci.length > prevCount || Date.now() - start > 90_000) {
+          clearInterval(poll);
+          setAiRunning(false);
+          aiRunningRef.current = false;
+          if (ci.length > prevCount) toast.success("Topic ready in Library");
+        }
+      }, 3000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+      setAiRunning(false);
+      aiRunningRef.current = false;
+    }
+  }, [items.length, queryClient]);
+
   if (mode === "ai") {
     return (
       <div className="max-w-3xl space-y-6">
@@ -157,19 +187,20 @@ export function ComposePage() {
         <div className="flex items-center justify-between">
           <h1 className="font-[var(--font-display)] text-2xl">{t("compose.generateWithAI")}</h1>
           <button
-            onClick={() => {
-              api.compose.generateTopic();
-              toast.success("Topic generation queued");
-            }}
-            className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white"
+            onClick={handleGenerateTopic}
+            disabled={aiRunning}
+            className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            <Sparkles size={16} />
-            {t("compose.generateTopic")}
+            <Sparkles size={16} className={aiRunning ? "animate-pulse" : ""} />
+            {aiRunning ? "Generating\u2026" : t("compose.generateTopic")}
           </button>
         </div>
         <div className="space-y-3">
-          {items.length === 0 && (
+          {items.length === 0 && !aiRunning && (
             <p className="text-sm text-[var(--color-text-muted)]">{t("compose.noTopics")}</p>
+          )}
+          {aiRunning && items.length === 0 && (
+            <p className="animate-pulse text-sm text-[var(--color-accent-primary)]">Generating topic\u2026</p>
           )}
           {items.map((item) => (
             <div key={item.id} className="rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4">

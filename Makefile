@@ -4,6 +4,12 @@
 ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 B := $(ROOT)backend
 F := $(ROOT)frontend
+MIGRATE_BIN := $(shell which golang-migrate 2>/dev/null || which migrate 2>/dev/null)
+ifeq ($(MIGRATE_BIN),)
+MIGRATE_CMD = cd $(B) && go run -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+else
+MIGRATE_CMD = cd $(B) && $(MIGRATE_BIN)
+endif
 
 # ─── Development helpers ───────────────────────────────────────────
 
@@ -22,15 +28,14 @@ db:
 
 # Run database migrations
 migrate:
-	@which golang-migrate 2>/dev/null || go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-	cd $(B) && migrate -path $(B)/migrations \
+	$(MIGRATE_CMD) -path $(B)/migrations \
 		-database "postgres://forge:forge@localhost:5432/forge?sslmode=disable" up
 
 # Reset the database (down then up)
 db-reset:
-	cd $(B) && migrate -path $(B)/migrations \
+	$(MIGRATE_CMD) -path $(B)/migrations \
 		-database "postgres://forge:forge@localhost:5432/forge?sslmode=disable" down -all
-	cd $(B) && migrate -path $(B)/migrations \
+	$(MIGRATE_CMD) -path $(B)/migrations \
 		-database "postgres://forge:forge@localhost:5432/forge?sslmode=disable" up
 
 # Start the API server
@@ -75,10 +80,8 @@ run-dev:
 	echo "=== Step 2: Starting Postgres ==="; \
 	cd $(B) && docker compose up -d postgres; \
 	sleep 3; \
-	echo "=== Step 3: Installing golang-migrate (if needed) ==="; \
-	which golang-migrate 2>/dev/null || go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest; \
-	echo "=== Step 4: Running migrations ==="; \
-	cd $(B) && migrate -path $(B)/migrations \
+	echo "=== Step 3: Running migrations ==="; \
+	$(MIGRATE_CMD) -path $(B)/migrations \
 		-database "postgres://forge:forge@localhost:5432/forge?sslmode=disable" up; \
 	echo "=== Step 5: Starting API (background) ==="; \
 	cd $(B) && go run ./cmd/api & \
