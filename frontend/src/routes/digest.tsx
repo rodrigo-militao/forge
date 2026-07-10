@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { Check, RefreshCw, Sparkles, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api } from "../api/client";
@@ -28,7 +28,6 @@ export function DigestPage() {
       await api.digest.run();
       toast.success("Job queued");
 
-      // Poll every 5s for up to 60s, stop when count increases
       const startTime = Date.now();
       const poll = setInterval(async () => {
         await queryClient.refetchQueries({ queryKey: ["content"] });
@@ -38,11 +37,11 @@ export function DigestPage() {
         if (freshItems.length > prevCount) {
           clearInterval(poll);
           setRunning(false);
-          toast.success(`${freshItems.length} items — see Library`);
+          toast.success(`${freshItems.length - prevCount} new articles — review below`);
         } else if (Date.now() - startTime > 60_000) {
           clearInterval(poll);
           setRunning(false);
-          toast("Check Library for results");
+          toast("Check for new articles");
         }
       }, 5000);
     } catch (err) {
@@ -50,6 +49,23 @@ export function DigestPage() {
       setRunning(false);
     }
   }, [items.length, queryClient]);
+
+  const handleApprove = useCallback(
+    async (id: string) => {
+      await api.content.approve(id);
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      toast.success("Approved");
+    },
+    [queryClient],
+  );
+
+  const handleReject = useCallback(
+    async (id: string) => {
+      await api.content.reject(id);
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+    },
+    [queryClient],
+  );
 
   if (isLoading) return <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>;
 
@@ -90,29 +106,60 @@ export function DigestPage() {
             key={item.id}
             className="rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4"
           >
-            <h3 className="font-medium text-[var(--color-bg-surface)]">
-              {item.title || "(no title)"}
-            </h3>
-            {item.body_markdown && (
-              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                {item.body_markdown}
-              </p>
-            )}
-            <div className="mt-2 flex items-center gap-3">
-              {(item.metadata as { source_url?: string })?.source_url && (
-                <a
-                  href={(item.metadata as { source_url?: string }).source_url!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="cursor-pointer text-xs text-[var(--color-accent-primary)] hover:underline"
-                >
-                  Read original ↗
-                </a>
-              )}
-              <span className="inline-block rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
-                {item.status}
-              </span>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="font-medium text-[var(--color-bg-surface)]">
+                  {item.title || "(no title)"}
+                </h3>
+                {item.body_markdown && (
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                    {item.body_markdown}
+                  </p>
+                )}
+                <div className="mt-2 flex items-center gap-3">
+                  {(item.metadata as { source_url?: string })?.source_url && (
+                    <a
+                      href={(item.metadata as { source_url?: string }).source_url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="cursor-pointer text-xs text-[var(--color-accent-primary)] hover:underline"
+                    >
+                      Read original ↗
+                    </a>
+                  )}
+                  <span
+                    className={`inline-block rounded px-2 py-0.5 text-xs ${
+                      item.status === "approved"
+                        ? "bg-[var(--color-accent-success)]/20 text-[var(--color-accent-success)]"
+                        : item.status === "rejected"
+                          ? "bg-[var(--color-accent-danger)]/20 text-[var(--color-accent-danger)]"
+                          : "bg-white/10 text-[var(--color-text-muted)]"
+                    }`}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+              </div>
             </div>
+
+            {item.status === "draft" && (
+              <div className="mt-3 flex gap-2 border-t border-[var(--color-border)]/10 pt-3">
+                <button
+                  onClick={() => handleApprove(item.id)}
+                  className="cursor-pointer flex items-center gap-1 rounded-lg bg-[var(--color-accent-success)] px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-80"
+                >
+                  <Check size={14} />
+                  {t("library.approve")}
+                </button>
+                <button
+                  onClick={() => handleReject(item.id)}
+                  className="cursor-pointer flex items-center gap-1 rounded-lg bg-[var(--color-accent-danger)] px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-80"
+                >
+                  <X size={14} />
+                  {t("library.reject")}
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -11,6 +11,7 @@ export function LibraryPage() {
   const { data: content, isLoading } = useQuery({
     queryKey: ["content"],
     queryFn: api.content.list,
+    select: (data) => data.filter((c) => c.product === "compose"),
   });
 
   const handleApprove = useCallback(
@@ -68,7 +69,6 @@ export function LibraryPage() {
               >
                 {statusLabel(item.status)}
               </span>
-              <span className="ml-2 text-xs text-[var(--color-text-muted)]">{item.product}</span>
             </div>
             {item.status === "draft" && (
               <div className="flex gap-2">
