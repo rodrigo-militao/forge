@@ -112,6 +112,34 @@ export function ComposePage() {
     [editor, queryClient],
   );
 
+  // ─── AI generation mode ─────────────────────────────────────────
+  const handleGenerateTopic = useCallback(async () => {
+    setAiRunning(true);
+    aiRunningRef.current = true;
+    const prevCount = items.length;
+
+    try {
+      await api.compose.generateTopic();
+      toast.success("Topic generation queued");
+      const start = Date.now();
+      const poll = setInterval(async () => {
+        await queryClient.refetchQueries({ queryKey: ["content"] });
+        const fresh = queryClient.getQueryData(["content"]);
+        const ci = Array.isArray(fresh) ? fresh.filter((c: any) => c.product === "compose") : [];
+        if (ci.length > prevCount || Date.now() - start > 90_000) {
+          clearInterval(poll);
+          setAiRunning(false);
+          aiRunningRef.current = false;
+          if (ci.length > prevCount) toast.success("Topic ready in Library");
+        }
+      }, 3000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+      setAiRunning(false);
+      aiRunningRef.current = false;
+    }
+  }, [items.length, queryClient]);
+
   // ─── Mode selector ──────────────────────────────────────────────
   if (!mode) {
     return (
@@ -146,34 +174,6 @@ export function ComposePage() {
       </div>
     );
   }
-
-  // ─── AI generation mode ─────────────────────────────────────────
-  const handleGenerateTopic = useCallback(async () => {
-    setAiRunning(true);
-    aiRunningRef.current = true;
-    const prevCount = items.length;
-
-    try {
-      await api.compose.generateTopic();
-      toast.success("Topic generation queued");
-      const start = Date.now();
-      const poll = setInterval(async () => {
-        await queryClient.refetchQueries({ queryKey: ["content"] });
-        const fresh = queryClient.getQueryData(["content"]);
-        const ci = Array.isArray(fresh) ? fresh.filter((c: any) => c.product === "compose") : [];
-        if (ci.length > prevCount || Date.now() - start > 90_000) {
-          clearInterval(poll);
-          setAiRunning(false);
-          aiRunningRef.current = false;
-          if (ci.length > prevCount) toast.success("Topic ready in Library");
-        }
-      }, 3000);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-      setAiRunning(false);
-      aiRunningRef.current = false;
-    }
-  }, [items.length, queryClient]);
 
   if (mode === "ai") {
     return (
