@@ -36,7 +36,7 @@ export function ComposePage() {
         <button
           onClick={handleGenerate}
           disabled={generating}
-          className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           <Sparkles size={16} />
           {generating ? t("digest.running") : t("compose.generateTopic")}

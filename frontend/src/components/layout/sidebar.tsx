@@ -37,7 +37,7 @@ export function Sidebar() {
 
       <button
         onClick={logout}
-        className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-danger)]"
+        className="cursor-pointer flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-danger)]"
       >
         <LogOut size={18} />
         {t("auth.logout")}

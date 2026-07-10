@@ -3,6 +3,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -108,34 +109,31 @@ func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult,
 	}
 
 	// Persist each high/medium item as generated_content with status=draft
+	persistItem := func(item digest.DigestItem) error {
+		summary := item.Summary
+		meta := buildMetadata(item)
+		return s.content.Create(ctx, &domain.GeneratedContent{
+			UserID:       s.userID,
+			Product:      domain.ProductDigest,
+			Status:       domain.ContentDraft,
+			SourceType:   strPtr("discovery"),
+			Title:        &item.Title,
+			BodyMarkdown: &summary,
+			Metadata:     meta,
+		})
+	}
 	for _, item := range high {
 		slog.Info("persisting digest item",
 			"title", item.Title,
 			"summary_len", len(item.Summary),
 			"score", item.Score,
 		)
-		summary := item.Summary
-		if err := s.content.Create(ctx, &domain.GeneratedContent{
-			UserID:       s.userID,
-			Product:      domain.ProductDigest,
-			Status:       domain.ContentDraft,
-			SourceType:   strPtr("discovery"),
-			Title:        &item.Title,
-			BodyMarkdown: &summary,
-		}); err != nil {
+		if err := persistItem(item); err != nil {
 			return nil, fmt.Errorf("persisting digest item: %w", err)
 		}
 	}
 	for _, item := range medium {
-		summary := item.Summary
-		if err := s.content.Create(ctx, &domain.GeneratedContent{
-			UserID:       s.userID,
-			Product:      domain.ProductDigest,
-			Status:       domain.ContentDraft,
-			SourceType:   strPtr("discovery"),
-			Title:        &item.Title,
-			BodyMarkdown: &summary,
-		}); err != nil {
+		if err := persistItem(item); err != nil {
 			return nil, fmt.Errorf("persisting digest item: %w", err)
 		}
 	}
@@ -148,6 +146,15 @@ func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult,
 }
 
 // --- helpers ---
+
+func buildMetadata(item digest.DigestItem) json.RawMessage {
+	m := map[string]string{
+		"source_url":  item.URL,
+		"source_name": item.SourceName,
+	}
+	b, _ := json.Marshal(m)
+	return json.RawMessage(b)
+}
 
 func buildPrompt(articles []digest.SourceItem) string {
 	var b strings.Builder

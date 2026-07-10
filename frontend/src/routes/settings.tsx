@@ -22,7 +22,7 @@ export function SettingsPage() {
             <button
               key={lng}
               onClick={() => changeLanguage(lng)}
-              className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
+              className={`cursor-pointer rounded-lg border px-4 py-2 text-sm transition-colors ${
                 i18n.language === lng
                   ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
                   : "border-[var(--color-border)]/20 text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/50"

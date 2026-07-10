@@ -74,14 +74,14 @@ export function LibraryPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleApprove(item.id)}
-                  className="rounded-lg bg-[var(--color-accent-success)] p-2 text-white transition-opacity hover:opacity-80"
+                  className="cursor-pointer rounded-lg bg-[var(--color-accent-success)] p-2 text-white transition-opacity hover:opacity-80"
                   title={t("library.approve")}
                 >
                   <Check size={16} />
                 </button>
                 <button
                   onClick={() => handleReject(item.id)}
-                  className="rounded-lg bg-[var(--color-accent-danger)] p-2 text-white transition-opacity hover:opacity-80"
+                  className="cursor-pointer rounded-lg bg-[var(--color-accent-danger)] p-2 text-white transition-opacity hover:opacity-80"
                   title={t("library.reject")}
                 >
                   <X size={16} />

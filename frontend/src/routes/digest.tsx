@@ -60,7 +60,7 @@ export function DigestPage() {
         <div className="flex gap-2">
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["content"] })}
-            className="rounded-lg border border-[var(--color-border)]/20 p-2 text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)]"
+            className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 p-2 text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)]"
             title="Refresh"
           >
             <RefreshCw size={16} />
@@ -68,7 +68,7 @@ export function DigestPage() {
           <button
             onClick={handleRun}
             disabled={running}
-            className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Sparkles size={16} className={running ? "animate-pulse" : ""} />
             {running ? t("digest.running") : t("digest.run")}
@@ -98,9 +98,21 @@ export function DigestPage() {
                 {item.body_markdown}
               </p>
             )}
-            <span className="mt-2 inline-block rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
-              {item.status}
-            </span>
+            <div className="mt-2 flex items-center gap-3">
+              {(item.metadata as { source_url?: string })?.source_url && (
+                <a
+                  href={(item.metadata as { source_url?: string }).source_url!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="cursor-pointer text-xs text-[var(--color-accent-primary)] hover:underline"
+                >
+                  Read original ↗
+                </a>
+              )}
+              <span className="inline-block rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+                {item.status}
+              </span>
+            </div>
           </div>
         ))}
       </div>

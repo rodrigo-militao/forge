@@ -62,7 +62,7 @@ export function RegisterPage() {
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="cursor-pointer w-full rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
           {t("auth.register")}
         </button>
