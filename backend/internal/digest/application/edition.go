@@ -49,40 +49,19 @@ func (s *EditionService) Assemble(ctx context.Context, userID string) (*Assemble
 		return nil, fmt.Errorf("invalid user id: %w", err)
 	}
 
-	// Load approved items not yet in any edition.
+	// Load approved digest items and filter in Go (the NOT IN subquery
+	// was unreliable with sqlc, so we check edition membership here).
 	slog.Info("edition assembly", "user_id", uid)
 
-	// First: get ALL approved digest items (ignoring edition check)
-	allItems, listErr := s.content.ListByUser(ctx, uid)
-	if listErr != nil {
-		slog.Error("ListByUser failed", "error", listErr)
-	} else {
-		var approvedDigest int
-		for _, it := range allItems {
-			if it.Product == coredomain.ProductDigest && it.Status == coredomain.ContentApproved {
-				approvedDigest++
-			}
-		}
-		slog.Info("user content summary", "total", len(allItems), "approved_digest", approvedDigest)
+	allItems, err := s.content.ListByUser(ctx, uid)
+	if err != nil {
+		return nil, fmt.Errorf("listing content: %w", err)
 	}
 
-	// TEMP: filter in Go instead of using sqlc query to isolate the bug
-	items, err := s.content.ListApprovedDigestNotInEdition(ctx, uid)
-	if err != nil {
-		slog.Error("ListApprovedDigestNotInEdition failed", "error", err)
-		// Fallback to Go-level filter
-		items = nil
-	}
-	if len(items) == 0 {
-		// Fallback: filter approved digest items in Go
-		all, listErr := s.content.ListByUser(ctx, uid)
-		if listErr == nil {
-			for _, it := range all {
-				if it.Product == coredomain.ProductDigest && it.Status == coredomain.ContentApproved {
-					items = append(items, it)
-				}
-			}
-			slog.Info("Go-level filter result", "count", len(items))
+	var items []coredomain.GeneratedContent
+	for _, it := range allItems {
+		if it.Product == coredomain.ProductDigest && it.Status == coredomain.ContentApproved {
+			items = append(items, it)
 		}
 	}
 	if len(items) == 0 {

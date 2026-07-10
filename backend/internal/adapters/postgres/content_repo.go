@@ -83,8 +83,8 @@ func (r *ContentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 	return err
 }
 
-func (r *ContentRepository) ListApprovedDigestNotInEdition(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
-	rows, err := r.q.ListApprovedDigestNotInEdition(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+func (r *ContentRepository) ListApprovedDigest(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
+	rows, err := r.q.ListApprovedDigest(ctx, pgtype.UUID{Bytes: userID, Valid: true})
 	if err != nil {
 		return nil, err
 	}

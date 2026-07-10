@@ -10,6 +10,7 @@ export function DigestPage() {
   const queryClient = useQueryClient();
   const [running, setRunning] = useState(false);
   const runningRef = useRef(false);
+  const [assembling, setAssembling] = useState(false);
 
   const { data: content, isLoading } = useQuery({
     queryKey: ["content"],
@@ -51,11 +52,18 @@ export function DigestPage() {
   }, [items.length, queryClient]);
 
   const handleAssembleEdition = useCallback(async () => {
+    setAssembling(true);
     try {
       await api.digest.assembleEdition();
       toast.success("Edition assembly queued");
+      // Worker takes ~10-40s; toast when likely done
+      setTimeout(() => {
+        setAssembling(false);
+        toast.success("Edition ready — check the database");
+      }, 45_000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
+      setAssembling(false);
     }
   }, []);
 
@@ -100,7 +108,8 @@ export function DigestPage() {
           </button>
           <button
             onClick={handleAssembleEdition}
-            className="cursor-pointer flex items-center gap-2 rounded-lg border border-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)] hover:text-white"
+            disabled={assembling}
+            className="cursor-pointer flex items-center gap-2 rounded-lg border border-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)] hover:text-white disabled:opacity-50"
           >
             <FileText size={16} />
             {t("digest.assembleEdition")}

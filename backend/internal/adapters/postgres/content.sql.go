@@ -81,21 +81,16 @@ func (q *Queries) GetContentByID(ctx context.Context, id pgtype.UUID) (Generated
 	return i, err
 }
 
-const listApprovedDigestNotInEdition = `-- name: ListApprovedDigestNotInEdition :many
+const listApprovedDigest = `-- name: ListApprovedDigest :many
 SELECT gc.id, gc.user_id, gc.product, gc.status, gc.source_type, gc.title, gc.body_markdown, gc.metadata, gc.created_at, gc.updated_at, gc.origin FROM generated_content gc
 WHERE gc.user_id = $1
   AND gc.product = 'digest'
   AND gc.status = 'approved'
-  AND gc.id NOT IN (
-    SELECT content_id FROM newsletter_edition_items nei
-    JOIN newsletter_editions ne ON ne.id = nei.edition_id
-    WHERE ne.user_id = $1
-  )
 ORDER BY gc.updated_at DESC
 `
 
-func (q *Queries) ListApprovedDigestNotInEdition(ctx context.Context, userID pgtype.UUID) ([]GeneratedContent, error) {
-	rows, err := q.db.Query(ctx, listApprovedDigestNotInEdition, userID)
+func (q *Queries) ListApprovedDigest(ctx context.Context, userID pgtype.UUID) ([]GeneratedContent, error) {
+	rows, err := q.db.Query(ctx, listApprovedDigest, userID)
 	if err != nil {
 		return nil, err
 	}

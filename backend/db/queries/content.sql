@@ -18,14 +18,9 @@ SET status = $2, updated_at = now()
 WHERE id = $1
 RETURNING *;
 
--- name: ListApprovedDigestNotInEdition :many
+-- name: ListApprovedDigest :many
 SELECT gc.* FROM generated_content gc
 WHERE gc.user_id = $1
   AND gc.product = 'digest'
   AND gc.status = 'approved'
-  AND gc.id NOT IN (
-    SELECT content_id FROM newsletter_edition_items nei
-    JOIN newsletter_editions ne ON ne.id = nei.edition_id
-    WHERE ne.user_id = $1
-  )
 ORDER BY gc.updated_at DESC;
