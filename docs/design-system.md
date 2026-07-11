@@ -66,7 +66,24 @@ Três papéis, como no mockup de referência:
 
 ---
 
-## 4. Componentes-chave (padrões observados no mockup de referência)
+## 4. Motion (transições e loading)
+
+Tokens de movimento, para consistência nas animações de loading e transição:
+
+```
+--duration-fast:   120ms   (hover, toggle, micro-interação)
+--duration-base:   200ms   (abrir/fechar painel, troca de tab)
+--duration-slow:   320ms   (transição de tela inteira, modal)
+--easing-standard: cubic-bezier(0.4, 0, 0.2, 1)   (padrão pra maioria das transições)
+--easing-enter:    cubic-bezier(0, 0, 0.2, 1)      (elementos entrando)
+--easing-exit:     cubic-bezier(0.4, 0, 1, 1)       (elementos saindo)
+```
+
+Loading states: preferir **skeleton screens** (formato do conteúdo final em tom `color-border` pulsante) a spinners genéricos, especialmente em listas (fila de aprovação, Library) — reduz a sensação de espera em conteúdo textual, que é o núcleo do produto. Spinner simples aceitável só em ações pontuais de botão (ex.: "Gerando..." dentro do próprio botão).
+
+---
+
+## 5. Componentes-chave (padrões observados no mockup de referência)
 
 Estes são os componentes que já apareceram nas explorações e devem seguir convenção fixa:
 
@@ -79,7 +96,7 @@ Estes são os componentes que já apareceram nas explorações e devem seguir co
 
 ---
 
-## 5. Tom de voz na interface (herda das ADRs do produto)
+## 6. Tom de voz na interface (herda das ADRs do produto)
 
 Reforçando o que já está definido no plano (ADR 0005 — revisão humana obrigatória): a interface nunca deve sugerir que algo foi publicado ou decidido sozinho pela IA. Vocabulário:
 
@@ -90,7 +107,7 @@ Mensagens de erro são diretas e não se desculpam ("Não foi possível gerar o 
 
 ---
 
-## 6. Nomenclatura de módulos (do mockup)
+## 7. Nomenclatura de módulos (do mockup)
 
 O mockup já validou uma convenção que funciona e deve ser mantida:
 
@@ -103,13 +120,13 @@ Isso substitui os nomes de trabalho "Newsletter Assistant" e "Content Editor" us
 
 ---
 
-## 6.1 Internacionalização (ADR 0009)
+## 7.1 Internacionalização (ADR 0009)
 
 Toda string de UI é uma chave de tradução, nunca texto literal no componente — inglês é o idioma default, com português e espanhol como as outras duas opções. O seletor de idioma vive nas `Settings` (ver seção 6) e persiste no campo `locale` do usuário. Isso não é opcional nem um passo "para depois": todo componente novo já nasce com a string externalizada, mesmo que só a tradução em inglês esteja completa no início.
 
 ---
 
-## 7. O que este documento não decide (fora de escopo aqui)
+## 8. O que este documento não decide (fora de escopo aqui)
 
 - Fonte exata de logo/wordmark (o mockup usa um texto estilizado "Forge" com um elemento gráfico — refinar quando for desenhar o logo real)
 - Light mode (não existe no MVP, ver seção 2)

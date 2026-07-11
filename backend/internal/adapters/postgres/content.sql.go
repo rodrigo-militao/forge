@@ -13,6 +13,7 @@ import (
 )
 
 const createContent = `-- name: CreateContent :one
+
 INSERT INTO generated_content (user_id, product, status, source_type, title, body_markdown, metadata, origin)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin
@@ -157,6 +158,38 @@ func (q *Queries) ListContentByUser(ctx context.Context, userID pgtype.UUID) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateContentBody = `-- name: UpdateContentBody :one
+UPDATE generated_content
+SET title = COALESCE($2, title), body_markdown = COALESCE($3, body_markdown), updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin
+`
+
+type UpdateContentBodyParams struct {
+	ID           pgtype.UUID
+	Title        *string
+	BodyMarkdown *string
+}
+
+func (q *Queries) UpdateContentBody(ctx context.Context, arg UpdateContentBodyParams) (GeneratedContent, error) {
+	row := q.db.QueryRow(ctx, updateContentBody, arg.ID, arg.Title, arg.BodyMarkdown)
+	var i GeneratedContent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Product,
+		&i.Status,
+		&i.SourceType,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Origin,
+	)
+	return i, err
 }
 
 const updateContentStatus = `-- name: UpdateContentStatus :one

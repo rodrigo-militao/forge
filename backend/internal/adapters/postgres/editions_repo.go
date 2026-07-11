@@ -131,3 +131,15 @@ func (r *EditionRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 	})
 	return err
 }
+
+func (r *EditionRepository) ListUsedContentIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.q.ListUsedContentIDs(ctx, uuidToPgtype(userID))
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.Bytes)
+	}
+	return ids, nil
+}

@@ -20,7 +20,8 @@
     "run": "Rodar descoberta",
     "running": "Executando…",
     "noContent": "Nenhum conteúdo curado ainda. Execute uma descoberta para começar.",
-    "assembleEdition": "Montar edição"
+    "assembleEdition": "Montar edição",
+    "assembling": "Montando…"
   },
   "compose": {
     "title": "Compor",
@@ -44,6 +45,26 @@
     "language": "Idioma",
     "sources": "Fontes de conteúdo",
     "digest": "Configurações do Digest",
-    "compose": "Configurações do Compose"
+    "compose": "Configurações do Compose",
+    "interests": "Interesses",
+    "interestsHint": "Tópicos ou palavras-chave para incluir na curadoria diária do Digest",
+    "addInterest": "Adicionar interesse",
+    "deleteInterest": "Remover",
+    "interestPlaceholder": "ex.: Go generics, sistemas distribuídos",
+    "sourceName": "Nome",
+    "sourceType": "Tipo",
+    "sourceURL": "URL do Feed",
+    "sourceQuery": "Termo de busca",
+    "addSource": "Adicionar fonte",
+    "editSource": "Editar fonte",
+    "deleteSource": "Remover",
+    "sourceEnabled": "Ativada",
+    "sourceSaved": "Fonte salva",
+    "sourceDeleted": "Fonte removida",
+    "sourceRSS": "Feed RSS",
+    "sourceWebSearch": "Busca na Web",
+    "sourceURLPlaceholder": "https://exemplo.com/feed.xml",
+    "sourceQueryPlaceholder": "ex.: golang melhores práticas",
+    "noSources": "Nenhuma fonte configurada. Adicione um feed RSS ou busca web para começar."
   }
 }

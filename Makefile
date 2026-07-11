@@ -95,7 +95,15 @@ run-dev:
 # Run all tests
 test:
 	cd backend && go test ./internal/... -count=1 -v
-	cd frontend && npm run build
+	cd frontend && npm run test && npm run build
+
+test-backend:
+	cd backend && go test ./internal/... -count=1 -v
+
+test-frontend:
+	cd frontend && npm run test
+
+test-all: test-backend test-frontend
 
 # Run backend tests only
 test-backend:

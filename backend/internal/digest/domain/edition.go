@@ -47,4 +47,6 @@ type EditionRepository interface {
 	ListByUser(ctx context.Context, userID uuid.UUID) ([]Edition, error)
 	UpdateBody(ctx context.Context, id uuid.UUID, title, introduction string) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status EditionStatus) error
+	// ListUsedContentIDs returns content_ids that already appear in any edition.
+	ListUsedContentIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 }

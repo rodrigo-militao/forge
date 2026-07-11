@@ -1,7 +1,7 @@
 # ADR 0016: Atualização de conteúdo novo via polling (não WebSocket/SSE no MVP)
 
 ## Status
-Aceito
+Substituída pela ADR 0031 (SSE via Postgres LISTEN/NOTIFY). Mantida aqui como registro histórico da decisão original e do motivo da mudança.
 
 ## Contexto
 Os dois produtos rodam em cron no backend (curadoria diária do Digest, geração de artigo no Compose). Quando um draft novo fica pronto, o frontend precisa refletir isso na fila de revisão sem o usuário precisar atualizar a página manualmente. WebSocket ou Server-Sent Events resolveriam isso em tempo real, mas são complexidade adicional (conexão persistente, reconexão, estado de servidor) desproporcional ao estágio do MVP.

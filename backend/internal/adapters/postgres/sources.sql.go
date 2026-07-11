@@ -46,11 +46,16 @@ func (q *Queries) CreateSource(ctx context.Context, arg CreateSourceParams) (Sou
 }
 
 const deleteSource = `-- name: DeleteSource :exec
-DELETE FROM sources WHERE id = $1
+DELETE FROM sources WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) DeleteSource(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteSource, id)
+type DeleteSourceParams struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+}
+
+func (q *Queries) DeleteSource(ctx context.Context, arg DeleteSourceParams) error {
+	_, err := q.db.Exec(ctx, deleteSource, arg.ID, arg.UserID)
 	return err
 }
 
@@ -91,7 +96,7 @@ func (q *Queries) ListSourcesByUser(ctx context.Context, userID pgtype.UUID) ([]
 const updateSource = `-- name: UpdateSource :one
 UPDATE sources
 SET name = $2, type = $3, config = $4, enabled = $5, updated_at = now()
-WHERE id = $1
+WHERE id = $1 AND user_id = $6
 RETURNING id, user_id, name, type, config, enabled, created_at, updated_at
 `
 
@@ -101,6 +106,7 @@ type UpdateSourceParams struct {
 	Type    string
 	Config  []byte
 	Enabled bool
+	UserID  pgtype.UUID
 }
 
 func (q *Queries) UpdateSource(ctx context.Context, arg UpdateSourceParams) (Source, error) {
@@ -110,6 +116,7 @@ func (q *Queries) UpdateSource(ctx context.Context, arg UpdateSourceParams) (Sou
 		arg.Type,
 		arg.Config,
 		arg.Enabled,
+		arg.UserID,
 	)
 	var i Source
 	err := row.Scan(

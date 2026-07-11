@@ -13,9 +13,10 @@ import (
 
 // Runner polls the jobs table at a fixed interval and processes jobs.
 type Runner struct {
-	jobs     ports.JobRepository
-	handlers map[string]Handler
-	interval time.Duration
+	jobs       ports.JobRepository
+	handlers   map[string]Handler
+	interval   time.Duration
+	NotifyFunc func(ctx context.Context, userID string) // called after each successful job
 }
 
 // Handler processes a single job type.
@@ -88,6 +89,10 @@ func (r *Runner) processNext(ctx context.Context) {
 	lib.LogAttrs(ctx, slog.LevelInfo, "job completed",
 		slog.String("job_id", job.ID.String()),
 	)
+
+	if r.NotifyFunc != nil {
+		r.NotifyFunc(ctx, job.UserID.String())
+	}
 }
 
 // strPtr is a helper to convert string to *string.

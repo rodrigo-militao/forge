@@ -82,6 +82,15 @@ func (r *ContentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 	return err
 }
 
+func (r *ContentRepository) UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error {
+	_, err := r.q.UpdateContentBody(ctx, UpdateContentBodyParams{
+		ID:           uuidToPgtype(id),
+		Title:        title,
+		BodyMarkdown: bodyMarkdown,
+	})
+	return err
+}
+
 func (r *ContentRepository) ListApprovedDigest(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
 	rows, err := r.q.ListApprovedDigest(ctx, uuidToPgtype(userID))
 	if err != nil {

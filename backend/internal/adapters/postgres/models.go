@@ -9,6 +9,13 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
+type DigestInterest struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	Label     string
+	CreatedAt pgtype.Timestamptz
+}
+
 type GeneratedContent struct {
 	ID           pgtype.UUID
 	UserID       pgtype.UUID

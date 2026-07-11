@@ -19,12 +19,14 @@ const (
 
 // SourceConfig represents a configured content source for a tenant.
 type SourceConfig struct {
-	ID      uuid.UUID
-	UserID  uuid.UUID
-	Name    string
-	Type    SourceType
-	Config  json.RawMessage
-	Enabled bool
+	ID        uuid.UUID       `json:"id"`
+	UserID    uuid.UUID       `json:"user_id"`
+	Name      string          `json:"name"`
+	Type      SourceType      `json:"type"`
+	Config    json.RawMessage `json:"config"`
+	Enabled   bool            `json:"enabled"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
 }
 
 // SourceItem is an article fetched from a content source.
@@ -48,4 +50,12 @@ type ContentSource interface {
 type FilterConfig struct {
 	MinScore          int
 	MaxItemsPerDigest int
+}
+
+// SourceRepository persists content source configurations per tenant.
+type SourceRepository interface {
+	ListByUser(ctx context.Context, userID uuid.UUID) ([]SourceConfig, error)
+	Create(ctx context.Context, userID uuid.UUID, name string, sourceType SourceType, config json.RawMessage) (*SourceConfig, error)
+	Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, sourceType SourceType, config json.RawMessage, enabled bool) (*SourceConfig, error)
+	Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }

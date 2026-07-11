@@ -10,8 +10,8 @@ RETURNING *;
 -- name: UpdateSource :one
 UPDATE sources
 SET name = $2, type = $3, config = $4, enabled = $5, updated_at = now()
-WHERE id = $1
+WHERE id = $1 AND user_id = $6
 RETURNING *;
 
 -- name: DeleteSource :exec
-DELETE FROM sources WHERE id = $1;
+DELETE FROM sources WHERE id = $1 AND user_id = $2;

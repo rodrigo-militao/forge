@@ -1,26 +1,26 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bot, PenLine, Sparkles, Type, WandSparkles } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import toast from "react-hot-toast";
 import { api } from "../api/client";
 import { useJobPolling } from "../hooks/useJobPolling";
+import { useSSE } from "../hooks/useSSE";
 
 type Mode = "ai" | "blank";
 
 export function ComposePage() {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode | null>(null);
   const [theme, setTheme] = useState("");
   const [generating, setGenerating] = useState(false);
-  const runningRef = useRef(false);
+
+  useSSE();
 
   const [aiRunning, setAiRunning] = useState(false);
-  const aiRunningRef = useRef(false);
   const [selectedItem, setSelectedItem] = useState<{ id: string; title: string; body: string } | null>(null);
   const [transformAction, setTransformAction] = useState<string | null>(null);
 
@@ -37,7 +37,6 @@ export function ComposePage() {
   const { data: content } = useQuery({
     queryKey: ["content"],
     queryFn: api.content.list,
-    refetchInterval: () => (runningRef.current ? 3000 : false),
   });
 
   const items = content?.filter((c) => c.product === "compose") ?? [];
@@ -48,12 +47,10 @@ export function ComposePage() {
     filter: (c) => c.product === "compose",
     onComplete: () => {
       setGenerating(false);
-      runningRef.current = false;
       toast.success("Draft ready in Library");
     },
     onTimeout: () => {
       setGenerating(false);
-      runningRef.current = false;
     },
   });
 
@@ -63,12 +60,10 @@ export function ComposePage() {
     filter: (c) => c.product === "compose",
     onComplete: () => {
       setAiRunning(false);
-      aiRunningRef.current = false;
       toast.success("Topic ready in Library");
     },
     onTimeout: () => {
       setAiRunning(false);
-      aiRunningRef.current = false;
     },
   });
 
@@ -86,12 +81,10 @@ export function ComposePage() {
           .insertContent(result.body_markdown ?? "")
           .run();
       }
-      runningRef.current = false;
       setTransformAction(null);
       toast.success("Applied");
     },
     onTimeout: () => {
-      runningRef.current = false;
       setTransformAction(null);
     },
   });
@@ -99,14 +92,12 @@ export function ComposePage() {
   const handleGenerateDraft = useCallback(async () => {
     if (!theme.trim()) return;
     setGenerating(true);
-    runningRef.current = true;
     try {
       await api.compose.generateDraft(theme);
       toast.success("Draft generation queued");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
       setGenerating(false);
-      runningRef.current = false;
     }
   }, [theme]);
 
@@ -120,14 +111,12 @@ export function ComposePage() {
         return;
       }
 
-      runningRef.current = true;
       try {
         await api.compose.transform(selected, action);
         setTransformAction(action);
         toast.success(`${action} job queued`);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed");
-        runningRef.current = false;
       }
     },
     [editor],
@@ -136,14 +125,12 @@ export function ComposePage() {
   // ─── AI generation mode ─────────────────────────────────────────
   const handleGenerateTopic = useCallback(async () => {
     setAiRunning(true);
-    aiRunningRef.current = true;
     try {
       await api.compose.generateTopic();
       toast.success("Topic generation queued");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
       setAiRunning(false);
-      aiRunningRef.current = false;
     }
   }, []);
 

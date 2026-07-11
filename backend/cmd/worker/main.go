@@ -48,6 +48,13 @@ func main() {
 
 	// Job runner
 	runner := worker.NewRunner(jobs, interval)
+	runner.NotifyFunc = func(ctx context.Context, userID string) {
+		if _, err := pool.Exec(ctx, "SELECT pg_notify('content_changed', $1)", userID); err != nil {
+			slog.Warn("notify failed", "error", err)
+		} else {
+			slog.Debug("notified content_changed", "user_id", userID)
+		}
+	}
 	handlers := wiring.BuildWorkerHandlers(wiring.WorkerConfig{
 		Pool:       pool,
 		LLMAPIKey:  llmAPIKey,

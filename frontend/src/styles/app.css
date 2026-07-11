@@ -14,6 +14,14 @@
   --font-display: "Fraunces", Georgia, serif;
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", "SF Mono", monospace;
+
+  /* Motion tokens — docs/design-system.md §4 */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-enter: cubic-bezier(0, 0, 0.2, 1);
+  --easing-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
 body {
@@ -38,4 +46,38 @@ body {
 
 .ProseMirror p {
   margin: 0.5em 0;
+}
+
+/* Skeleton screen shimmer — docs/design-system.md §4 */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(226, 224, 219, 0.08) 25%,
+    rgba(226, 224, 219, 0.2) 37%,
+    rgba(226, 224, 219, 0.08) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s var(--easing-standard) infinite;
+  border-radius: 8px;
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeleton-title {
+  height: 20px;
+  width: 60%;
+  margin-bottom: 12px;
+}
+
+.skeleton-card {
+  height: 100px;
+  margin-bottom: 12px;
 }

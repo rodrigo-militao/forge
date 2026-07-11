@@ -34,3 +34,9 @@ RETURNING *;
 SELECT * FROM newsletter_edition_items
 WHERE edition_id = $1
 ORDER BY sort_order;
+
+-- name: ListUsedContentIDs :many
+SELECT DISTINCT nei.content_id
+FROM newsletter_edition_items nei
+JOIN newsletter_editions ne ON nei.edition_id = ne.id
+WHERE ne.user_id = $1;

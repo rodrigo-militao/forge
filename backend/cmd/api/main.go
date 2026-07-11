@@ -1,4 +1,3 @@
-// Command api is the HTTP server entry point for Forge.
 package main
 
 import (
@@ -14,20 +13,16 @@ import (
 	"github.com/joho/godotenv"
 
 	handler "github.com/rodrigo-militao/forge/internal/adapters/http"
+	"github.com/rodrigo-militao/forge/internal/adapters/events"
 	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 )
 
 func main() {
-	godotenv.Load() // optional — .env file next to the binary
+	godotenv.Load(".env")
 
-	// Config from environment
 	port := env("PORT", "8080")
 	dbURL := env("DATABASE_URL", "postgres://forge:forge@localhost:5432/forge?sslmode=disable")
-	jwtSecret := env("JWT_SECRET", "dev-secret-do-not-use-in-production")
 
-	handler.InitJWT(jwtSecret)
-
-	// Database pool
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
@@ -40,41 +35,56 @@ func main() {
 	users := postgres.NewUserRepository(pool)
 	content := postgres.NewContentRepository(pool)
 	jobs := postgres.NewJobRepository(pool)
+	interests := postgres.NewDigestInterestRepository(pool)
+	sources := postgres.NewSourceRepository(pool)
+	editions := postgres.NewEditionRepository(pool)
+
+	// SSE event hub (ADR 0031)
+	hub := events.NewHub()
+	defer hub.Close()
+
+	// Start Postgres LISTEN goroutine for content_changed
+	go func() {
+		if err := events.ListenContentChanged(context.Background(), dbURL, hub); err != nil {
+			slog.Error("events listener failed", "error", err)
+		}
+	}()
 
 	// Router
-	router := handler.NewRouter(users, content, jobs)
+	router := handler.NewRouter(users, content, jobs, interests, sources, editions, hub)
 
 	srv := &http.Server{
 		Addr:         ":" + port,
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		WriteTimeout: 0, // SSE connections are long-lived
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Graceful shutdown
 	go func() {
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-		<-sig
-
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		slog.Info("shutting down server")
-		srv.Shutdown(shutdownCtx)
+		slog.Info("server starting", "port", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("server error", "error", err)
+			os.Exit(1)
+		}
 	}()
 
-	slog.Info("server starting", "port", port)
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		slog.Error("server error", "error", err)
-		os.Exit(1)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	slog.Info("shutting down")
+	cancel, cancelFn := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelFn()
+
+	if err := srv.Shutdown(cancel); err != nil {
+		slog.Error("shutdown error", "error", err)
 	}
 }
 
 func env(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+	if val, ok := os.LookupEnv(key); ok {
+		return val
 	}
 	return fallback
 }

@@ -1,19 +1,60 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Check, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearch } from "@tanstack/react-router";
+import toast from "react-hot-toast";
 import { api, type ContentItem } from "../api/client";
 
 export function LibraryPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const search = useSearch({ strict: false }) as { selected?: string };
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: content, isLoading } = useQuery({
     queryKey: ["content"],
     queryFn: api.content.list,
     select: (data) => data.filter((c) => c.product === "compose" || c.product === "newsletter"),
   });
+
+  useEffect(() => {
+    if (search.selected && content) {
+      const item = content.find((c) => c.id === search.selected);
+      if (item) {
+        setSelectedItem(item);
+        setEditTitle(item.title ?? "");
+        setEditBody(item.body_markdown ?? "");
+      }
+    }
+  }, [search.selected, content]);
+
+  useEffect(() => {
+    if (selectedItem) {
+      setEditTitle(selectedItem.title ?? "");
+      setEditBody(selectedItem.body_markdown ?? "");
+    }
+  }, [selectedItem]);
+
+  const handleSave = useCallback(async () => {
+    if (!selectedItem) return;
+    setSaving(true);
+    try {
+      await api.content.save(selectedItem.id, {
+        title: editTitle,
+        body_markdown: editBody,
+      });
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      toast.success("Saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
+    setSaving(false);
+  }, [selectedItem, editTitle, editBody, queryClient]);
 
   const handleApprove = useCallback(
     async (id: string) => {
@@ -53,14 +94,24 @@ export function LibraryPage() {
           Back to library
         </button>
         <input
-          defaultValue={selectedItem.title ?? ""}
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
           className="w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
         />
         <textarea
-          defaultValue={selectedItem.body_markdown ?? ""}
+          ref={bodyRef}
+          value={editBody}
+          onChange={(e) => setEditBody(e.target.value)}
           className="h-96 w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 text-sm leading-relaxed text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
         />
         <div className="flex gap-2">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
           <span
             className={`inline-block rounded px-2 py-1 text-xs font-medium ${
               selectedItem.status === "approved"
@@ -75,14 +126,14 @@ export function LibraryPage() {
           {selectedItem.status === "draft" && (
             <>
               <button
-                onClick={async () => { await handleApprove(selectedItem.id); setSelectedItem(null); }}
+                onClick={() => { handleApprove(selectedItem.id); setSelectedItem(null); }}
                 className="cursor-pointer flex items-center gap-1 rounded-lg bg-[var(--color-accent-success)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-80"
               >
                 <Check size={14} />
                 {t("library.approve")}
               </button>
               <button
-                onClick={async () => { await handleReject(selectedItem.id); setSelectedItem(null); }}
+                onClick={() => { handleReject(selectedItem.id); setSelectedItem(null); }}
                 className="cursor-pointer flex items-center gap-1 rounded-lg bg-[var(--color-accent-danger)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-80"
               >
                 <X size={14} />
@@ -98,7 +149,6 @@ export function LibraryPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <h1 className="font-[var(--font-display)] text-2xl">{t("library.title")}</h1>
-
       <div className="space-y-3">
         {!content?.length && (
           <p className="text-sm text-[var(--color-text-muted)]">{t("library.empty")}</p>
@@ -106,13 +156,15 @@ export function LibraryPage() {
         {content?.map((item) => (
           <div
             key={item.id}
-            onClick={() => setSelectedItem(item)}
+            onClick={() => {
+              setSelectedItem(item);
+              setEditTitle(item.title ?? "");
+              setEditBody(item.body_markdown ?? "");
+            }}
             className="cursor-pointer flex items-start justify-between rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 transition-colors hover:border-[var(--color-accent-primary)]"
           >
             <div className="flex-1">
-              <h3 className="font-medium text-[var(--color-bg-surface)]">
-                {item.title || "(no title)"}
-              </h3>
+              <h3 className="font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
               <span
                 className={`mt-1 inline-block rounded px-2 py-0.5 text-xs ${
                   item.status === "approved"

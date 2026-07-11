@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,9 +45,20 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				return fmt.Errorf("invalid user id: %w", err)
 			}
 
-			sources := []digestDomain.ContentSource{
-				rss.NewFeed("Go Blog", "https://go.dev/blog/feed.atom"),
-				search.NewDuckDuckGo([]string{"golang best practices 2026"}),
+			sourceRepo := postgres.NewSourceRepository(cfg.Pool)
+			configs, err := sourceRepo.ListByUser(ctx, id)
+			if err != nil {
+				return fmt.Errorf("fetching sources: %w", err)
+			}
+
+			sources := buildContentSources(configs)
+			if len(sources) == 0 {
+				// Fallback: hardcoded defaults when user has no configured sources.
+				slog.Info("curate_digest: no configured sources, using defaults")
+				sources = []digestDomain.ContentSource{
+					rss.NewFeed("Go Blog", "https://go.dev/blog/feed.atom"),
+					search.NewDuckDuckGo([]string{"golang best practices 2026"}),
+				}
 			}
 
 			svc := digestApp.NewDiscoveryService(llmClient, sources, contentRepo, id)
@@ -54,7 +66,6 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			if err != nil {
 				return fmt.Errorf("digest run: %w", err)
 			}
-
 			_ = result
 			return nil
 		},
@@ -64,13 +75,11 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			if err != nil {
 				return fmt.Errorf("invalid user id: %w", err)
 			}
-
 			svc := composeApp.NewTopicGeneratorService(llmClient, topicsRepo, id)
 			result, err := svc.Generate(ctx)
 			if err != nil {
 				return fmt.Errorf("topic generation: %w", err)
 			}
-
 			title := result.Topic.Topic
 			if err := contentRepo.Create(ctx, &coredomain.GeneratedContent{
 				UserID:       id,
@@ -82,17 +91,24 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			}); err != nil {
 				return fmt.Errorf("persisting topic: %w", err)
 			}
-
 			return nil
 		},
 
 		"assemble_edition": func(ctx context.Context, userID string, payload []byte) error {
-			svc := digestApp.NewEditionService(llmClient, contentRepo, editionsRepo)
-			result, err := svc.Assemble(ctx, userID)
+			svc := digestApp.NewEditionService(contentRepo, editionsRepo)
+			var req struct {
+				ContentIDs []string `json:"content_ids"`
+			}
+			if len(payload) > 0 && string(payload) != "{}" {
+				if err := json.Unmarshal(payload, &req); err != nil {
+					slog.Warn("assemble_edition: ignoring invalid payload", "error", err)
+				}
+			}
+			result, err := svc.Assemble(ctx, userID, req.ContentIDs...)
 			if err != nil {
 				return fmt.Errorf("edition assembly: %w", err)
 			}
-			_ = result
+			slog.Info("edition assembled", "items", result.ItemCount)
 			return nil
 		},
 
@@ -101,14 +117,12 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			if err != nil {
 				return fmt.Errorf("invalid user id: %w", err)
 			}
-
 			var req struct {
 				Theme string `json:"theme"`
 			}
 			if err := json.Unmarshal(payload, &req); err != nil || req.Theme == "" {
 				return fmt.Errorf("invalid payload: theme required")
 			}
-
 			topic := &composeDomain.Topic{
 				Topic:             req.Theme,
 				ThemeArea:         composeDomain.ThemePersonalDev,
@@ -116,12 +130,10 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				OneLinePitch:      "Generated on demand",
 				TargetLengthWords: 1200,
 			}
-
 			voice, err := composeDomain.SelectVoice(topic.ThemeArea, topic.Format)
 			if err != nil {
 				voice = composeDomain.VoiceConfessional
 			}
-
 			svc := composeApp.NewWriterService(llmClient, contentRepo, id)
 			result, err := svc.Generate(ctx, composeApp.GenerateParams{
 				Topic:             *topic,
@@ -131,7 +143,6 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			if err != nil {
 				return fmt.Errorf("draft generation: %w", err)
 			}
-
 			_ = result
 			return nil
 		},
@@ -144,19 +155,15 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			if err := json.Unmarshal(payload, &req); err != nil || req.Text == "" {
 				return fmt.Errorf("invalid payload: text required")
 			}
-
 			actionPrompt := ""
 			switch req.Action {
 			case "expand":
-				actionPrompt = fmt.Sprintf(
-					"Expand the following text with more details, examples, and depth. Keep the same tone and style.\n\n%s", req.Text)
+				actionPrompt = fmt.Sprintf("Expand the following text with more details, examples, and depth. Keep the same tone and style.\n\n%s", req.Text)
 			case "rewrite":
-				actionPrompt = fmt.Sprintf(
-					"Rewrite the following text to be clearer and more engaging. Keep the same meaning but improve flow and readability.\n\n%s", req.Text)
+				actionPrompt = fmt.Sprintf("Rewrite the following text to be clearer and more engaging. Keep the same meaning but improve flow and readability.\n\n%s", req.Text)
 			default:
 				return fmt.Errorf("unknown action: %s", req.Action)
 			}
-
 			resp, err := llmClient.Complete(ctx, coredomain.LLMRequest{
 				SystemPrompt: "You are a writing assistant. Respond only with the transformed text, no explanations.",
 				Messages:     []coredomain.LLMMessage{{Role: "user", Content: actionPrompt}},
@@ -166,7 +173,6 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			if err != nil {
 				return fmt.Errorf("LLM transform: %w", err)
 			}
-
 			title := fmt.Sprintf("AI %s suggestion", req.Action)
 			if err := contentRepo.Create(ctx, &coredomain.GeneratedContent{
 				UserID:       uuid.MustParse(userID),
@@ -178,7 +184,6 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			}); err != nil {
 				return fmt.Errorf("persisting transform result: %w", err)
 			}
-
 			return nil
 		},
 
@@ -186,6 +191,31 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			return fmt.Errorf("compose_write handler not yet implemented")
 		},
 	}
+}
+
+// buildContentSources converts DB SourceConfigs into ContentSource adapters.
+func buildContentSources(configs []digestDomain.SourceConfig) []digestDomain.ContentSource {
+	sources := make([]digestDomain.ContentSource, 0, len(configs))
+	for _, cfg := range configs {
+		if !cfg.Enabled {
+			continue
+		}
+		switch cfg.Type {
+		case digestDomain.SourceTypeRSS:
+			var opts struct{ URL string `json:"url"` }
+			if err := json.Unmarshal(cfg.Config, &opts); err != nil || opts.URL == "" {
+				continue
+			}
+			sources = append(sources, rss.NewFeed(cfg.Name, opts.URL))
+		case digestDomain.SourceTypeWebSearch:
+			var opts struct{ Query string `json:"query"` }
+			if err := json.Unmarshal(cfg.Config, &opts); err != nil || opts.Query == "" {
+				continue
+			}
+			sources = append(sources, search.NewDuckDuckGo([]string{opts.Query}))
+		}
+	}
+	return sources
 }
 
 func strPtr(s string) *string { return &s }

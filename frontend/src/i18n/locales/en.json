@@ -20,7 +20,8 @@
     "run": "Run discovery",
     "running": "Running…",
     "noContent": "No curated content yet. Run a discovery to get started.",
-    "assembleEdition": "Assemble edition"
+    "assembleEdition": "Assemble edition",
+    "assembling": "Assembling…"
   },
   "compose": {
     "title": "Compose",
@@ -44,6 +45,26 @@
     "language": "Language",
     "sources": "Content sources",
     "digest": "Digest settings",
-    "compose": "Compose settings"
+    "compose": "Compose settings",
+    "interests": "Interests",
+    "interestsHint": "Topics or keywords to include in the daily Digest curation",
+    "addInterest": "Add interest",
+    "deleteInterest": "Remove",
+    "interestPlaceholder": "e.g. Go generics, distributed systems",
+    "sourceName": "Name",
+    "sourceType": "Type",
+    "sourceURL": "Feed URL",
+    "sourceQuery": "Search query",
+    "addSource": "Add source",
+    "editSource": "Edit source",
+    "deleteSource": "Remove",
+    "sourceEnabled": "Enabled",
+    "sourceSaved": "Source saved",
+    "sourceDeleted": "Source removed",
+    "sourceRSS": "RSS Feed",
+    "sourceWebSearch": "Web Search",
+    "sourceURLPlaceholder": "https://example.com/feed.xml",
+    "sourceQueryPlaceholder": "e.g. golang best practices",
+    "noSources": "No sources configured. Add an RSS feed or web search to start curating."
   }
 }

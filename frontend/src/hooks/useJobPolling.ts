@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ContentItem } from "../api/client";
 
@@ -16,9 +16,10 @@ interface UseJobPollingOptions {
 }
 
 /**
- * Polls /api/content when `active` is true, comparing the current matching
- * item count against the baseline captured when it was last activated.
- * Cleans up the interval on unmount or deactivation.
+ * Monitors the TanStack Query cache for new content matching a filter.
+ * Used alongside useSSE — SSE invalidates the cache, this hook detects
+ * when the matching item count increases and calls onComplete.
+ * Falls back to timeout if SSE fails to deliver.
  */
 export function useJobPolling(
   active: boolean,
@@ -43,8 +44,7 @@ export function useJobPolling(
     const { interval = 5000, timeout = 60000, filter = () => true } = optsRef.current;
 
     const startTime = Date.now();
-    const pollId = setInterval(async () => {
-      await queryClient.refetchQueries({ queryKey: ["content"] });
+    const pollId = setInterval(() => {
       const data = queryClient.getQueryData<ContentItem[]>(["content"]);
       const matching = Array.isArray(data) ? data.filter(filter) : [];
 

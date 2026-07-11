@@ -1,22 +1,25 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, FileText, RefreshCw, Sparkles, X } from "lucide-react";
+import { FileText, RefreshCw, Sparkles } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import toast from "react-hot-toast";
 import { api } from "../api/client";
 import { useJobPolling } from "../hooks/useJobPolling";
+import { useSSE } from "../hooks/useSSE";
 
 export function DigestPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [running, setRunning] = useState(false);
-  const runningRef = useRef(false);
-  const [assembling, setAssembling] = useState(false);
+  const [selectedIDs, setSelectedIDs] = useState<Set<string>>(new Set());
+
+  useSSE();
 
   const { data: content, isLoading } = useQuery({
     queryKey: ["content"],
     queryFn: api.content.list,
-    refetchInterval: () => (runningRef.current ? 5000 : false),
   });
 
   const items = content?.filter((c) => c.product === "digest") ?? [];
@@ -26,7 +29,7 @@ export function DigestPage() {
     filter: (c) => c.product === "digest",
     onComplete: (newItems) => {
       setRunning(false);
-      toast.success(`${newItems.length} new articles — review below`);
+      toast.success(`${newItems.length} new articles`);
     },
     onTimeout: () => {
       setRunning(false);
@@ -34,24 +37,8 @@ export function DigestPage() {
     },
   });
 
-  useJobPolling(assembling, items.length, {
-    interval: 3000,
-    timeout: 90_000,
-    filter: (c) => c.product === "digest",
-    onComplete: () => {
-      setAssembling(false);
-      toast.success("Edition ready!");
-    },
-    onTimeout: () => {
-      setAssembling(false);
-      toast("Check for new articles");
-    },
-  });
-
   const handleRun = useCallback(async () => {
     setRunning(true);
-    runningRef.current = true;
-
     try {
       await api.digest.run();
       toast.success("Job queued");
@@ -62,32 +49,25 @@ export function DigestPage() {
   }, []);
 
   const handleAssembleEdition = useCallback(async () => {
-    setAssembling(true);
+    const ids = Array.from(selectedIDs);
+    if (ids.length === 0) return;
     try {
-      await api.digest.assembleEdition();
-      toast.success("Edition assembly queued");
+      await api.digest.assembleEdition(ids);
+      toast.success("Edition created");
+      navigate({ to: "/library" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
-      setAssembling(false);
     }
+  }, [selectedIDs, navigate]);
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIDs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }, []);
-
-  const handleApprove = useCallback(
-    async (id: string) => {
-      await api.content.approve(id);
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      toast.success("Approved");
-    },
-    [queryClient],
-  );
-
-  const handleReject = useCallback(
-    async (id: string) => {
-      await api.content.reject(id);
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-    },
-    [queryClient],
-  );
 
   if (isLoading) return <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>;
 
@@ -113,11 +93,11 @@ export function DigestPage() {
           </button>
           <button
             onClick={handleAssembleEdition}
-            disabled={assembling}
+            disabled={selectedIDs.size === 0}
             className="cursor-pointer flex items-center gap-2 rounded-lg border border-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)] hover:text-white disabled:opacity-50"
           >
             <FileText size={16} />
-            {t("digest.assembleEdition")}
+            {t("digest.assembleEdition")} ({selectedIDs.size})
           </button>
         </div>
       </div>
@@ -134,9 +114,17 @@ export function DigestPage() {
         {items.map((item) => (
           <div
             key={item.id}
-            className="rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4"
+            className={`rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 transition-colors ${
+              selectedIDs.has(item.id) ? "ring-1 ring-[var(--color-accent-primary)]" : ""
+            }`}
           >
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-3">
+              <input
+                type="checkbox"
+                checked={selectedIDs.has(item.id)}
+                onChange={() => toggleSelected(item.id)}
+                className="mt-1 h-4 w-4 cursor-pointer accent-[var(--color-accent-primary)]"
+              />
               <div className="flex-1">
                 <h3 className="font-medium">
                   {(item.metadata as { source_url?: string })?.source_url ? (
@@ -159,50 +147,8 @@ export function DigestPage() {
                     {item.body_markdown}
                   </p>
                 )}
-                <div className="mt-2 flex items-center gap-3">
-                  {(item.metadata as { source_url?: string })?.source_url && (
-                    <a
-                      href={(item.metadata as { source_url?: string }).source_url!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="cursor-pointer text-xs text-[var(--color-accent-primary)] hover:underline"
-                    >
-                      Read original ↗
-                    </a>
-                  )}
-                  <span
-                    className={`inline-block rounded px-2 py-0.5 text-xs ${
-                      item.status === "approved"
-                        ? "bg-[var(--color-accent-success)]/20 text-[var(--color-accent-success)]"
-                        : item.status === "rejected"
-                          ? "bg-[var(--color-accent-danger)]/20 text-[var(--color-accent-danger)]"
-                          : "bg-white/10 text-[var(--color-text-muted)]"
-                    }`}
-                  >
-                    {item.status}
-                  </span>
-                </div>
               </div>
             </div>
-
-            {item.status === "draft" && (
-              <div className="mt-3 flex gap-2 border-t border-[var(--color-border)]/10 pt-3">
-                <button
-                  onClick={() => handleApprove(item.id)}
-                  className="cursor-pointer flex items-center gap-1 rounded-lg bg-[var(--color-accent-success)] px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-80"
-                >
-                  <Check size={14} />
-                  {t("library.approve")}
-                </button>
-                <button
-                  onClick={() => handleReject(item.id)}
-                  className="cursor-pointer flex items-center gap-1 rounded-lg bg-[var(--color-accent-danger)] px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-80"
-                >
-                  <X size={14} />
-                  {t("library.reject")}
-                </button>
-              </div>
-            )}
           </div>
         ))}
       </div>

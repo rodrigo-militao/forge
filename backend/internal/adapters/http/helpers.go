@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -29,6 +30,8 @@ func enqueueJob(jobs ports.JobRepository, jobType string, withBody bool) http.Ha
 				return
 			}
 			payload, _ = json.Marshal(body)
+		} else {
+			payload = []byte("{}")
 		}
 
 		job := &domain.Job{
@@ -37,6 +40,7 @@ func enqueueJob(jobs ports.JobRepository, jobType string, withBody bool) http.Ha
 			Payload: payload,
 		}
 		if err := jobs.Create(r.Context(), job); err != nil {
+			slog.Warn("enqueue failed", "job_type", jobType, "error", err)
 			writeError(w, http.StatusInternalServerError, "failed to enqueue job")
 			return
 		}

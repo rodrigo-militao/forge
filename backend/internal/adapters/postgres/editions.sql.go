@@ -150,6 +150,33 @@ func (q *Queries) ListEditionsByUser(ctx context.Context, userID pgtype.UUID) ([
 	return items, nil
 }
 
+const listUsedContentIDs = `-- name: ListUsedContentIDs :many
+SELECT DISTINCT nei.content_id
+FROM newsletter_edition_items nei
+JOIN newsletter_editions ne ON nei.edition_id = ne.id
+WHERE ne.user_id = $1
+`
+
+func (q *Queries) ListUsedContentIDs(ctx context.Context, userID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listUsedContentIDs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var content_id pgtype.UUID
+		if err := rows.Scan(&content_id); err != nil {
+			return nil, err
+		}
+		items = append(items, content_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateEditionBody = `-- name: UpdateEditionBody :one
 UPDATE newsletter_editions
 SET title = $2, introduction = $3, updated_at = now()
