@@ -15,7 +15,6 @@ type mockCategorizeWriter struct {
 
 func (m *mockCategorizeWriter) Create(ctx context.Context, content *domain.GeneratedContent) error { return nil }
 func (m *mockCategorizeWriter) UpdateBody(ctx context.Context, id uuid.UUID, title, body *string) error { return nil }
-func (m *mockCategorizeWriter) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error { return nil }
 func (m *mockCategorizeWriter) SoftDelete(ctx context.Context, id uuid.UUID) error { return nil }
 func (m *mockCategorizeWriter) UpdateCategory(ctx context.Context, id uuid.UUID, category *string) error {
 	if m.updated == nil {
@@ -38,7 +37,6 @@ func (m *mockCategorizeQueries) ListWithoutCategory(ctx context.Context, userID 
 func (m *mockCategorizeQueries) ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	return m.categories, nil
 }
-func (m *mockCategorizeQueries) ListApprovedDigest(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) { return nil, nil }
 
 type mockLLM struct {
 	response *domain.LLMResponse

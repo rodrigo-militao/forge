@@ -13,24 +13,11 @@ SELECT * FROM generated_content
 WHERE user_id = $1
 ORDER BY created_at DESC;
 
--- name: UpdateContentStatus :one
-UPDATE generated_content
-SET status = $2, updated_at = now()
-WHERE id = $1
-RETURNING *;
-
 -- name: UpdateContentBody :one
 UPDATE generated_content
 SET title = COALESCE($2, title), body_markdown = COALESCE($3, body_markdown), updated_at = now()
 WHERE id = $1
 RETURNING *;
-
--- name: ListApprovedDigest :many
-SELECT gc.* FROM generated_content gc
-WHERE gc.user_id = $1
-  AND gc.product = 'digest'
-  AND gc.status = 'approved'
-ORDER BY gc.updated_at DESC;
 
 -- name: UpdateContentCategory :one
 UPDATE generated_content
@@ -38,23 +25,50 @@ SET category = $2, updated_at = now()
 WHERE id = $1
 RETURNING *;
 
--- name: AddContentTag :one
+-- name: AddContentTagArray :one
 UPDATE generated_content
 SET tags = array_append(tags, $2), updated_at = now()
 WHERE id = $1 AND NOT ($2 = ANY(tags))
 RETURNING *;
 
--- name: RemoveContentTag :one
+-- name: RemoveContentTagArray :one
 UPDATE generated_content
 SET tags = array_remove(tags, $2), updated_at = now()
 WHERE id = $1
 RETURNING *;
 
+-- name: EnsureTag :one
+INSERT INTO tags (user_id, label)
+VALUES ($1, $2)
+ON CONFLICT (user_id, label) DO NOTHING
+RETURNING *;
+
+-- name: GetTagByLabel :one
+SELECT * FROM tags
+WHERE user_id = $1 AND label = $2;
+
+-- name: AddDigestArticleTag :exec
+INSERT INTO digest_article_tags (tag_id, article_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING;
+
+-- name: RemoveDigestArticleTag :exec
+DELETE FROM digest_article_tags
+WHERE tag_id = $1 AND article_id = $2;
+
+-- name: AddContentTagJunction :exec
+INSERT INTO content_tags (tag_id, content_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING;
+
+-- name: RemoveContentTagJunction :exec
+DELETE FROM content_tags
+WHERE tag_id = $1 AND content_id = $2;
+
 -- name: ListUserTags :many
-SELECT DISTINCT unnest(tags) AS tag
-FROM generated_content
-WHERE user_id = $1 AND tags IS NOT NULL
-ORDER BY tag;
+SELECT label FROM tags
+WHERE user_id = $1
+ORDER BY label;
 
 -- name: SoftDeleteContent :one
 UPDATE generated_content

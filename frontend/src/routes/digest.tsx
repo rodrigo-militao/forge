@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileText, Plus, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, FileText, Plus, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import toast from "react-hot-toast";
@@ -15,6 +15,8 @@ export function DigestPage() {
   const [selectedIDs, setSelectedIDs] = useState<Set<string>>(new Set());
   const [tagInput, setTagInput] = useState<Record<string, string>>({});
   const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [tagFilter, setTagFilter] = useState<string>("");
+  const [showUsedInEdition, setShowUsedInEdition] = useState(false);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   const { data: content, isLoading } = useQuery({
@@ -27,17 +29,27 @@ export function DigestPage() {
     queryFn: api.digest.usedContentIDs,
   });
 
+  const { data: availableTags } = useQuery({
+    queryKey: ["tags"],
+    queryFn: api.content.listTags,
+  });
+
   const usedSet = new Set(usedIDs ?? []);
   const items =
     content?.filter(
       (c) =>
-        c.product === "digest" && c.deleted_at === null && !usedSet.has(c.id),
+        c.product === "digest" &&
+        c.deleted_at === null &&
+        (showUsedInEdition || !usedSet.has(c.id)),
     ) ?? [];
 
   const categories = [...new Set(items.map((c) => c.category).filter(Boolean) as string[])];
-  const filteredItems = categoryFilter
+  let filteredItems = categoryFilter
     ? items.filter((c) => c.category === categoryFilter)
     : items;
+  if (tagFilter) {
+    filteredItems = filteredItems.filter((c) => (c.tags || []).includes(tagFilter));
+  }
 
   useJobPolling(running, items.length, {
     interval: 5000,
@@ -109,6 +121,7 @@ export function DigestPage() {
       try {
         await api.content.addTag(id, tag);
         queryClient.invalidateQueries({ queryKey: ["content"] });
+        queryClient.invalidateQueries({ queryKey: ["tags"] });
         setTagInput((prev) => ({ ...prev, [id]: "" }));
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed");
@@ -122,6 +135,7 @@ export function DigestPage() {
       try {
         await api.content.removeTag(id, tag);
         queryClient.invalidateQueries({ queryKey: ["content"] });
+        queryClient.invalidateQueries({ queryKey: ["tags"] });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed");
       }
@@ -152,6 +166,8 @@ export function DigestPage() {
     },
     [handleAddTag],
   );
+
+  const usedCount = items.filter((c) => usedSet.has(c.id)).length;
 
   if (isLoading) return <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>;
 
@@ -212,6 +228,35 @@ export function DigestPage() {
         ))}
       </div>
 
+      {availableTags && availableTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={tagFilter}
+            onChange={(e) => setTagFilter(e.target.value)}
+            className="rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-3 py-1.5 text-xs text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+          >
+            <option value="">{t("digest.tagFilter")}</option>
+            {availableTags.map((tag) => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)]">
+        <input
+          type="checkbox"
+          checked={showUsedInEdition}
+          onChange={(e) => setShowUsedInEdition(e.target.checked)}
+          className="h-3.5 w-3.5 cursor-pointer accent-[var(--color-accent-primary)]"
+        />
+        {showUsedInEdition ? <Eye size={14} /> : <EyeOff size={14} />}
+        {t("digest.showUsedInEdition")}
+        {usedCount > 0 && (
+          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px]">{usedCount}</span>
+        )}
+      </label>
+
       <div className="space-y-3">
         {filteredItems.length === 0 && !running && (
           <p className="text-sm text-[var(--color-text-muted)]">{t("digest.noContent")}</p>
@@ -226,7 +271,7 @@ export function DigestPage() {
             key={item.id}
             className={`rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 transition-colors ${
               selectedIDs.has(item.id) ? "ring-1 ring-[var(--color-accent-primary)]" : ""
-            }`}
+            } ${usedSet.has(item.id) ? "opacity-60" : ""}`}
           >
             <div className="flex items-start justify-between gap-3">
               <input
@@ -253,13 +298,17 @@ export function DigestPage() {
                       </span>
                     )}
                   </h3>
+                  {usedSet.has(item.id) && (
+                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-[var(--color-text-muted)]">
+                      Used
+                    </span>
+                  )}
                 </div>
                 {item.body_markdown && (
                   <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                     {item.body_markdown}
                   </p>
                 )}
-                {/* Category */}
                 <div className="mt-2 flex items-center gap-2">
                   <input
                     defaultValue={item.category ?? ""}
@@ -273,7 +322,6 @@ export function DigestPage() {
                     </span>
                   )}
                 </div>
-                {/* Tags */}
                 <div className="mt-2 flex flex-wrap items-center gap-1">
                   {item.tags.map((tag) => (
                     <span

@@ -32,7 +32,6 @@ func (m *mockContentRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]d
 }
 func (m *mockContentRepo) Create(ctx context.Context, content *domain.GeneratedContent) error { return nil }
 func (m *mockContentRepo) UpdateBody(ctx context.Context, id uuid.UUID, title, body *string) error { return nil }
-func (m *mockContentRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error { return nil }
 func (m *mockContentRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	for i, c := range m.items {
 		if c.ID == id {
@@ -55,7 +54,6 @@ func (m *mockContentRepo) UpdateCategory(ctx context.Context, id uuid.UUID, cate
 func (m *mockContentRepo) ExistsByURL(ctx context.Context, userID uuid.UUID, url string) (bool, error) { return false, nil }
 func (m *mockContentRepo) ListWithoutCategory(ctx context.Context, userID uuid.UUID, limit int) ([]domain.GeneratedContent, error) { return nil, nil }
 func (m *mockContentRepo) ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error) { return nil, nil }
-func (m *mockContentRepo) ListApprovedDigest(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) { return nil, nil }
 func (m *mockContentRepo) AddTag(ctx context.Context, id uuid.UUID, tag string) error { return nil }
 func (m *mockContentRepo) RemoveTag(ctx context.Context, id uuid.UUID, tag string) error { return nil }
 func (m *mockContentRepo) ListUserTags(ctx context.Context, userID uuid.UUID) ([]string, error) { return nil, nil }

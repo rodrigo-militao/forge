@@ -7,13 +7,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// ContentStatus tracks the human-review lifecycle (ADR 0005).
+// ContentStatus tracks the content lifecycle.
 type ContentStatus string
 
 const (
-	ContentDraft    ContentStatus = "draft"
-	ContentApproved ContentStatus = "approved"
-	ContentRejected ContentStatus = "rejected"
+	ContentDraft ContentStatus = "draft"
 )
 
 // ContentProduct identifies which product generated this content.

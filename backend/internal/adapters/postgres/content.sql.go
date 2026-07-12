@@ -12,20 +12,20 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
-const addContentTag = `-- name: AddContentTag :one
+const addContentTagArray = `-- name: AddContentTagArray :one
 UPDATE generated_content
 SET tags = array_append(tags, $2), updated_at = now()
 WHERE id = $1 AND NOT ($2 = ANY(tags))
 RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
 `
 
-type AddContentTagParams struct {
+type AddContentTagArrayParams struct {
 	ID          pgtype.UUID
 	ArrayAppend interface{}
 }
 
-func (q *Queries) AddContentTag(ctx context.Context, arg AddContentTagParams) (GeneratedContent, error) {
-	row := q.db.QueryRow(ctx, addContentTag, arg.ID, arg.ArrayAppend)
+func (q *Queries) AddContentTagArray(ctx context.Context, arg AddContentTagArrayParams) (GeneratedContent, error) {
+	row := q.db.QueryRow(ctx, addContentTagArray, arg.ID, arg.ArrayAppend)
 	var i GeneratedContent
 	err := row.Scan(
 		&i.ID,
@@ -44,6 +44,38 @@ func (q *Queries) AddContentTag(ctx context.Context, arg AddContentTagParams) (G
 		&i.Tags,
 	)
 	return i, err
+}
+
+const addContentTagJunction = `-- name: AddContentTagJunction :exec
+INSERT INTO content_tags (tag_id, content_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type AddContentTagJunctionParams struct {
+	TagID     pgtype.UUID
+	ContentID pgtype.UUID
+}
+
+func (q *Queries) AddContentTagJunction(ctx context.Context, arg AddContentTagJunctionParams) error {
+	_, err := q.db.Exec(ctx, addContentTagJunction, arg.TagID, arg.ContentID)
+	return err
+}
+
+const addDigestArticleTag = `-- name: AddDigestArticleTag :exec
+INSERT INTO digest_article_tags (tag_id, article_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type AddDigestArticleTagParams struct {
+	TagID     pgtype.UUID
+	ArticleID pgtype.UUID
+}
+
+func (q *Queries) AddDigestArticleTag(ctx context.Context, arg AddDigestArticleTagParams) error {
+	_, err := q.db.Exec(ctx, addDigestArticleTag, arg.TagID, arg.ArticleID)
+	return err
 }
 
 const contentExistsByURL = `-- name: ContentExistsByURL :one
@@ -115,6 +147,30 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (G
 	return i, err
 }
 
+const ensureTag = `-- name: EnsureTag :one
+INSERT INTO tags (user_id, label)
+VALUES ($1, $2)
+ON CONFLICT (user_id, label) DO NOTHING
+RETURNING id, user_id, label, created_at
+`
+
+type EnsureTagParams struct {
+	UserID pgtype.UUID
+	Label  string
+}
+
+func (q *Queries) EnsureTag(ctx context.Context, arg EnsureTagParams) (Tag, error) {
+	row := q.db.QueryRow(ctx, ensureTag, arg.UserID, arg.Label)
+	var i Tag
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Label,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getContentByID = `-- name: GetContentByID :one
 SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags FROM generated_content WHERE id = $1
 `
@@ -141,47 +197,26 @@ func (q *Queries) GetContentByID(ctx context.Context, id pgtype.UUID) (Generated
 	return i, err
 }
 
-const listApprovedDigest = `-- name: ListApprovedDigest :many
-SELECT gc.id, gc.user_id, gc.product, gc.status, gc.source_type, gc.title, gc.body_markdown, gc.metadata, gc.created_at, gc.updated_at, gc.origin, gc.deleted_at, gc.category, gc.tags FROM generated_content gc
-WHERE gc.user_id = $1
-  AND gc.product = 'digest'
-  AND gc.status = 'approved'
-ORDER BY gc.updated_at DESC
+const getTagByLabel = `-- name: GetTagByLabel :one
+SELECT id, user_id, label, created_at FROM tags
+WHERE user_id = $1 AND label = $2
 `
 
-func (q *Queries) ListApprovedDigest(ctx context.Context, userID pgtype.UUID) ([]GeneratedContent, error) {
-	rows, err := q.db.Query(ctx, listApprovedDigest, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GeneratedContent
-	for rows.Next() {
-		var i GeneratedContent
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.Product,
-			&i.Status,
-			&i.SourceType,
-			&i.Title,
-			&i.BodyMarkdown,
-			&i.Metadata,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Origin,
-			&i.DeletedAt,
-			&i.Category,
-			&i.Tags,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+type GetTagByLabelParams struct {
+	UserID pgtype.UUID
+	Label  string
+}
+
+func (q *Queries) GetTagByLabel(ctx context.Context, arg GetTagByLabelParams) (Tag, error) {
+	row := q.db.QueryRow(ctx, getTagByLabel, arg.UserID, arg.Label)
+	var i Tag
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Label,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const listContentByUser = `-- name: ListContentByUser :many
@@ -299,25 +334,24 @@ func (q *Queries) ListUserCategories(ctx context.Context, userID pgtype.UUID) ([
 }
 
 const listUserTags = `-- name: ListUserTags :many
-SELECT DISTINCT unnest(tags) AS tag
-FROM generated_content
-WHERE user_id = $1 AND tags IS NOT NULL
-ORDER BY tag
+SELECT label FROM tags
+WHERE user_id = $1
+ORDER BY label
 `
 
-func (q *Queries) ListUserTags(ctx context.Context, userID pgtype.UUID) ([]interface{}, error) {
+func (q *Queries) ListUserTags(ctx context.Context, userID pgtype.UUID) ([]string, error) {
 	rows, err := q.db.Query(ctx, listUserTags, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []interface{}
+	var items []string
 	for rows.Next() {
-		var tag interface{}
-		if err := rows.Scan(&tag); err != nil {
+		var label string
+		if err := rows.Scan(&label); err != nil {
 			return nil, err
 		}
-		items = append(items, tag)
+		items = append(items, label)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -325,20 +359,20 @@ func (q *Queries) ListUserTags(ctx context.Context, userID pgtype.UUID) ([]inter
 	return items, nil
 }
 
-const removeContentTag = `-- name: RemoveContentTag :one
+const removeContentTagArray = `-- name: RemoveContentTagArray :one
 UPDATE generated_content
 SET tags = array_remove(tags, $2), updated_at = now()
 WHERE id = $1
 RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
 `
 
-type RemoveContentTagParams struct {
+type RemoveContentTagArrayParams struct {
 	ID          pgtype.UUID
 	ArrayRemove interface{}
 }
 
-func (q *Queries) RemoveContentTag(ctx context.Context, arg RemoveContentTagParams) (GeneratedContent, error) {
-	row := q.db.QueryRow(ctx, removeContentTag, arg.ID, arg.ArrayRemove)
+func (q *Queries) RemoveContentTagArray(ctx context.Context, arg RemoveContentTagArrayParams) (GeneratedContent, error) {
+	row := q.db.QueryRow(ctx, removeContentTagArray, arg.ID, arg.ArrayRemove)
 	var i GeneratedContent
 	err := row.Scan(
 		&i.ID,
@@ -357,6 +391,36 @@ func (q *Queries) RemoveContentTag(ctx context.Context, arg RemoveContentTagPara
 		&i.Tags,
 	)
 	return i, err
+}
+
+const removeContentTagJunction = `-- name: RemoveContentTagJunction :exec
+DELETE FROM content_tags
+WHERE tag_id = $1 AND content_id = $2
+`
+
+type RemoveContentTagJunctionParams struct {
+	TagID     pgtype.UUID
+	ContentID pgtype.UUID
+}
+
+func (q *Queries) RemoveContentTagJunction(ctx context.Context, arg RemoveContentTagJunctionParams) error {
+	_, err := q.db.Exec(ctx, removeContentTagJunction, arg.TagID, arg.ContentID)
+	return err
+}
+
+const removeDigestArticleTag = `-- name: RemoveDigestArticleTag :exec
+DELETE FROM digest_article_tags
+WHERE tag_id = $1 AND article_id = $2
+`
+
+type RemoveDigestArticleTagParams struct {
+	TagID     pgtype.UUID
+	ArticleID pgtype.UUID
+}
+
+func (q *Queries) RemoveDigestArticleTag(ctx context.Context, arg RemoveDigestArticleTagParams) error {
+	_, err := q.db.Exec(ctx, removeDigestArticleTag, arg.TagID, arg.ArticleID)
+	return err
 }
 
 const softDeleteContent = `-- name: SoftDeleteContent :one
@@ -437,40 +501,6 @@ type UpdateContentCategoryParams struct {
 
 func (q *Queries) UpdateContentCategory(ctx context.Context, arg UpdateContentCategoryParams) (GeneratedContent, error) {
 	row := q.db.QueryRow(ctx, updateContentCategory, arg.ID, arg.Category)
-	var i GeneratedContent
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Product,
-		&i.Status,
-		&i.SourceType,
-		&i.Title,
-		&i.BodyMarkdown,
-		&i.Metadata,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.Origin,
-		&i.DeletedAt,
-		&i.Category,
-		&i.Tags,
-	)
-	return i, err
-}
-
-const updateContentStatus = `-- name: UpdateContentStatus :one
-UPDATE generated_content
-SET status = $2, updated_at = now()
-WHERE id = $1
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
-`
-
-type UpdateContentStatusParams struct {
-	ID     pgtype.UUID
-	Status domain.ContentStatus
-}
-
-func (q *Queries) UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) (GeneratedContent, error) {
-	row := q.db.QueryRow(ctx, updateContentStatus, arg.ID, arg.Status)
 	var i GeneratedContent
 	err := row.Scan(
 		&i.ID,
