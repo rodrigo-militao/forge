@@ -16,9 +16,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
         if (typeof sessionStorage !== "undefined") {
           sessionStorage.setItem("redirectAfterLogin", currentPath);
         }
-      }
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
       }
     }
     const body = await res.json().catch(() => ({ error: res.statusText }));
