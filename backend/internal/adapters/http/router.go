@@ -44,6 +44,7 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 		r.Post("/api/auth/logout", authH.Logout)
 		r.Get("/api/auth/me", authH.Me)
 		r.Put("/api/auth/restrict-search", authH.UpdateRestrictSearch)
+		r.Put("/api/auth/theme", authH.UpdateThemePreference)
 
 		r.Get("/api/content", contentH.List)
 		r.Put("/api/content/{id}", contentH.Save)
@@ -52,8 +53,6 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 		r.Post("/api/content/{id}/tags", contentH.AddTag)
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
 		r.Get("/api/content/tags", contentH.ListTags)
-		r.Post("/api/content/{id}/approve", contentH.Approve)
-		r.Post("/api/content/{id}/reject", contentH.Reject)
 
 		r.Post("/api/digest/run", enqueueJob(jobs, users, usages, "curate_digest", false))
 

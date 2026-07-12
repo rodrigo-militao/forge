@@ -24,7 +24,6 @@ type ContentReader interface {
 type ContentWriter interface {
 	Create(ctx context.Context, content *domain.GeneratedContent) error
 	UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error
-	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	UpdateCategory(ctx context.Context, id uuid.UUID, category *string) error
 }
@@ -34,7 +33,6 @@ type ContentDigestReader interface {
 	ExistsByURL(ctx context.Context, userID uuid.UUID, url string) (bool, error)
 	ListWithoutCategory(ctx context.Context, userID uuid.UUID, limit int) ([]domain.GeneratedContent, error)
 	ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error)
-	ListApprovedDigest(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error)
 }
 
 // ContentTagger manages tags on content items.
@@ -68,4 +66,5 @@ type UserRepository interface {
 	CountActiveSources(ctx context.Context, userID uuid.UUID) (int, error)
 	CountActiveInterests(ctx context.Context, userID uuid.UUID) (int, error)
 	UpdateRestrictSearch(ctx context.Context, userID uuid.UUID, restrict bool) error
+	UpdateThemePreference(ctx context.Context, userID uuid.UUID, theme domain.ThemePreference) error
 }

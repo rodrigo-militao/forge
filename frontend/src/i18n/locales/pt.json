@@ -3,7 +3,9 @@
     "digest": "Digest",
     "compose": "Compor",
     "library": "Biblioteca",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "collapse": "Recolher sidebar",
+    "expand": "Expandir sidebar"
   },
   "auth": {
     "login": "Entrar",
@@ -77,6 +79,10 @@
     "monthlyUsage": "Gerações mensais",
     "maxSourcesReached": "Limite de fontes ativas atingido. Desative outra fonte primeiro.",
     "maxInterestsReached": "Limite de interesses ativos atingido. Desative outro interesse primeiro.",
-    "restrictSearch": "Digest busca apenas nas minhas fontes configuradas"
+    "restrictSearch": "Digest busca apenas nas minhas fontes configuradas",
+    "theme": "Tema",
+    "themeDark": "Escuro",
+    "themeLight": "Claro",
+    "themeUpdated": "Tema atualizado"
   }
 }

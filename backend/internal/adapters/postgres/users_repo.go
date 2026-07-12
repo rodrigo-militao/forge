@@ -94,20 +94,29 @@ func (r *UserRepository) UpdateRestrictSearch(ctx context.Context, userID uuid.U
 	return err
 }
 
+func (r *UserRepository) UpdateThemePreference(ctx context.Context, userID uuid.UUID, theme domain.ThemePreference) error {
+	_, err := r.q.UpdateThemePreference(ctx, UpdateThemePreferenceParams{
+		ID:              uuidToPgtype(userID),
+		ThemePreference: theme,
+	})
+	return err
+}
+
 func userFromModel(u User) *domain.User {
 	return &domain.User{
-		ID:                 u.ID.Bytes,
-		Email:              u.Email,
-		PasswordHash:       u.PasswordHash,
-		Name:               u.Name,
+		ID:                      u.ID.Bytes,
+		Email:                   u.Email,
+		PasswordHash:            u.PasswordHash,
+		Name:                    u.Name,
 		PlanoAtivo:              u.PlanoAtivo,
 		MaxActiveSources:        int(u.MaxActiveSources),
 		MaxActiveInterests:      int(u.MaxActiveInterests),
-		RestrictSearchToSources:    u.RestrictSearchToSources,
-		MaxMonthlyGenerations:     int(u.MaxMonthlyGenerations),
-		Locale:                     u.Locale,
-		CreatedAt:          u.CreatedAt.Time,
-		UpdatedAt:          u.UpdatedAt.Time,
+		RestrictSearchToSources: u.RestrictSearchToSources,
+		MaxMonthlyGenerations:   int(u.MaxMonthlyGenerations),
+		Locale:                  u.Locale,
+		ThemePreference:         u.ThemePreference,
+		CreatedAt:               u.CreatedAt.Time,
+		UpdatedAt:               u.UpdatedAt.Time,
 	}
 }
 

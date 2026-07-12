@@ -37,7 +37,7 @@ func (q *Queries) CountActiveSources(ctx context.Context, userID pgtype.UUID) (i
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash, name, locale)
 VALUES ($1, $2, $3, $4)
-RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations
+RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations, theme_preference
 `
 
 type CreateUserParams struct {
@@ -69,12 +69,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.MaxActiveInterests,
 		&i.RestrictSearchToSources,
 		&i.MaxMonthlyGenerations,
+		&i.ThemePreference,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations FROM users WHERE email = $1
+SELECT id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations, theme_preference FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -93,12 +94,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.MaxActiveInterests,
 		&i.RestrictSearchToSources,
 		&i.MaxMonthlyGenerations,
+		&i.ThemePreference,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations FROM users WHERE id = $1
+SELECT id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations, theme_preference FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -117,12 +119,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.MaxActiveInterests,
 		&i.RestrictSearchToSources,
 		&i.MaxMonthlyGenerations,
+		&i.ThemePreference,
 	)
 	return i, err
 }
 
 const updateRestrictSearch = `-- name: UpdateRestrictSearch :one
-UPDATE users SET restrict_search_to_sources = $2, updated_at = now() WHERE id = $1 RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations
+UPDATE users SET restrict_search_to_sources = $2, updated_at = now() WHERE id = $1 RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations, theme_preference
 `
 
 type UpdateRestrictSearchParams struct {
@@ -146,6 +149,37 @@ func (q *Queries) UpdateRestrictSearch(ctx context.Context, arg UpdateRestrictSe
 		&i.MaxActiveInterests,
 		&i.RestrictSearchToSources,
 		&i.MaxMonthlyGenerations,
+		&i.ThemePreference,
+	)
+	return i, err
+}
+
+const updateThemePreference = `-- name: UpdateThemePreference :one
+UPDATE users SET theme_preference = $2, updated_at = now() WHERE id = $1 RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations, theme_preference
+`
+
+type UpdateThemePreferenceParams struct {
+	ID              pgtype.UUID
+	ThemePreference domain.ThemePreference
+}
+
+func (q *Queries) UpdateThemePreference(ctx context.Context, arg UpdateThemePreferenceParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateThemePreference, arg.ID, arg.ThemePreference)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.PlanoAtivo,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.MaxActiveSources,
+		&i.MaxActiveInterests,
+		&i.RestrictSearchToSources,
+		&i.MaxMonthlyGenerations,
+		&i.ThemePreference,
 	)
 	return i, err
 }
@@ -154,7 +188,7 @@ const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET email = $2, name = $3, password_hash = $4, plano_ativo = $5, locale = $6, max_active_sources = $7, max_active_interests = $8, updated_at = now()
 WHERE id = $1
-RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations
+RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations, theme_preference
 `
 
 type UpdateUserParams struct {
@@ -193,6 +227,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.MaxActiveInterests,
 		&i.RestrictSearchToSources,
 		&i.MaxMonthlyGenerations,
+		&i.ThemePreference,
 	)
 	return i, err
 }

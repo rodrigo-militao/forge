@@ -9,6 +9,16 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
+type ContentTag struct {
+	TagID     pgtype.UUID
+	ContentID pgtype.UUID
+}
+
+type DigestArticleTag struct {
+	TagID     pgtype.UUID
+	ArticleID pgtype.UUID
+}
+
 type DigestInterest struct {
 	ID        pgtype.UUID
 	UserID    pgtype.UUID
@@ -74,6 +84,13 @@ type Source struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type Tag struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	Label     string
+	CreatedAt pgtype.Timestamptz
+}
+
 type Topic struct {
 	ID           pgtype.UUID
 	UserID       pgtype.UUID
@@ -107,6 +124,7 @@ type User struct {
 	MaxActiveInterests      int32
 	RestrictSearchToSources bool
 	MaxMonthlyGenerations   int32
+	ThemePreference         domain.ThemePreference
 }
 
 type VoiceRoutingConfig struct {
