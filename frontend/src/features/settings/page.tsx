@@ -2,8 +2,9 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { api } from "../api/client";
-import { useAuth } from "../features/auth/store";
+import { api } from "../../api/client";
+import { useAuth } from "../auth/store";
+
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
   const user = useAuth((s) => s.user);
@@ -15,7 +16,7 @@ export function SettingsPage() {
     queryFn: api.digest.interests.list,
   });
 
-  const [editingSource, setEditingSource] = useState<import("../api/client").DigestSource | null>(null);
+  const [editingSource, setEditingSource] = useState<import("../../api/client").DigestSource | null>(null);
   const [newSourceType, setNewSourceType] = useState<"rss" | "web_search" | null>(null);
 
   const { data: sources } = useQuery({
@@ -356,7 +357,7 @@ function EditSourceForm({
   onSave,
   onCancel,
 }: {
-  source: import("../api/client").DigestSource;
+  source: import("../../api/client").DigestSource;
   onSave: (data: { id?: string; name: string; type: string; config: Record<string, string>; enabled?: boolean }) => void;
   onCancel: () => void;
 }) {

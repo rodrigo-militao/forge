@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
@@ -48,8 +47,11 @@ func (h *SourcesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input createSourceInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Name == "" || input.Type == "" {
-		writeError(w, http.StatusBadRequest, "name and type are required")
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if !validateRequired(w, input.Name, "name") || !validateRequired(w, string(input.Type), "type") {
 		return
 	}
 
@@ -75,16 +77,18 @@ func (h *SourcesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	var input updateSourceInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if !validateRequired(w, input.Name, "name") {
 		return
 	}
 
-	var input updateSourceInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.Name == "" {
-		writeError(w, http.StatusBadRequest, "name is required")
+	idStr := chi.URLParam(r, "id")
+	id, ok := validateUUID(w, idStr, "id")
+	if !ok {
 		return
 	}
 
@@ -126,9 +130,8 @@ func (h *SourcesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	id, ok := validateUUID(w, idStr, "id")
+	if !ok {
 		return
 	}
 

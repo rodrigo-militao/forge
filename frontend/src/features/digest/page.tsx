@@ -4,8 +4,8 @@ import { Eye, EyeOff, FileText, Plus, RefreshCw, Sparkles, Trash2, X } from "luc
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import toast from "react-hot-toast";
-import { api } from "../api/client";
-import { useJobPolling } from "../hooks/useJobPolling";
+import { api } from "../../api/client";
+import { useJobPolling } from "../../hooks/useJobPolling";
 
 export function DigestPage() {
   const { t } = useTranslation();

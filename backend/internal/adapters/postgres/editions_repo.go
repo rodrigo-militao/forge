@@ -23,13 +23,11 @@ func NewEditionRepository(pool *pgxpool.Pool) *EditionRepository {
 }
 
 func (r *EditionRepository) Create(ctx context.Context, edition *digest.Edition) error {
-	tx, err := r.pool.Begin(ctx)
+	qtx, tx, err := beginTx(ctx, r.pool, r.q)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
-
-	qtx := r.q.WithTx(tx)
 
 	row, err := qtx.CreateEdition(ctx, CreateEditionParams{
 		UserID:       uuidToPgtype(edition.UserID),
