@@ -8,6 +8,7 @@ interface AuthState {
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   load: () => Promise<void>;
+  clearSession: () => void;
 }
 
 export const useAuth = create<AuthState>((set) => ({
@@ -32,5 +33,8 @@ export const useAuth = create<AuthState>((set) => ({
     } catch {
       set({ user: null, loading: false });
     }
+  },
+  clearSession: () => {
+    set({ user: null, loading: false });
   },
 }));

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -84,7 +85,14 @@ func (c *Client) Complete(ctx context.Context, req domain.LLMRequest) (*domain.L
 
 	apiReq := c.buildRequest(req)
 	return lib.Do(ctx, maxRetries, func() (*domain.LLMResponse, error) {
-		return c.doRequest(ctx, apiReq)
+		resp, err := c.doRequest(ctx, apiReq)
+		if err != nil {
+			var ae *apiError
+			if errors.As(err, &ae) && !ae.Retriable() {
+				return resp, lib.StopRetry(err)
+			}
+		}
+		return resp, err
 	})
 }
 
@@ -119,6 +127,21 @@ type usage struct {
 
 type apiErr struct {
 	Message string `json:"message"`
+}
+
+// apiError represents an HTTP-level API error with retriability classification.
+type apiError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *apiError) Error() string {
+	return fmt.Sprintf("API error (HTTP %d): %s", e.StatusCode, e.Message)
+}
+
+// Retriable returns true for rate limits and server errors.
+func (e *apiError) Retriable() bool {
+	return e.StatusCode == 429 || e.StatusCode >= 500
 }
 
 // --- request / response ---
@@ -196,10 +219,11 @@ func (c *Client) doRequest(ctx context.Context, req chatRequest) (*domain.LLMRes
 
 func parseAPIError(statusCode int, body []byte) error {
 	var e apiErr
+	msg := string(body)
 	if json.Unmarshal(body, &e) == nil && e.Message != "" {
-		return fmt.Errorf("API error (HTTP %d): %s", statusCode, e.Message)
+		msg = e.Message
 	}
-	return fmt.Errorf("API error (HTTP %d): %s", statusCode, string(body))
+	return &apiError{StatusCode: statusCode, Message: msg}
 }
 
 // Compile-time interface check.

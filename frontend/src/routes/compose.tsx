@@ -1,14 +1,15 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bot, PenLine, Sparkles, Type, WandSparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import LinkExtension from "@tiptap/extension-link";
 import toast from "react-hot-toast";
 import { api } from "../api/client";
 import { useJobPolling } from "../hooks/useJobPolling";
-import { useSSE } from "../hooks/useSSE";
+import { FontSize } from "../components/editor/FontSize";
 
 type Mode = "ai" | "blank";
 
@@ -18,15 +19,20 @@ export function ComposePage() {
   const [theme, setTheme] = useState("");
   const [generating, setGenerating] = useState(false);
 
-  useSSE();
-
   const [aiRunning, setAiRunning] = useState(false);
   const [selectedItem, setSelectedItem] = useState<{ id: string; title: string; body: string } | null>(null);
   const [transformAction, setTransformAction] = useState<string | null>(null);
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+      }),
+      FontSize,
+      LinkExtension.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: "text-[var(--color-accent-primary)] underline cursor-pointer" },
+      }),
       Placeholder.configure({ placeholder: "Start writing\u2026" }),
     ],
     editorProps: {

@@ -44,6 +44,9 @@ type GeneratedContent struct {
 	BodyMarkdown *string         `json:"body_markdown"`
 	Metadata     json.RawMessage `json:"metadata"`
 	Origin       ContentOrigin   `json:"origin"`
+	Category     *string         `json:"category"`
+	Tags         []string        `json:"tags"`
+	DeletedAt    *time.Time      `json:"deleted_at"`
 	CreatedAt    time.Time       `json:"created_at"`
 	UpdatedAt    time.Time       `json:"updated_at"`
 }

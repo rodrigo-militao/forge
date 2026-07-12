@@ -1,3 +1,5 @@
+import { useAuth } from "../features/auth/store";
+
 const BASE = "/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -7,6 +9,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      useAuth.getState().clearSession();
+      const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
+      if (currentPath !== "/login" && currentPath !== "/register" && currentPath !== "/") {
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem("redirectAfterLogin", currentPath);
+        }
+      }
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error ?? "Request failed");
   }
@@ -18,6 +32,12 @@ export interface AuthResponse {
   id: string;
   email: string;
   name: string;
+  plano_ativo: boolean;
+  max_active_sources: number;
+  max_active_interests: number;
+  restrict_search_to_sources: boolean;
+  max_monthly_generations: number;
+  usage_this_month: number;
 }
 
 export interface DigestSource {
@@ -35,6 +55,7 @@ export interface DigestInterest {
   id: string;
   user_id: string;
   label: string;
+  enabled: boolean;
   created_at: string;
 }
 
@@ -48,6 +69,9 @@ export interface ContentItem {
   body_markdown: string | null;
   metadata: Record<string, unknown>;
   origin: "ai_generated" | "manual";
+  category: string | null;
+  tags: string[];
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,15 +84,26 @@ export const api = {
       request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
     logout: () => request<{ status: string }>("/auth/logout", { method: "POST" }),
     me: () => request<AuthResponse>("/auth/me"),
+    updateRestrictSearch: (restrict: boolean) =>
+      request<{ status: string }>("/auth/restrict-search", { method: "PUT", body: JSON.stringify({ restrict }) }),
   },
   content: {
     list: () => request<ContentItem[]>("/content"),
     approve: (id: string) => request<{ status: string }>(`/content/${id}/approve`, { method: "POST" }),
     reject: (id: string) => request<{ status: string }>(`/content/${id}/reject`, { method: "POST" }),
-    save: (id: string, data: { title?: string; body_markdown?: string }) => request<{ status: string }>(`/content/${id}`, { method: "PUT", body: JSON.stringify(data) })
+    delete: (id: string) => request<{ status: string }>("/content/" + id, { method: "DELETE" }),
+    save: (id: string, data: { title?: string; body_markdown?: string }) => request<{ status: string }>(`/content/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    updateCategory: (id: string, category: string | null) =>
+      request<{ status: string }>(`/content/${id}/category`, { method: "PUT", body: JSON.stringify({ category }) }),
+    addTag: (id: string, tag: string) =>
+      request<{ status: string }>(`/content/${id}/tags`, { method: "POST", body: JSON.stringify({ tag }) }),
+    removeTag: (id: string, tag: string) =>
+      request<{ status: string }>("/content/" + id + "/tags/" + encodeURIComponent(tag), { method: "DELETE" }),
+    listTags: () => request<string[]>("/content/tags")
   },
   digest: {
     run: () => request<{ edition_id: string; item_count: number }>("/digest/run", { method: "POST" }),
+    usedContentIDs: () => request<string[]>("/digest/used-content-ids"),
     assembleEdition: (contentIDs?: string[]) =>
       request<{ edition_id: string; item_count: number }>("/digest/assemble-edition", {
         method: "POST",
@@ -78,6 +113,8 @@ export const api = {
       list: () => request<DigestInterest[]>("/digest/interests"),
       create: (label: string) =>
         request<DigestInterest>("/digest/interests", { method: "POST", body: JSON.stringify({ label }) }),
+      updateEnabled: (id: string, enabled: boolean) =>
+        request<{ status: string }>("/digest/interests/" + id, { method: "PUT", body: JSON.stringify({ enabled }) }),
       delete: (id: string) =>
         request<void>("/digest/interests/" + id, { method: "DELETE" }),
     },

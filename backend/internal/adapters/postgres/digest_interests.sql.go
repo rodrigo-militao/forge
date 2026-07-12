@@ -14,7 +14,7 @@ import (
 const createDigestInterest = `-- name: CreateDigestInterest :one
 INSERT INTO digest_interests (user_id, label)
 VALUES ($1, $2)
-RETURNING id, user_id, label, created_at
+RETURNING id, user_id, label, created_at, enabled
 `
 
 type CreateDigestInterestParams struct {
@@ -30,13 +30,14 @@ func (q *Queries) CreateDigestInterest(ctx context.Context, arg CreateDigestInte
 		&i.UserID,
 		&i.Label,
 		&i.CreatedAt,
+		&i.Enabled,
 	)
 	return i, err
 }
 
 const deleteDigestInterest = `-- name: DeleteDigestInterest :one
 DELETE FROM digest_interests WHERE id = $1 AND user_id = $2
-RETURNING id, user_id, label, created_at
+RETURNING id, user_id, label, created_at, enabled
 `
 
 type DeleteDigestInterestParams struct {
@@ -52,13 +53,14 @@ func (q *Queries) DeleteDigestInterest(ctx context.Context, arg DeleteDigestInte
 		&i.UserID,
 		&i.Label,
 		&i.CreatedAt,
+		&i.Enabled,
 	)
 	return i, err
 }
 
 const listDigestInterests = `-- name: ListDigestInterests :many
 
-SELECT id, user_id, label, created_at FROM digest_interests WHERE user_id = $1 ORDER BY label
+SELECT id, user_id, label, created_at, enabled FROM digest_interests WHERE user_id = $1 ORDER BY label
 `
 
 // Digest interests (ADR 0032)
@@ -76,6 +78,7 @@ func (q *Queries) ListDigestInterests(ctx context.Context, userID pgtype.UUID) (
 			&i.UserID,
 			&i.Label,
 			&i.CreatedAt,
+			&i.Enabled,
 		); err != nil {
 			return nil, err
 		}
@@ -85,4 +88,30 @@ func (q *Queries) ListDigestInterests(ctx context.Context, userID pgtype.UUID) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateDigestInterestEnabled = `-- name: UpdateDigestInterestEnabled :one
+UPDATE digest_interests
+SET enabled = $3
+WHERE id = $1 AND user_id = $2
+RETURNING id, user_id, label, created_at, enabled
+`
+
+type UpdateDigestInterestEnabledParams struct {
+	ID      pgtype.UUID
+	UserID  pgtype.UUID
+	Enabled bool
+}
+
+func (q *Queries) UpdateDigestInterestEnabled(ctx context.Context, arg UpdateDigestInterestEnabledParams) (DigestInterest, error) {
+	row := q.db.QueryRow(ctx, updateDigestInterestEnabled, arg.ID, arg.UserID, arg.Enabled)
+	var i DigestInterest
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Label,
+		&i.CreatedAt,
+		&i.Enabled,
+	)
+	return i, err
 }

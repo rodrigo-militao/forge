@@ -14,7 +14,7 @@ import (
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
-func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs ports.JobRepository, interests digest.DigestInterestRepository, sources digest.SourceRepository, editions digest.EditionRepository, hub *events.Hub) http.Handler {
+func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, content ports.ContentRepository, jobs ports.JobRepository, interests digest.DigestInterestRepository, sources digest.SourceRepository, editions digest.EditionRepository, hub *events.Hub) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -28,10 +28,10 @@ func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs
 		MaxAge:           300,
 	}))
 
-	authH := NewAuthHandler(users)
+	authH := NewAuthHandler(users, usages)
 	contentH := NewContentHandler(content)
-	interestsH := NewInterestsHandler(interests)
-	sourcesH := NewSourcesHandler(sources)
+	interestsH := NewInterestsHandler(interests, users)
+	sourcesH := NewSourcesHandler(sources, users)
 
 	r.Route("/api/auth", func(r chi.Router) {
 		r.Post("/register", authH.Register)
@@ -43,13 +43,19 @@ func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs
 
 		r.Post("/api/auth/logout", authH.Logout)
 		r.Get("/api/auth/me", authH.Me)
+		r.Put("/api/auth/restrict-search", authH.UpdateRestrictSearch)
 
 		r.Get("/api/content", contentH.List)
 		r.Put("/api/content/{id}", contentH.Save)
+		r.Delete("/api/content/{id}", contentH.Delete)
+		r.Put("/api/content/{id}/category", contentH.UpdateCategory)
+		r.Post("/api/content/{id}/tags", contentH.AddTag)
+		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
+		r.Get("/api/content/tags", contentH.ListTags)
 		r.Post("/api/content/{id}/approve", contentH.Approve)
 		r.Post("/api/content/{id}/reject", contentH.Reject)
 
-		r.Post("/api/digest/run", enqueueJob(jobs, "curate_digest", false))
+		r.Post("/api/digest/run", enqueueJob(jobs, users, usages, "curate_digest", false))
 
 		r.Post("/api/digest/assemble-edition", func(w http.ResponseWriter, r *http.Request) {
 			userUUID, ok := UserIDFromContext(r.Context())
@@ -64,7 +70,7 @@ func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs
 				writeError(w, http.StatusBadRequest, "invalid body")
 				return
 			}
-			svc := digestApp.NewEditionService(content, editions)
+			svc := digestApp.NewEditionService(content, content, editions)
 			result, err := svc.Assemble(r.Context(), userUUID.String(), req.ContentIDs...)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
@@ -73,14 +79,33 @@ func NewRouter(users ports.UserRepository, content ports.ContentRepository, jobs
 			writeJSON(w, http.StatusOK, result)
 		})
 
-		r.Post("/api/compose/generate-topic", enqueueJob(jobs, "generate_topic", false))
-		r.Post("/api/compose/generate-draft", enqueueJob(jobs, "compose_generate_draft", true))
-		r.Post("/api/compose/transform", enqueueJob(jobs, "compose_transform", true))
-		r.Post("/api/compose/write", enqueueJob(jobs, "compose_write", true))
+		r.Get("/api/digest/used-content-ids", func(w http.ResponseWriter, r *http.Request) {
+			userID, ok := UserIDFromContext(r.Context())
+			if !ok {
+				writeError(w, http.StatusUnauthorized, "unauthorized")
+				return
+			}
+			ids, err := editions.ListUsedContentIDs(r.Context(), userID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to list used content")
+				return
+			}
+			strIDs := make([]string, len(ids))
+			for i, id := range ids {
+				strIDs[i] = id.String()
+			}
+			writeJSON(w, http.StatusOK, strIDs)
+		})
+
+		r.Post("/api/compose/generate-topic", enqueueJob(jobs, users, usages, "generate_topic", false))
+		r.Post("/api/compose/generate-draft", enqueueJob(jobs, users, usages, "compose_generate_draft", true))
+		r.Post("/api/compose/transform", enqueueJob(jobs, users, usages, "compose_transform", true))
+		r.Post("/api/compose/write", enqueueJob(jobs, users, usages, "compose_write", true))
 
 		r.Route("/api/digest/interests", func(r chi.Router) {
 			r.Get("/", interestsH.List)
 			r.Post("/", interestsH.Create)
+			r.Put("/{id}", interestsH.UpdateEnabled)
 			r.Delete("/{id}", interestsH.Delete)
 		})
 

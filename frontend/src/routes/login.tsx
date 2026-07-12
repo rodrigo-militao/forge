@@ -17,7 +17,9 @@ export function LoginPage() {
       setError("");
       try {
         await login(email, password);
-        navigate({ to: "/digest" });
+        const redirectTo = sessionStorage.getItem("redirectAfterLogin");
+        sessionStorage.removeItem("redirectAfterLogin");
+        navigate({ to: redirectTo || "/digest" });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Login failed");
       }

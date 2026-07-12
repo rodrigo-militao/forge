@@ -13,6 +13,7 @@ type DigestInterest struct {
 	ID        uuid.UUID `json:"id"`
 	UserID    uuid.UUID `json:"user_id"`
 	Label     string    `json:"label"`
+	Enabled   bool      `json:"enabled"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -20,5 +21,6 @@ type DigestInterest struct {
 type DigestInterestRepository interface {
 	ListByUser(ctx context.Context, userID uuid.UUID) ([]DigestInterest, error)
 	Create(ctx context.Context, userID uuid.UUID, label string) (*DigestInterest, error)
+	UpdateEnabled(ctx context.Context, id uuid.UUID, userID uuid.UUID, enabled bool) error
 	Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }

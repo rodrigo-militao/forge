@@ -12,10 +12,32 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
+const countActiveInterests = `-- name: CountActiveInterests :one
+SELECT COUNT(*) FROM digest_interests WHERE user_id = $1 AND enabled = true
+`
+
+func (q *Queries) CountActiveInterests(ctx context.Context, userID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveInterests, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countActiveSources = `-- name: CountActiveSources :one
+SELECT COUNT(*) FROM sources WHERE user_id = $1 AND enabled = true
+`
+
+func (q *Queries) CountActiveSources(ctx context.Context, userID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveSources, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash, name, locale)
 VALUES ($1, $2, $3, $4)
-RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at
+RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations
 `
 
 type CreateUserParams struct {
@@ -43,12 +65,16 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaxActiveSources,
+		&i.MaxActiveInterests,
+		&i.RestrictSearchToSources,
+		&i.MaxMonthlyGenerations,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, plano_ativo, locale, created_at, updated_at FROM users WHERE email = $1
+SELECT id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -63,12 +89,16 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaxActiveSources,
+		&i.MaxActiveInterests,
+		&i.RestrictSearchToSources,
+		&i.MaxMonthlyGenerations,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, name, plano_ativo, locale, created_at, updated_at FROM users WHERE id = $1
+SELECT id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -83,24 +113,59 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaxActiveSources,
+		&i.MaxActiveInterests,
+		&i.RestrictSearchToSources,
+		&i.MaxMonthlyGenerations,
+	)
+	return i, err
+}
+
+const updateRestrictSearch = `-- name: UpdateRestrictSearch :one
+UPDATE users SET restrict_search_to_sources = $2, updated_at = now() WHERE id = $1 RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations
+`
+
+type UpdateRestrictSearchParams struct {
+	ID                      pgtype.UUID
+	RestrictSearchToSources bool
+}
+
+func (q *Queries) UpdateRestrictSearch(ctx context.Context, arg UpdateRestrictSearchParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateRestrictSearch, arg.ID, arg.RestrictSearchToSources)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.PlanoAtivo,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.MaxActiveSources,
+		&i.MaxActiveInterests,
+		&i.RestrictSearchToSources,
+		&i.MaxMonthlyGenerations,
 	)
 	return i, err
 }
 
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
-SET email = $2, name = $3, password_hash = $4, plano_ativo = $5, locale = $6, updated_at = now()
+SET email = $2, name = $3, password_hash = $4, plano_ativo = $5, locale = $6, max_active_sources = $7, max_active_interests = $8, updated_at = now()
 WHERE id = $1
-RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at
+RETURNING id, email, password_hash, name, plano_ativo, locale, created_at, updated_at, max_active_sources, max_active_interests, restrict_search_to_sources, max_monthly_generations
 `
 
 type UpdateUserParams struct {
-	ID           pgtype.UUID
-	Email        string
-	Name         string
-	PasswordHash string
-	PlanoAtivo   bool
-	Locale       domain.Locale
+	ID                 pgtype.UUID
+	Email              string
+	Name               string
+	PasswordHash       string
+	PlanoAtivo         bool
+	Locale             domain.Locale
+	MaxActiveSources   int32
+	MaxActiveInterests int32
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
@@ -111,6 +176,8 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		arg.PasswordHash,
 		arg.PlanoAtivo,
 		arg.Locale,
+		arg.MaxActiveSources,
+		arg.MaxActiveInterests,
 	)
 	var i User
 	err := row.Scan(
@@ -122,6 +189,10 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaxActiveSources,
+		&i.MaxActiveInterests,
+		&i.RestrictSearchToSources,
+		&i.MaxMonthlyGenerations,
 	)
 	return i, err
 }

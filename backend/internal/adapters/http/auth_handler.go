@@ -11,11 +11,12 @@ import (
 
 // AuthHandler handles user registration and authentication.
 type AuthHandler struct {
-	users ports.UserRepository
+	users  ports.UserRepository
+	usages ports.UsageCounterRepository
 }
 
-func NewAuthHandler(users ports.UserRepository) *AuthHandler {
-	return &AuthHandler{users: users}
+func NewAuthHandler(users ports.UserRepository, usages ports.UsageCounterRepository) *AuthHandler {
+	return &AuthHandler{users: users, usages: usages}
 }
 
 type registerRequest struct {
@@ -30,9 +31,15 @@ type loginRequest struct {
 }
 
 type authResponse struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	ID                      string `json:"id"`
+	Email                   string `json:"email"`
+	Name                    string `json:"name"`
+	PlanoAtivo              bool   `json:"plano_ativo"`
+	MaxActiveSources        int    `json:"max_active_sources"`
+	MaxActiveInterests      int    `json:"max_active_interests"`
+	RestrictSearchToSources bool   `json:"restrict_search_to_sources"`
+	MaxMonthlyGenerations   int    `json:"max_monthly_generations"`
+	UsageThisMonth          int    `json:"usage_this_month"`
 }
 
 // Register creates a new user account and sets a session cookie.
@@ -82,9 +89,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	setSessionCookie(w, token)
 	writeJSON(w, http.StatusCreated, authResponse{
-		ID:    user.ID.String(),
-		Email: user.Email,
-		Name:  user.Name,
+		ID:                      user.ID.String(),
+		Email:                   user.Email,
+		Name:                    user.Name,
+		PlanoAtivo:              user.PlanoAtivo,
+		MaxActiveSources:        user.MaxActiveSources,
+		MaxActiveInterests:      user.MaxActiveInterests,
+		RestrictSearchToSources: user.RestrictSearchToSources,
+		MaxMonthlyGenerations:   user.MaxMonthlyGenerations,
+		UsageThisMonth:          0,
 	})
 }
 
@@ -122,6 +135,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		ID:    user.ID.String(),
 		Email: user.Email,
 		Name:  user.Name,
+		PlanoAtivo:              user.PlanoAtivo,
+		MaxActiveSources:        user.MaxActiveSources,
+		MaxActiveInterests:      user.MaxActiveInterests,
+		RestrictSearchToSources: user.RestrictSearchToSources,
+		MaxMonthlyGenerations:   user.MaxMonthlyGenerations,
+		UsageThisMonth:          0,
 	})
 }
 
@@ -145,9 +164,38 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	usage, _ := h.usages.Get(r.Context(), userID, "")
+
 	writeJSON(w, http.StatusOK, authResponse{
 		ID:    user.ID.String(),
 		Email: user.Email,
 		Name:  user.Name,
+		PlanoAtivo:              user.PlanoAtivo,
+		MaxActiveSources:        user.MaxActiveSources,
+		MaxActiveInterests:      user.MaxActiveInterests,
+		RestrictSearchToSources: user.RestrictSearchToSources,
+		MaxMonthlyGenerations:   user.MaxMonthlyGenerations,
+		UsageThisMonth:          usage,
 	})
+}
+
+// UpdateRestrictSearch toggles whether the Digest pipeline is restricted to configured sources.
+func (h *AuthHandler) UpdateRestrictSearch(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	var req struct {
+		Restrict bool `json:"restrict"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	if err := h.users.UpdateRestrictSearch(r.Context(), userID, req.Restrict); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }

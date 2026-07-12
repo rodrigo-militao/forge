@@ -23,12 +23,26 @@ type DuckDuckGo struct {
 	client  *http.Client
 }
 
+// DuckDuckGoOption configures the DuckDuckGo source.
+type DuckDuckGoOption func(*DuckDuckGo)
+
+// WithHTTPClient sets a custom HTTP client (useful for testing).
+func WithHTTPClient(client *http.Client) DuckDuckGoOption {
+	return func(d *DuckDuckGo) {
+		d.client = client
+	}
+}
+
 // NewDuckDuckGo creates a web search source with the given search queries.
-func NewDuckDuckGo(queries []string) *DuckDuckGo {
-	return &DuckDuckGo{
+func NewDuckDuckGo(queries []string, opts ...DuckDuckGoOption) *DuckDuckGo {
+	d := &DuckDuckGo{
 		queries: queries,
 		client:  &http.Client{Timeout: 15 * time.Second},
 	}
+	for _, opt := range opts {
+		opt(d)
+	}
+	return d
 }
 
 // Name returns the source name.

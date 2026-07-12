@@ -1,7 +1,8 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { FileText, PenLine, Library, Settings, LogOut } from "lucide-react";
 import { useAuth } from "../../features/auth/store";
+import { useCallback } from "react";
 
 const navItems = [
   { to: "/digest", label: "nav.digest", icon: FileText },
@@ -13,6 +14,12 @@ const navItems = [
 export function Sidebar() {
   const { t } = useTranslation();
   const logout = useAuth((s) => s.logout);
+  const navigate = useNavigate();
+
+  const handleLogout = useCallback(async () => {
+    await logout();
+    navigate({ to: "/login" });
+  }, [logout, navigate]);
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-[var(--color-border)]/20 bg-[var(--color-bg-base)] p-6">
@@ -36,7 +43,7 @@ export function Sidebar() {
       </nav>
 
       <button
-        onClick={logout}
+        onClick={handleLogout}
         className="cursor-pointer flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-danger)]"
       >
         <LogOut size={18} />

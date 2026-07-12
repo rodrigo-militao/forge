@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -91,6 +92,81 @@ func (r *ContentRepository) UpdateBody(ctx context.Context, id uuid.UUID, title,
 	return err
 }
 
+func (r *ContentRepository) UpdateCategory(ctx context.Context, id uuid.UUID, category *string) error {
+	_, err := r.q.UpdateContentCategory(ctx, UpdateContentCategoryParams{
+		ID:       uuidToPgtype(id),
+		Category: category,
+	})
+	return err
+}
+
+func (r *ContentRepository) ListWithoutCategory(ctx context.Context, userID uuid.UUID, limit int) ([]domain.GeneratedContent, error) {
+	rows, err := r.q.ListContentWithoutCategory(ctx, ListContentWithoutCategoryParams{
+		UserID: uuidToPgtype(userID),
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]domain.GeneratedContent, len(rows))
+	for i, c := range rows {
+		result[i] = *contentFromModel(c)
+	}
+	return result, nil
+}
+
+func (r *ContentRepository) ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	rows, err := r.q.ListUserCategories(ctx, uuidToPgtype(userID))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, len(rows))
+	for i, v := range rows {
+		if v != nil {
+			out[i] = *v
+		}
+	}
+	return out, nil
+}
+
+func (r *ContentRepository) AddTag(ctx context.Context, id uuid.UUID, tag string) error {
+	tagAny := any(tag)
+	_, err := r.q.AddContentTag(ctx, AddContentTagParams{
+		ID:          uuidToPgtype(id),
+		ArrayAppend: tagAny,
+	})
+	return err
+}
+
+func (r *ContentRepository) RemoveTag(ctx context.Context, id uuid.UUID, tag string) error {
+	tagAny := any(tag)
+	_, err := r.q.RemoveContentTag(ctx, RemoveContentTagParams{
+		ID:          uuidToPgtype(id),
+		ArrayRemove: tagAny,
+	})
+	return err
+}
+
+func (r *ContentRepository) ListUserTags(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	rows, err := r.q.ListUserTags(ctx, uuidToPgtype(userID))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, len(rows))
+	for i, v := range rows {
+		s, _ := v.(string)
+		out[i] = s
+	}
+	return out, nil
+}
+
+func (r *ContentRepository) ExistsByURL(ctx context.Context, userID uuid.UUID, url string) (bool, error) {
+	return r.q.ContentExistsByURL(ctx, ContentExistsByURLParams{
+		UserID:  uuidToPgtype(userID),
+		Column2: url,
+	})
+}
+
 func (r *ContentRepository) ListApprovedDigest(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
 	rows, err := r.q.ListApprovedDigest(ctx, uuidToPgtype(userID))
 	if err != nil {
@@ -103,7 +179,20 @@ func (r *ContentRepository) ListApprovedDigest(ctx context.Context, userID uuid.
 	return result, nil
 }
 
+func (r *ContentRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.q.SoftDeleteContent(ctx, uuidToPgtype(id))
+	return err
+}
+
 func contentFromModel(c GeneratedContent) *domain.GeneratedContent {
+	var deletedAt *time.Time
+	if c.DeletedAt.Valid {
+		deletedAt = &c.DeletedAt.Time
+	}
+	tags := c.Tags
+	if tags == nil {
+		tags = []string{}
+	}
 	return &domain.GeneratedContent{
 		ID:           c.ID.Bytes,
 		UserID:       c.UserID.Bytes,
@@ -113,9 +202,12 @@ func contentFromModel(c GeneratedContent) *domain.GeneratedContent {
 		Title:        c.Title,
 		BodyMarkdown: c.BodyMarkdown,
 		Metadata:     c.Metadata,
+		Origin:       domain.ContentOrigin(c.Origin),
+		Category:     c.Category,
+		Tags:         tags,
+		DeletedAt:    deletedAt,
 		CreatedAt:    c.CreatedAt.Time,
 		UpdatedAt:    c.UpdatedAt.Time,
-		Origin:       domain.ContentOrigin(c.Origin),
 	}
 }
 

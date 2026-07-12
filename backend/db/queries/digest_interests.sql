@@ -8,6 +8,12 @@ INSERT INTO digest_interests (user_id, label)
 VALUES ($1, $2)
 RETURNING *;
 
+-- name: UpdateDigestInterestEnabled :one
+UPDATE digest_interests
+SET enabled = $3
+WHERE id = $1 AND user_id = $2
+RETURNING *;
+
 -- name: DeleteDigestInterest :one
 DELETE FROM digest_interests WHERE id = $1 AND user_id = $2
 RETURNING *;

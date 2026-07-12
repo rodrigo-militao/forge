@@ -45,6 +45,15 @@ func (r *DigestInterestRepository) Create(ctx context.Context, userID uuid.UUID,
 	return &interest, nil
 }
 
+func (r *DigestInterestRepository) UpdateEnabled(ctx context.Context, id uuid.UUID, userID uuid.UUID, enabled bool) error {
+	_, err := r.q.UpdateDigestInterestEnabled(ctx, UpdateDigestInterestEnabledParams{
+		ID:      uuidToPgtype(id),
+		UserID:  uuidToPgtype(userID),
+		Enabled: enabled,
+	})
+	return err
+}
+
 func (r *DigestInterestRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	_, err := r.q.DeleteDigestInterest(ctx, DeleteDigestInterestParams{
 		ID:     uuidToPgtype(id),
@@ -61,6 +70,7 @@ func digestInterestFromModel(row DigestInterest) digest.DigestInterest {
 		ID:        row.ID.Bytes,
 		UserID:    row.UserID.Bytes,
 		Label:     row.Label,
+		Enabled:   row.Enabled,
 		CreatedAt: row.CreatedAt.Time,
 	}
 }

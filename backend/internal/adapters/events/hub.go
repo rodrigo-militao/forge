@@ -16,6 +16,7 @@ type Event struct {
 // Hub manages per-user SSE client channels and fan-out.
 type Hub struct {
 	mu      sync.RWMutex
+	once    sync.Once
 	clients map[uuid.UUID]map[chan Event]struct{}
 }
 
@@ -68,15 +69,17 @@ func (h *Hub) NotifyUser(userID uuid.UUID, eventType, data string) {
 	}
 }
 
-// Close removes all clients and closes all channels.
+// Close removes all clients and closes all channels. Safe to call multiple times.
 func (h *Hub) Close() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.once.Do(func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
 
-	for _, clients := range h.clients {
-		for ch := range clients {
-			close(ch)
+		for _, clients := range h.clients {
+			for ch := range clients {
+				close(ch)
+			}
 		}
-	}
-	h.clients = make(map[uuid.UUID]map[chan Event]struct{})
+		h.clients = make(map[uuid.UUID]map[chan Event]struct{})
+	})
 }

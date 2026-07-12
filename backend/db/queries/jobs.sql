@@ -8,6 +8,7 @@ RETURNING *;
 WITH next_job AS (
     SELECT id FROM jobs
     WHERE status = 'pending'
+       OR (status = 'processing' AND updated_at < now() - interval '10 minutes')
     ORDER BY created_at ASC
     LIMIT 1
     FOR UPDATE SKIP LOCKED

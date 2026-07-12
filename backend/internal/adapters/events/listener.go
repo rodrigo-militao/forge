@@ -4,15 +4,32 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
 // ListenContentChanged connects to Postgres, runs LISTEN on content_changed,
-// and forwards notifications to the Hub. Runs until ctx is cancelled.
-// Intended to be called in a goroutine.
+// and forwards notifications to the Hub. Reconnects automatically on connection
+// errors. Runs until ctx is cancelled. Intended to be called in a goroutine.
 func ListenContentChanged(ctx context.Context, connString string, hub *Hub) error {
+	for {
+		if err := listenOnce(ctx, connString, hub); err != nil {
+			if ctx.Err() != nil {
+				return err
+			}
+			slog.Warn("events: listener disconnected, reconnecting in 2s", "error", err)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(2 * time.Second):
+			}
+		}
+	}
+}
+
+func listenOnce(ctx context.Context, connString string, hub *Hub) error {
 	conn, err := pgx.Connect(ctx, connString)
 	if err != nil {
 		return fmt.Errorf("events: connect for LISTEN: %w", err)

@@ -14,6 +14,7 @@ type DigestInterest struct {
 	UserID    pgtype.UUID
 	Label     string
 	CreatedAt pgtype.Timestamptz
+	Enabled   bool
 }
 
 type GeneratedContent struct {
@@ -28,6 +29,9 @@ type GeneratedContent struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 	Origin       string
+	DeletedAt    pgtype.Timestamptz
+	Category     *string
+	Tags         []string
 }
 
 type Job struct {
@@ -91,14 +95,18 @@ type UsageCounter struct {
 }
 
 type User struct {
-	ID           pgtype.UUID
-	Email        string
-	PasswordHash string
-	Name         string
-	PlanoAtivo   bool
-	Locale       domain.Locale
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID                      pgtype.UUID
+	Email                   string
+	PasswordHash            string
+	Name                    string
+	PlanoAtivo              bool
+	Locale                  domain.Locale
+	CreatedAt               pgtype.Timestamptz
+	UpdatedAt               pgtype.Timestamptz
+	MaxActiveSources        int32
+	MaxActiveInterests      int32
+	RestrictSearchToSources bool
+	MaxMonthlyGenerations   int32
 }
 
 type VoiceRoutingConfig struct {

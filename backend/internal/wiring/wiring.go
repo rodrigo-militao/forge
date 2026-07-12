@@ -36,7 +36,11 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 	contentRepo := postgres.NewContentRepository(cfg.Pool)
 	topicsRepo := postgres.NewTopicRepository(cfg.Pool)
 	editionsRepo := postgres.NewEditionRepository(cfg.Pool)
-	llmClient := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL)
+	jobsRepo := postgres.NewJobRepository(cfg.Pool)
+	rawLLM := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL)
+	llmClient := llm.NewLoggingWrapper(rawLLM)
+	rawCheap := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL, llm.WithModel("deepseek-chat"))
+	cheapLLM := llm.NewLoggingWrapper(rawCheap)
 
 	return map[string]worker.Handler{
 		"curate_digest": func(ctx context.Context, userID string, payload []byte) error {
@@ -45,14 +49,24 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				return fmt.Errorf("invalid user id: %w", err)
 			}
 
+			userRepo := postgres.NewUserRepository(cfg.Pool)
 			sourceRepo := postgres.NewSourceRepository(cfg.Pool)
 			configs, err := sourceRepo.ListByUser(ctx, id)
 			if err != nil {
 				return fmt.Errorf("fetching sources: %w", err)
 			}
 
+			user, err := userRepo.GetByID(ctx, id)
+			if err != nil {
+				return fmt.Errorf("fetching user: %w", err)
+			}
+
 			sources := buildContentSources(configs)
 			if len(sources) == 0 {
+				if user.RestrictSearchToSources {
+					slog.Info("curate_digest: restrict_search enabled and no sources configured, skipping")
+					return nil
+				}
 				// Fallback: hardcoded defaults when user has no configured sources.
 				slog.Info("curate_digest: no configured sources, using defaults")
 				sources = []digestDomain.ContentSource{
@@ -61,13 +75,31 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				}
 			}
 
-			svc := digestApp.NewDiscoveryService(llmClient, sources, contentRepo, id)
+			svc := digestApp.NewDiscoveryService(llmClient, sources, contentRepo, contentRepo, id)
 			result, err := svc.Run(ctx, time.Now())
 			if err != nil {
 				return fmt.Errorf("digest run: %w", err)
 			}
 			_ = result
+
+			// Enqueue batch categorization after discovery
+			if err := jobsRepo.Create(ctx, &coredomain.Job{
+				UserID:  id,
+				Type:    "categorize_batch",
+				Payload: []byte("{}"),
+			}); err != nil {
+				slog.Warn("failed to enqueue categorize_batch", "error", err)
+			}
 			return nil
+		},
+
+		"categorize_batch": func(ctx context.Context, userID string, payload []byte) error {
+			id, err := uuid.Parse(userID)
+			if err != nil {
+				return fmt.Errorf("invalid user id: %w", err)
+			}
+			svc := digestApp.NewCategorizeService(cheapLLM, contentRepo, contentRepo, id)
+			return svc.Run(ctx)
 		},
 
 		"generate_topic": func(ctx context.Context, userID string, payload []byte) error {
@@ -95,7 +127,7 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 		},
 
 		"assemble_edition": func(ctx context.Context, userID string, payload []byte) error {
-			svc := digestApp.NewEditionService(contentRepo, editionsRepo)
+			svc := digestApp.NewEditionService(contentRepo, contentRepo, editionsRepo)
 			var req struct {
 				ContentIDs []string `json:"content_ids"`
 			}

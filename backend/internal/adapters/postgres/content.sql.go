@@ -12,11 +12,64 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
+const addContentTag = `-- name: AddContentTag :one
+UPDATE generated_content
+SET tags = array_append(tags, $2), updated_at = now()
+WHERE id = $1 AND NOT ($2 = ANY(tags))
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
+`
+
+type AddContentTagParams struct {
+	ID          pgtype.UUID
+	ArrayAppend interface{}
+}
+
+func (q *Queries) AddContentTag(ctx context.Context, arg AddContentTagParams) (GeneratedContent, error) {
+	row := q.db.QueryRow(ctx, addContentTag, arg.ID, arg.ArrayAppend)
+	var i GeneratedContent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Product,
+		&i.Status,
+		&i.SourceType,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
+	)
+	return i, err
+}
+
+const contentExistsByURL = `-- name: ContentExistsByURL :one
+SELECT EXISTS(
+  SELECT 1 FROM generated_content
+  WHERE user_id = $1 AND metadata->>'source_url' = $2::text
+) AS found
+`
+
+type ContentExistsByURLParams struct {
+	UserID  pgtype.UUID
+	Column2 string
+}
+
+func (q *Queries) ContentExistsByURL(ctx context.Context, arg ContentExistsByURLParams) (bool, error) {
+	row := q.db.QueryRow(ctx, contentExistsByURL, arg.UserID, arg.Column2)
+	var found bool
+	err := row.Scan(&found)
+	return found, err
+}
+
 const createContent = `-- name: CreateContent :one
 
 INSERT INTO generated_content (user_id, product, status, source_type, title, body_markdown, metadata, origin)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
 `
 
 type CreateContentParams struct {
@@ -55,12 +108,15 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (G
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
 	)
 	return i, err
 }
 
 const getContentByID = `-- name: GetContentByID :one
-SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin FROM generated_content WHERE id = $1
+SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags FROM generated_content WHERE id = $1
 `
 
 func (q *Queries) GetContentByID(ctx context.Context, id pgtype.UUID) (GeneratedContent, error) {
@@ -78,12 +134,15 @@ func (q *Queries) GetContentByID(ctx context.Context, id pgtype.UUID) (Generated
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
 	)
 	return i, err
 }
 
 const listApprovedDigest = `-- name: ListApprovedDigest :many
-SELECT gc.id, gc.user_id, gc.product, gc.status, gc.source_type, gc.title, gc.body_markdown, gc.metadata, gc.created_at, gc.updated_at, gc.origin FROM generated_content gc
+SELECT gc.id, gc.user_id, gc.product, gc.status, gc.source_type, gc.title, gc.body_markdown, gc.metadata, gc.created_at, gc.updated_at, gc.origin, gc.deleted_at, gc.category, gc.tags FROM generated_content gc
 WHERE gc.user_id = $1
   AND gc.product = 'digest'
   AND gc.status = 'approved'
@@ -111,6 +170,9 @@ func (q *Queries) ListApprovedDigest(ctx context.Context, userID pgtype.UUID) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Origin,
+			&i.DeletedAt,
+			&i.Category,
+			&i.Tags,
 		); err != nil {
 			return nil, err
 		}
@@ -123,7 +185,7 @@ func (q *Queries) ListApprovedDigest(ctx context.Context, userID pgtype.UUID) ([
 }
 
 const listContentByUser = `-- name: ListContentByUser :many
-SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin FROM generated_content
+SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags FROM generated_content
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -149,6 +211,9 @@ func (q *Queries) ListContentByUser(ctx context.Context, userID pgtype.UUID) ([]
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Origin,
+			&i.DeletedAt,
+			&i.Category,
+			&i.Tags,
 		); err != nil {
 			return nil, err
 		}
@@ -160,11 +225,174 @@ func (q *Queries) ListContentByUser(ctx context.Context, userID pgtype.UUID) ([]
 	return items, nil
 }
 
+const listContentWithoutCategory = `-- name: ListContentWithoutCategory :many
+SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags FROM generated_content
+WHERE user_id = $1 AND product = 'digest' AND category IS NULL AND deleted_at IS NULL
+ORDER BY created_at DESC
+LIMIT $2
+`
+
+type ListContentWithoutCategoryParams struct {
+	UserID pgtype.UUID
+	Limit  int32
+}
+
+func (q *Queries) ListContentWithoutCategory(ctx context.Context, arg ListContentWithoutCategoryParams) ([]GeneratedContent, error) {
+	rows, err := q.db.Query(ctx, listContentWithoutCategory, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GeneratedContent
+	for rows.Next() {
+		var i GeneratedContent
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Product,
+			&i.Status,
+			&i.SourceType,
+			&i.Title,
+			&i.BodyMarkdown,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Origin,
+			&i.DeletedAt,
+			&i.Category,
+			&i.Tags,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserCategories = `-- name: ListUserCategories :many
+SELECT DISTINCT category FROM generated_content
+WHERE user_id = $1 AND product = 'digest' AND category IS NOT NULL
+ORDER BY category
+`
+
+func (q *Queries) ListUserCategories(ctx context.Context, userID pgtype.UUID) ([]*string, error) {
+	rows, err := q.db.Query(ctx, listUserCategories, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*string
+	for rows.Next() {
+		var category *string
+		if err := rows.Scan(&category); err != nil {
+			return nil, err
+		}
+		items = append(items, category)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserTags = `-- name: ListUserTags :many
+SELECT DISTINCT unnest(tags) AS tag
+FROM generated_content
+WHERE user_id = $1 AND tags IS NOT NULL
+ORDER BY tag
+`
+
+func (q *Queries) ListUserTags(ctx context.Context, userID pgtype.UUID) ([]interface{}, error) {
+	rows, err := q.db.Query(ctx, listUserTags, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []interface{}
+	for rows.Next() {
+		var tag interface{}
+		if err := rows.Scan(&tag); err != nil {
+			return nil, err
+		}
+		items = append(items, tag)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeContentTag = `-- name: RemoveContentTag :one
+UPDATE generated_content
+SET tags = array_remove(tags, $2), updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
+`
+
+type RemoveContentTagParams struct {
+	ID          pgtype.UUID
+	ArrayRemove interface{}
+}
+
+func (q *Queries) RemoveContentTag(ctx context.Context, arg RemoveContentTagParams) (GeneratedContent, error) {
+	row := q.db.QueryRow(ctx, removeContentTag, arg.ID, arg.ArrayRemove)
+	var i GeneratedContent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Product,
+		&i.Status,
+		&i.SourceType,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
+	)
+	return i, err
+}
+
+const softDeleteContent = `-- name: SoftDeleteContent :one
+UPDATE generated_content
+SET deleted_at = now(), updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
+`
+
+func (q *Queries) SoftDeleteContent(ctx context.Context, id pgtype.UUID) (GeneratedContent, error) {
+	row := q.db.QueryRow(ctx, softDeleteContent, id)
+	var i GeneratedContent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Product,
+		&i.Status,
+		&i.SourceType,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
+	)
+	return i, err
+}
+
 const updateContentBody = `-- name: UpdateContentBody :one
 UPDATE generated_content
 SET title = COALESCE($2, title), body_markdown = COALESCE($3, body_markdown), updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
 `
 
 type UpdateContentBodyParams struct {
@@ -188,6 +416,43 @@ func (q *Queries) UpdateContentBody(ctx context.Context, arg UpdateContentBodyPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
+	)
+	return i, err
+}
+
+const updateContentCategory = `-- name: UpdateContentCategory :one
+UPDATE generated_content
+SET category = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
+`
+
+type UpdateContentCategoryParams struct {
+	ID       pgtype.UUID
+	Category *string
+}
+
+func (q *Queries) UpdateContentCategory(ctx context.Context, arg UpdateContentCategoryParams) (GeneratedContent, error) {
+	row := q.db.QueryRow(ctx, updateContentCategory, arg.ID, arg.Category)
+	var i GeneratedContent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Product,
+		&i.Status,
+		&i.SourceType,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
 	)
 	return i, err
 }
@@ -196,7 +461,7 @@ const updateContentStatus = `-- name: UpdateContentStatus :one
 UPDATE generated_content
 SET status = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
 `
 
 type UpdateContentStatusParams struct {
@@ -219,6 +484,9 @@ func (q *Queries) UpdateContentStatus(ctx context.Context, arg UpdateContentStat
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
 	)
 	return i, err
 }

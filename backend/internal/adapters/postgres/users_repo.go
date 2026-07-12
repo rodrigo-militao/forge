@@ -60,12 +60,14 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.
 
 func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 	u, err := r.q.UpdateUser(ctx, UpdateUserParams{
-		ID:           uuidToPgtype(user.ID),
-		Email:        user.Email,
-		Name:         user.Name,
-		PasswordHash: user.PasswordHash,
-		PlanoAtivo:   user.PlanoAtivo,
-		Locale:       user.Locale,
+		ID:                 uuidToPgtype(user.ID),
+		Email:              user.Email,
+		Name:               user.Name,
+		PasswordHash:       user.PasswordHash,
+		PlanoAtivo:         user.PlanoAtivo,
+		MaxActiveSources:   int32(user.MaxActiveSources),
+		MaxActiveInterests: int32(user.MaxActiveInterests),
+		Locale:             user.Locale,
 	})
 	if err != nil {
 		return err
@@ -74,16 +76,38 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
+func (r *UserRepository) CountActiveSources(ctx context.Context, userID uuid.UUID) (int, error) {
+	n, err := r.q.CountActiveSources(ctx, uuidToPgtype(userID))
+	return int(n), err
+}
+
+func (r *UserRepository) CountActiveInterests(ctx context.Context, userID uuid.UUID) (int, error) {
+	n, err := r.q.CountActiveInterests(ctx, uuidToPgtype(userID))
+	return int(n), err
+}
+
+func (r *UserRepository) UpdateRestrictSearch(ctx context.Context, userID uuid.UUID, restrict bool) error {
+	_, err := r.q.UpdateRestrictSearch(ctx, UpdateRestrictSearchParams{
+		ID:                     uuidToPgtype(userID),
+		RestrictSearchToSources: restrict,
+	})
+	return err
+}
+
 func userFromModel(u User) *domain.User {
 	return &domain.User{
-		ID:           u.ID.Bytes,
-		Email:        u.Email,
-		PasswordHash: u.PasswordHash,
-		Name:         u.Name,
-		PlanoAtivo:   u.PlanoAtivo,
-		Locale:       u.Locale,
-		CreatedAt:    u.CreatedAt.Time,
-		UpdatedAt:    u.UpdatedAt.Time,
+		ID:                 u.ID.Bytes,
+		Email:              u.Email,
+		PasswordHash:       u.PasswordHash,
+		Name:               u.Name,
+		PlanoAtivo:              u.PlanoAtivo,
+		MaxActiveSources:        int(u.MaxActiveSources),
+		MaxActiveInterests:      int(u.MaxActiveInterests),
+		RestrictSearchToSources:    u.RestrictSearchToSources,
+		MaxMonthlyGenerations:     int(u.MaxMonthlyGenerations),
+		Locale:                     u.Locale,
+		CreatedAt:          u.CreatedAt.Time,
+		UpdatedAt:          u.UpdatedAt.Time,
 	}
 }
 

@@ -21,7 +21,11 @@
     "running": "Executando…",
     "noContent": "Nenhum conteúdo curado ainda. Execute uma descoberta para começar.",
     "assembleEdition": "Montar edição",
-    "assembling": "Montando…"
+    "assembling": "Montando…",
+    "delete": "Excluir",
+    "deleted": "Artigo excluído",
+    "categoryPlaceholder": "Categoria…",
+    "tagPlaceholder": "Tag…"
   },
   "compose": {
     "title": "Compor",
@@ -38,7 +42,8 @@
     "draft": "Rascunho",
     "approved": "Aprovado",
     "rejected": "Rejeitado",
-    "empty": "Nenhum conteúdo ainda."
+    "empty": "Nenhum conteúdo ainda.",
+    "showDeleted": "Mostrar excluídos"
   },
   "settings": {
     "title": "Configurações",
@@ -65,6 +70,13 @@
     "sourceWebSearch": "Busca na Web",
     "sourceURLPlaceholder": "https://exemplo.com/feed.xml",
     "sourceQueryPlaceholder": "ex.: golang melhores práticas",
-    "noSources": "Nenhuma fonte configurada. Adicione um feed RSS ou busca web para começar."
+    "noSources": "Nenhuma fonte configurada. Adicione um feed RSS ou busca web para começar.",
+    "planLimits": "Limites do plano",
+    "activeSources": "Fontes ativas",
+    "activeInterests": "Interesses ativos",
+    "monthlyUsage": "Gerações mensais",
+    "maxSourcesReached": "Limite de fontes ativas atingido. Desative outra fonte primeiro.",
+    "maxInterestsReached": "Limite de interesses ativos atingido. Desative outro interesse primeiro.",
+    "restrictSearch": "Digest busca apenas nas minhas fontes configuradas"
   }
 }

@@ -19,17 +19,19 @@ import (
 type DiscoveryService struct {
 	llm     domain.LLMClient
 	sources []digest.ContentSource
-	content ports.ContentRepository
-	userID  uuid.UUID
+	content       ports.ContentWriter
+	digestQueries ports.ContentDigestReader
+	userID        uuid.UUID
 }
 
 // NewDiscoveryService creates a discovery service.
-func NewDiscoveryService(llm domain.LLMClient, sources []digest.ContentSource, content ports.ContentRepository, userID uuid.UUID) *DiscoveryService {
+func NewDiscoveryService(llm domain.LLMClient, sources []digest.ContentSource, content ports.ContentWriter, digestQueries ports.ContentDigestReader, userID uuid.UUID) *DiscoveryService {
 	return &DiscoveryService{
-		llm:     llm,
-		sources: sources,
-		content: content,
-		userID:  userID,
+		llm:           llm,
+		sources:       sources,
+		content:       content,
+		digestQueries: digestQueries,
+		userID:        userID,
 	}
 }
 
@@ -79,6 +81,19 @@ func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult,
 	// Persist each high/medium item as generated_content with status=draft
 	persistItem := func(item digest.DigestItem) error {
 		summary := item.Summary
+
+		// Skip if URL already exists for this user (dedup across runs)
+		if item.URL != "" {
+			exists, err := s.digestQueries.ExistsByURL(ctx, s.userID, item.URL)
+			if err != nil {
+				slog.Warn("url dedup check failed, proceeding anyway",
+					"url", item.URL, "error", err)
+			} else if exists {
+				slog.Info("skipping duplicate URL", "url", item.URL, "title", item.Title)
+				return nil
+			}
+		}
+
 		meta := buildMetadata(item)
 		return s.content.Create(ctx, &domain.GeneratedContent{
 			UserID:       s.userID,

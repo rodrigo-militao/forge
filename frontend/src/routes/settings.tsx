@@ -4,15 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api } from "../api/client";
 import { useAuth } from "../features/auth/store";
-import { useSSE } from "../hooks/useSSE";
-
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
   const user = useAuth((s) => s.user);
   const queryClient = useQueryClient();
   const [newInterest, setNewInterest] = useState("");
-
-  useSSE();
 
   const { data: interests } = useQuery({
     queryKey: ["digest-interests"],
@@ -27,6 +23,9 @@ export function SettingsPage() {
     queryFn: api.digest.sources.list,
   });
 
+  const activeSources = sources?.filter((s) => s.enabled).length ?? 0;
+  const activeInterests = interests?.filter((i) => i.enabled).length ?? 0;
+
   const handleSaveSource = useCallback(
     async (data: { id?: string; name: string; type: string; config: Record<string, string>; enabled?: boolean }) => {
       try {
@@ -40,7 +39,12 @@ export function SettingsPage() {
         setNewSourceType(null);
         toast.success(t("settings.sourceSaved"));
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed");
+        const msg = err instanceof Error ? err.message : "Failed";
+        if (msg.includes("max_active_sources")) {
+          toast.error(t("settings.maxSourcesReached"));
+        } else {
+          toast.error(msg);
+        }
       }
     },
     [queryClient, t],
@@ -72,6 +76,23 @@ export function SettingsPage() {
     }
   }, [newInterest, queryClient, t]);
 
+  const handleToggleInterest = useCallback(
+    async (id: string, enabled: boolean) => {
+      try {
+        await api.digest.interests.updateEnabled(id, enabled);
+        queryClient.invalidateQueries({ queryKey: ["digest-interests"] });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed";
+        if (msg.includes("max_active_interests")) {
+          toast.error(t("settings.maxInterestsReached"));
+        } else {
+          toast.error(msg);
+        }
+      }
+    },
+    [queryClient, t],
+  );
+
   const handleDeleteInterest = useCallback(
     async (id: string) => {
       try {
@@ -91,6 +112,43 @@ export function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-8">
       <h1 className="font-[var(--font-display)] text-2xl">{t("settings.title")}</h1>
+
+      {/* Plan limits banner */}
+      {user && (
+        <div className="rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4">
+          <h3 className="text-sm font-medium text-[var(--color-bg-surface)]">{t("settings.planLimits")}</h3>
+          <div className="mt-2 flex gap-6 text-xs text-[var(--color-text-muted)]">
+            <span>
+              {t("settings.activeSources")}: {activeSources}/{user.max_active_sources}
+            </span>
+            <span>
+              {t("settings.activeInterests")}: {activeInterests}/{user.max_active_interests}
+            </span>
+            <span>
+              {t("settings.monthlyUsage")}: {user.usage_this_month}/{user.max_monthly_generations}
+            </span>
+          </div>
+          <label className="mt-3 flex cursor-pointer items-center gap-3 text-sm text-[var(--color-text-muted)]">
+            <button
+              onClick={async () => {
+                await api.auth.updateRestrictSearch(!user.restrict_search_to_sources);
+                const updated = await api.auth.me();
+                useAuth.setState({ user: updated });
+              }}
+              className={`h-5 w-9 cursor-pointer rounded-full transition-colors ${
+                user.restrict_search_to_sources ? "bg-[var(--color-accent-primary)]" : "bg-gray-600"
+              }`}
+            >
+              <span
+                className={`block h-4 w-4 translate-y-0.5 rounded-full bg-white transition-transform ${
+                  user.restrict_search_to_sources ? "translate-x-[14px]" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+            {t("settings.restrictSearch")}
+          </label>
+        </div>
+      )}
 
       <section className="space-y-4">
         <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
@@ -144,7 +202,23 @@ export function SettingsPage() {
               key={interest.id}
               className="flex items-center justify-between rounded-lg border border-[var(--color-border)]/20 px-3 py-2"
             >
-              <span className="text-sm">{interest.label}</span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleToggleInterest(interest.id, !interest.enabled)}
+                  className={`h-5 w-9 cursor-pointer rounded-full transition-colors ${
+                    interest.enabled ? "bg-[var(--color-accent-primary)]" : "bg-gray-600"
+                  }`}
+                >
+                  <span
+                    className={`block h-4 w-4 translate-y-0.5 rounded-full bg-white transition-transform ${
+                      interest.enabled ? "translate-x-[14px]" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+                <span className={`text-sm ${interest.enabled ? "text-[var(--color-bg-surface)]" : "text-[var(--color-text-muted)]"}`}>
+                  {interest.label}
+                </span>
+              </div>
               <button
                 onClick={() => handleDeleteInterest(interest.id)}
                 className="cursor-pointer text-xs text-[var(--color-text-muted)] underline-offset-2 hover:underline"

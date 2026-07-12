@@ -194,6 +194,8 @@
 - Publicação automática em qualquer plataforma externa (ADR 0003)
 - Qualquer forma de autonomia sem revisão humana (ADR 0005)
 - Montagem automática de edição via cron + notificações/lembretes (ADR 0029)
+- Ampliação de posicionamento para "plataforma completa de estudo/escrita" (portal de pesquisa, diretórios de organização, saída para artigo científico/script de vídeo além de newsletter/artigo) — decisão de posicionamento adiada conscientemente até haver dado real de uso do MVP atual, mesmo raciocínio da ADR 0008. Categoria/tags do Digest (ADR 0037) já são desenhadas de forma compatível com essa extensão futura, sem retrabalho.
+- Integração com Obsidian e Telegram — backlog, sem desenho técnico ainda
 
 Esses itens só devem ser retomados depois do MVP validado com uso real, como decisões novas e deliberadas — não como continuação automática deste plano.
 

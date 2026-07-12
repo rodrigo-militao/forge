@@ -33,6 +33,7 @@ func main() {
 
 	// Repositories
 	users := postgres.NewUserRepository(pool)
+	usages := postgres.NewUsageCounterRepository(pool)
 	content := postgres.NewContentRepository(pool)
 	jobs := postgres.NewJobRepository(pool)
 	interests := postgres.NewDigestInterestRepository(pool)
@@ -51,7 +52,7 @@ func main() {
 	}()
 
 	// Router
-	router := handler.NewRouter(users, content, jobs, interests, sources, editions, hub)
+	router := handler.NewRouter(users, usages, content, jobs, interests, sources, editions, hub)
 
 	srv := &http.Server{
 		Addr:         ":" + port,

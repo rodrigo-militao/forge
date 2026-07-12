@@ -1,0 +1,87 @@
+# Forge full stack — API + Worker + Frontend + Caddy + Postgres
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: forge
+      POSTGRES_DB: forge
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./backend/migrations:/migrations
+    command:
+      - "-path"
+      - "/migrations"
+      - "-database"
+      - "postgres://forge:forge@postgres:5432/forge?sslmode=disable"
+      - "up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["api"]
+    environment:
+      DATABASE_URL: postgres://forge:forge@postgres:5432/forge?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: https://code.verboo.ai/router/v1
+      PORT: "8080"
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["worker"]
+    environment:
+      DATABASE_URL: postgres://forge:forge@postgres:5432/forge?sslmode=disable
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: https://code.verboo.ai/router/v1
+      POLL_INTERVAL: 10s
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    restart: unless-stopped
+    depends_on:
+      - api
+      - frontend
+
+volumes:
+  pgdata:
+  caddy_data:

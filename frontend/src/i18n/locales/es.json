@@ -21,7 +21,11 @@
     "running": "Ejecutando…",
     "noContent": "Sin contenido curado. Ejecuta un descubrimiento para empezar.",
     "assembleEdition": "Montar edición",
-    "assembling": "Montando…"
+    "assembling": "Montando…",
+    "delete": "Eliminar",
+    "deleted": "Artículo eliminado",
+    "categoryPlaceholder": "Categoría…",
+    "tagPlaceholder": "Etiqueta…"
   },
   "compose": {
     "title": "Redactar",
@@ -38,7 +42,8 @@
     "draft": "Borrador",
     "approved": "Aprobado",
     "rejected": "Rechazado",
-    "empty": "Sin contenido aún."
+    "empty": "Sin contenido aún.",
+    "showDeleted": "Mostrar eliminados"
   },
   "settings": {
     "title": "Ajustes",
@@ -65,6 +70,13 @@
     "sourceWebSearch": "Búsqueda Web",
     "sourceURLPlaceholder": "https://ejemplo.com/feed.xml",
     "sourceQueryPlaceholder": "ej.: golang mejores prácticas",
-    "noSources": "Sin fuentes configuradas. Añade un feed RSS o búsqueda web para empezar."
+    "noSources": "Sin fuentes configuradas. Añade un feed RSS o búsqueda web para empezar.",
+    "planLimits": "Límites del plan",
+    "activeSources": "Fuentes activas",
+    "activeInterests": "Intereses activos",
+    "monthlyUsage": "Generaciones mensuales",
+    "maxSourcesReached": "Límite de fuentes activas alcanzado. Desactiva otra fuente primero.",
+    "maxInterestsReached": "Límite de intereses activos alcanzado. Desactiva otro interés primero.",
+    "restrictSearch": "Digest busca solo en mis fuentes configuradas"
   }
 }

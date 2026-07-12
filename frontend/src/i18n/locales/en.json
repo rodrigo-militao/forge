@@ -21,7 +21,11 @@
     "running": "Running…",
     "noContent": "No curated content yet. Run a discovery to get started.",
     "assembleEdition": "Assemble edition",
-    "assembling": "Assembling…"
+    "assembling": "Assembling…",
+    "delete": "Delete",
+    "deleted": "Article deleted",
+    "categoryPlaceholder": "Category…",
+    "tagPlaceholder": "Tag…"
   },
   "compose": {
     "title": "Compose",
@@ -38,7 +42,8 @@
     "draft": "Draft",
     "approved": "Approved",
     "rejected": "Rejected",
-    "empty": "No content yet."
+    "empty": "No content yet.",
+    "showDeleted": "Show deleted"
   },
   "settings": {
     "title": "Settings",
@@ -64,6 +69,13 @@
     "sourceRSS": "RSS Feed",
     "sourceWebSearch": "Web Search",
     "sourceURLPlaceholder": "https://example.com/feed.xml",
+    "planLimits": "Plan limits",
+    "activeSources": "Active sources",
+    "activeInterests": "Active interests",
+    "monthlyUsage": "Monthly generations",
+    "maxSourcesReached": "Active sources limit reached. Deactivate another source first.",
+    "maxInterestsReached": "Active interests limit reached. Deactivate another interest first.",
+    "restrictSearch": "Digest crawls only my configured sources",
     "sourceQueryPlaceholder": "e.g. golang best practices",
     "noSources": "No sources configured. Add an RSS feed or web search to start curating."
   }

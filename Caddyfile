@@ -1,0 +1,22 @@
+# Caddy reverse-proxy config (ADR 0021)
+# Used by docker-compose for the full stack.
+
+# Local development: uses localhost with no TLS.
+# For production, replace localhost with your domain to enable automatic TLS.
+:80 {
+    # Reverse-proxy API requests to the Go service
+    handle_path /api/* {
+        reverse_proxy api:8080
+    }
+
+    # Everything else goes to the frontend SPA (nginx)
+    handle {
+        reverse_proxy frontend:80
+    }
+
+    header / {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

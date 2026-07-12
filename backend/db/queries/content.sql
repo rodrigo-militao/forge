@@ -31,3 +31,50 @@ WHERE gc.user_id = $1
   AND gc.product = 'digest'
   AND gc.status = 'approved'
 ORDER BY gc.updated_at DESC;
+
+-- name: UpdateContentCategory :one
+UPDATE generated_content
+SET category = $2, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: AddContentTag :one
+UPDATE generated_content
+SET tags = array_append(tags, $2), updated_at = now()
+WHERE id = $1 AND NOT ($2 = ANY(tags))
+RETURNING *;
+
+-- name: RemoveContentTag :one
+UPDATE generated_content
+SET tags = array_remove(tags, $2), updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ListUserTags :many
+SELECT DISTINCT unnest(tags) AS tag
+FROM generated_content
+WHERE user_id = $1 AND tags IS NOT NULL
+ORDER BY tag;
+
+-- name: SoftDeleteContent :one
+UPDATE generated_content
+SET deleted_at = now(), updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ListContentWithoutCategory :many
+SELECT * FROM generated_content
+WHERE user_id = $1 AND product = 'digest' AND category IS NULL AND deleted_at IS NULL
+ORDER BY created_at DESC
+LIMIT $2;
+
+-- name: ListUserCategories :many
+SELECT DISTINCT category FROM generated_content
+WHERE user_id = $1 AND product = 'digest' AND category IS NOT NULL
+ORDER BY category;
+
+-- name: ContentExistsByURL :one
+SELECT EXISTS(
+  SELECT 1 FROM generated_content
+  WHERE user_id = $1 AND metadata->>'source_url' = $2::text
+) AS found;

@@ -75,7 +75,10 @@ func (r *Runner) processNext(ctx context.Context) {
 		slog.String("job_type", job.Type),
 	)
 
-	if err := handler(ctx, job.UserID.String(), job.Payload); err != nil {
+	// Per-handler timeout prevents a hung handler from blocking the pipeline.
+	handlerCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	if err := handler(handlerCtx, job.UserID.String(), job.Payload); err != nil {
 		lib.LogAttrs(ctx, slog.LevelError, "job failed",
 			slog.String("job_id", job.ID.String()),
 			slog.String("error", err.Error()),

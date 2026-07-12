@@ -16,13 +16,14 @@ import (
 
 // EditionService assembles newsletter editions from selected digest items.
 type EditionService struct {
-	content  ports.ContentRepository
+	reader   ports.ContentReader
+	writer   ports.ContentWriter
 	editions digest.EditionRepository
 }
 
 // NewEditionService creates an edition assembly service.
-func NewEditionService(content ports.ContentRepository, editions digest.EditionRepository) *EditionService {
-	return &EditionService{content: content, editions: editions}
+func NewEditionService(reader ports.ContentReader, writer ports.ContentWriter, editions digest.EditionRepository) *EditionService {
+	return &EditionService{reader: reader, writer: writer, editions: editions}
 }
 
 // AssembleEditionResult contains the result of an edition assembly.
@@ -40,7 +41,7 @@ func (s *EditionService) Assemble(ctx context.Context, userID string, contentIDs
 
 	slog.Info("edition assembly", "user_id", uid, "selected", len(contentIDs))
 
-	allItems, err := s.content.ListByUser(ctx, uid)
+	allItems, err := s.reader.ListByUser(ctx, uid)
 	if err != nil {
 		return nil, fmt.Errorf("listing content: %w", err)
 	}
@@ -115,7 +116,7 @@ func (s *EditionService) Assemble(ctx context.Context, userID string, contentIDs
 
 	slog.Info("edition assembled", "edition_id", edition.ID, "title", editionTitle, "item_count", len(editionItems))
 
-	if err := s.content.Create(ctx, &coredomain.GeneratedContent{
+	if err := s.writer.Create(ctx, &coredomain.GeneratedContent{
 		UserID:       uid,
 		Product:      coredomain.ProductNewsletter,
 		Status:       coredomain.ContentDraft,
