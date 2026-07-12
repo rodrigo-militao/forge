@@ -31,14 +31,6 @@ func (h *ContentHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, items)
 }
 
-func (h *ContentHandler) Approve(w http.ResponseWriter, r *http.Request) {
-	h.updateStatus(w, r, domain.ContentApproved)
-}
-
-func (h *ContentHandler) Reject(w http.ResponseWriter, r *http.Request) {
-	h.updateStatus(w, r, domain.ContentRejected)
-}
-
 // getOwnedContent parses the content ID from the URL, fetches it,
 // and verifies the requesting user owns it. On any failure it writes
 // the error response and returns false.
@@ -60,18 +52,6 @@ func (h *ContentHandler) getOwnedContent(w http.ResponseWriter, r *http.Request)
 		return nil, false
 	}
 	return content, true
-}
-
-func (h *ContentHandler) updateStatus(w http.ResponseWriter, r *http.Request, status domain.ContentStatus) {
-	c, ok := h.getOwnedContent(w, r)
-	if !ok {
-		return
-	}
-	if err := h.content.UpdateStatus(r.Context(), c.ID, status); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update status")
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": string(status)})
 }
 
 func (h *ContentHandler) Save(w http.ResponseWriter, r *http.Request) {

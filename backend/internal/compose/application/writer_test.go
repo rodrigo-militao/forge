@@ -20,7 +20,6 @@ func (m *mockWriterContent) Create(ctx context.Context, content *coredomain.Gene
 	return nil
 }
 func (m *mockWriterContent) UpdateBody(ctx context.Context, id uuid.UUID, title, body *string) error { return nil }
-func (m *mockWriterContent) UpdateStatus(ctx context.Context, id uuid.UUID, status coredomain.ContentStatus) error { return nil }
 func (m *mockWriterContent) SoftDelete(ctx context.Context, id uuid.UUID) error { return nil }
 func (m *mockWriterContent) UpdateCategory(ctx context.Context, id uuid.UUID, cat *string) error { return nil }
 

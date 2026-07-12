@@ -14,7 +14,6 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
-// ContentRepository implements ports.ContentRepository.
 type ContentRepository struct {
 	pool *pgxpool.Pool
 	q    *Queries
@@ -75,14 +74,6 @@ func (r *ContentRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([
 	return result, nil
 }
 
-func (r *ContentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
-	_, err := r.q.UpdateContentStatus(ctx, UpdateContentStatusParams{
-		ID:     uuidToPgtype(id),
-		Status: status,
-	})
-	return err
-}
-
 func (r *ContentRepository) UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error {
 	_, err := r.q.UpdateContentBody(ctx, UpdateContentBodyParams{
 		ID:           uuidToPgtype(id),
@@ -130,8 +121,40 @@ func (r *ContentRepository) ListUserCategories(ctx context.Context, userID uuid.
 }
 
 func (r *ContentRepository) AddTag(ctx context.Context, id uuid.UUID, tag string) error {
+	c, err := r.q.GetContentByID(ctx, uuidToPgtype(id))
+	if err != nil {
+		return err
+	}
+	_, err = r.q.EnsureTag(ctx, EnsureTagParams{
+		UserID: c.UserID,
+		Label:  tag,
+	})
+	if err != nil {
+		return err
+	}
+	tagRow, err := r.q.GetTagByLabel(ctx, GetTagByLabelParams{
+		UserID: c.UserID,
+		Label:  tag,
+	})
+	if err != nil {
+		return err
+	}
+	if c.Product == domain.ProductDigest {
+		err = r.q.AddDigestArticleTag(ctx, AddDigestArticleTagParams{
+			TagID:     tagRow.ID,
+			ArticleID: uuidToPgtype(id),
+		})
+	} else {
+		err = r.q.AddContentTagJunction(ctx, AddContentTagJunctionParams{
+			TagID:     tagRow.ID,
+			ContentID: uuidToPgtype(id),
+		})
+	}
+	if err != nil {
+		return err
+	}
 	tagAny := any(tag)
-	_, err := r.q.AddContentTag(ctx, AddContentTagParams{
+	_, err = r.q.AddContentTagArray(ctx, AddContentTagArrayParams{
 		ID:          uuidToPgtype(id),
 		ArrayAppend: tagAny,
 	})
@@ -139,8 +162,33 @@ func (r *ContentRepository) AddTag(ctx context.Context, id uuid.UUID, tag string
 }
 
 func (r *ContentRepository) RemoveTag(ctx context.Context, id uuid.UUID, tag string) error {
+	c, err := r.q.GetContentByID(ctx, uuidToPgtype(id))
+	if err != nil {
+		return err
+	}
+	tagRow, err := r.q.GetTagByLabel(ctx, GetTagByLabelParams{
+		UserID: c.UserID,
+		Label:  tag,
+	})
+	if err != nil {
+		return err
+	}
+	if c.Product == domain.ProductDigest {
+		err = r.q.RemoveDigestArticleTag(ctx, RemoveDigestArticleTagParams{
+			TagID:     tagRow.ID,
+			ArticleID: uuidToPgtype(id),
+		})
+	} else {
+		err = r.q.RemoveContentTagJunction(ctx, RemoveContentTagJunctionParams{
+			TagID:     tagRow.ID,
+			ContentID: uuidToPgtype(id),
+		})
+	}
+	if err != nil {
+		return err
+	}
 	tagAny := any(tag)
-	_, err := r.q.RemoveContentTag(ctx, RemoveContentTagParams{
+	_, err = r.q.RemoveContentTagArray(ctx, RemoveContentTagArrayParams{
 		ID:          uuidToPgtype(id),
 		ArrayRemove: tagAny,
 	})
@@ -148,16 +196,7 @@ func (r *ContentRepository) RemoveTag(ctx context.Context, id uuid.UUID, tag str
 }
 
 func (r *ContentRepository) ListUserTags(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	rows, err := r.q.ListUserTags(ctx, uuidToPgtype(userID))
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, len(rows))
-	for i, v := range rows {
-		s, _ := v.(string)
-		out[i] = s
-	}
-	return out, nil
+	return r.q.ListUserTags(ctx, uuidToPgtype(userID))
 }
 
 func (r *ContentRepository) ExistsByURL(ctx context.Context, userID uuid.UUID, url string) (bool, error) {
@@ -165,18 +204,6 @@ func (r *ContentRepository) ExistsByURL(ctx context.Context, userID uuid.UUID, u
 		UserID:  uuidToPgtype(userID),
 		Column2: url,
 	})
-}
-
-func (r *ContentRepository) ListApprovedDigest(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
-	rows, err := r.q.ListApprovedDigest(ctx, uuidToPgtype(userID))
-	if err != nil {
-		return nil, err
-	}
-	result := make([]domain.GeneratedContent, len(rows))
-	for i, c := range rows {
-		result[i] = *contentFromModel(c)
-	}
-	return result, nil
 }
 
 func (r *ContentRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
