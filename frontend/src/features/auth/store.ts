@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { api, type AuthResponse } from "../../api/client";
 
+function applyTheme(theme: string) {
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.theme = theme;
+  }
+}
+
 interface AuthState {
   user: AuthResponse | null;
   loading: boolean;
@@ -16,10 +22,12 @@ export const useAuth = create<AuthState>((set) => ({
   loading: true,
   login: async (email, password) => {
     const user = await api.auth.login({ email, password });
+    applyTheme(user.theme_preference);
     set({ user });
   },
   register: async (email, password, name) => {
     const user = await api.auth.register({ email, password, name });
+    applyTheme(user.theme_preference);
     set({ user });
   },
   logout: async () => {
@@ -29,6 +37,7 @@ export const useAuth = create<AuthState>((set) => ({
   load: async () => {
     try {
       const user = await api.auth.me();
+      applyTheme(user.theme_preference);
       set({ user, loading: false });
     } catch {
       set({ user: null, loading: false });

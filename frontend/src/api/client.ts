@@ -38,6 +38,8 @@ export interface AuthResponse {
   restrict_search_to_sources: boolean;
   max_monthly_generations: number;
   usage_this_month: number;
+  locale: string;
+  theme_preference: string;
 }
 
 export interface DigestSource {
@@ -63,7 +65,7 @@ export interface ContentItem {
   id: string;
   user_id: string;
   product: "digest" | "compose" | "newsletter";
-  status: "draft" | "approved" | "rejected";
+  status: "draft";
   source_type: string | null;
   title: string | null;
   body_markdown: string | null;
@@ -86,11 +88,11 @@ export const api = {
     me: () => request<AuthResponse>("/auth/me"),
     updateRestrictSearch: (restrict: boolean) =>
       request<{ status: string }>("/auth/restrict-search", { method: "PUT", body: JSON.stringify({ restrict }) }),
+    updateTheme: (theme: string) =>
+      request<{ status: string }>("/auth/theme", { method: "PUT", body: JSON.stringify({ theme }) }),
   },
   content: {
     list: () => request<ContentItem[]>("/content"),
-    approve: (id: string) => request<{ status: string }>(`/content/${id}/approve`, { method: "POST" }),
-    reject: (id: string) => request<{ status: string }>(`/content/${id}/reject`, { method: "POST" }),
     delete: (id: string) => request<{ status: string }>("/content/" + id, { method: "DELETE" }),
     save: (id: string, data: { title?: string; body_markdown?: string }) => request<{ status: string }>(`/content/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     updateCategory: (id: string, category: string | null) =>

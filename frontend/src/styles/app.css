@@ -24,10 +24,30 @@
   --easing-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
+:root {
+  --color-hover-subtle: rgba(255, 255, 255, 0.05);
+  --color-active-subtle: rgba(255, 255, 255, 0.1);
+}
+
 body {
   background-color: var(--color-bg-base);
   color: var(--color-bg-surface);
   font-family: var(--font-body);
+}
+
+/* Light theme — ADR 0010, docs/design-system.md §2.1 */
+[data-theme="light"] {
+  --color-bg-base: #f7f6f3;
+  --color-bg-surface: #1d1f24;
+  --color-bg-surface-elevated: #ffffff;
+  --color-border: #d4d2cd;
+  --color-text-secondary: #6e7178;
+  --color-text-muted: #a6a9b0;
+  --color-accent-primary: #c96b2c;
+  --color-accent-success: #567a61;
+  --color-accent-danger: #b33c3c;
+  --color-hover-subtle: rgba(0, 0, 0, 0.05);
+  --color-active-subtle: rgba(0, 0, 0, 0.1);
 }
 
 /* TipTap editor placeholder */

@@ -40,6 +40,8 @@ type authResponse struct {
 	RestrictSearchToSources bool   `json:"restrict_search_to_sources"`
 	MaxMonthlyGenerations   int    `json:"max_monthly_generations"`
 	UsageThisMonth          int    `json:"usage_this_month"`
+	Locale                  string `json:"locale"`
+	ThemePreference         string `json:"theme_preference"`
 }
 
 // Register creates a new user account and sets a session cookie.
@@ -98,6 +100,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		RestrictSearchToSources: user.RestrictSearchToSources,
 		MaxMonthlyGenerations:   user.MaxMonthlyGenerations,
 		UsageThisMonth:          0,
+		Locale:                  string(user.Locale),
+		ThemePreference:         string(user.ThemePreference),
 	})
 }
 
@@ -141,6 +145,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		RestrictSearchToSources: user.RestrictSearchToSources,
 		MaxMonthlyGenerations:   user.MaxMonthlyGenerations,
 		UsageThisMonth:          0,
+		Locale:                  string(user.Locale),
+		ThemePreference:         string(user.ThemePreference),
 	})
 }
 
@@ -176,6 +182,8 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		RestrictSearchToSources: user.RestrictSearchToSources,
 		MaxMonthlyGenerations:   user.MaxMonthlyGenerations,
 		UsageThisMonth:          usage,
+		Locale:                  string(user.Locale),
+		ThemePreference:         string(user.ThemePreference),
 	})
 }
 
@@ -195,6 +203,31 @@ func (h *AuthHandler) UpdateRestrictSearch(w http.ResponseWriter, r *http.Reques
 	}
 	if err := h.users.UpdateRestrictSearch(r.Context(), userID, req.Restrict); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+// UpdateThemePreference updates the user's UI theme preference.
+func (h *AuthHandler) UpdateThemePreference(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	var req struct {
+		Theme string `json:"theme"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	if req.Theme != string(domain.ThemeDark) && req.Theme != string(domain.ThemeLight) {
+		writeError(w, http.StatusBadRequest, "theme must be 'dark' or 'light'")
+		return
+	}
+	if err := h.users.UpdateThemePreference(r.Context(), userID, domain.ThemePreference(req.Theme)); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update theme")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})

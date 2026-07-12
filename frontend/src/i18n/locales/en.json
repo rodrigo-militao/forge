@@ -3,7 +3,9 @@
     "digest": "Digest",
     "compose": "Compose",
     "library": "Library",
-    "settings": "Settings"
+    "settings": "Settings",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar"
   },
   "auth": {
     "login": "Log in",
@@ -25,7 +27,9 @@
     "delete": "Delete",
     "deleted": "Article deleted",
     "categoryPlaceholder": "Category…",
-    "tagPlaceholder": "Tag…"
+    "tagPlaceholder": "Tag…",
+    "showUsedInEdition": "Show already sent to Assemble",
+    "tagFilter": "Filter by tag…"
   },
   "compose": {
     "title": "Compose",
@@ -37,13 +41,19 @@
   },
   "library": {
     "title": "Library",
-    "approve": "Approve",
-    "reject": "Reject",
     "draft": "Draft",
-    "approved": "Approved",
-    "rejected": "Rejected",
     "empty": "No content yet.",
-    "showDeleted": "Show deleted"
+    "showDeleted": "Show deleted",
+    "tagFilter": "Filter by tag…",
+    "showUsedInEdition": "Show already sent to Assemble"
+  },
+  "editor": {
+    "tags": "Tags",
+    "addTag": "Add tag…",
+    "noTags": "No tags yet",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved"
   },
   "settings": {
     "title": "Settings",
@@ -77,6 +87,10 @@
     "maxInterestsReached": "Active interests limit reached. Deactivate another interest first.",
     "restrictSearch": "Digest crawls only my configured sources",
     "sourceQueryPlaceholder": "e.g. golang best practices",
-    "noSources": "No sources configured. Add an RSS feed or web search to start curating."
+    "noSources": "No sources configured. Add an RSS feed or web search to start curating.",
+    "theme": "Theme",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "themeUpdated": "Theme updated"
   }
 }

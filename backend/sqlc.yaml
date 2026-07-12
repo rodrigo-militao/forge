@@ -12,6 +12,8 @@ sql:
         overrides:
           - column: "users.locale"
             go_type: "github.com/rodrigo-militao/forge/internal/core/domain.Locale"
+          - column: "users.theme_preference"
+            go_type: "github.com/rodrigo-militao/forge/internal/core/domain.ThemePreference"
           - column: "generated_content.status"
             go_type: "github.com/rodrigo-militao/forge/internal/core/domain.ContentStatus"
           - column: "generated_content.product"

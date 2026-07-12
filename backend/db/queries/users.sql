@@ -24,3 +24,6 @@ SELECT COUNT(*) FROM digest_interests WHERE user_id = $1 AND enabled = true;
 
 -- name: UpdateRestrictSearch :one
 UPDATE users SET restrict_search_to_sources = $2, updated_at = now() WHERE id = $1 RETURNING *;
+
+-- name: UpdateThemePreference :one
+UPDATE users SET theme_preference = $2, updated_at = now() WHERE id = $1 RETURNING *;

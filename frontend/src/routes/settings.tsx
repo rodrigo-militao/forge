@@ -115,7 +115,7 @@ export function SettingsPage() {
 
       {/* Plan limits banner */}
       {user && (
-        <div className="rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4">
+        <div className="rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-hover-subtle)] p-4">
           <h3 className="text-sm font-medium text-[var(--color-bg-surface)]">{t("settings.planLimits")}</h3>
           <div className="mt-2 flex gap-6 text-xs text-[var(--color-text-muted)]">
             <span>
@@ -166,6 +166,36 @@ export function SettingsPage() {
               }`}
             >
               {lng.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Theme preference */}
+      <section className="space-y-4">
+        <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
+          {t("settings.theme")}
+        </h2>
+        <div className="flex gap-2">
+          {["dark", "light"].map((theme) => (
+            <button
+              key={theme}
+              onClick={async () => {
+                await api.auth.updateTheme(theme);
+                if (typeof document !== "undefined") {
+                  document.documentElement.dataset.theme = theme;
+                }
+                const updated = await api.auth.me();
+                useAuth.setState({ user: updated });
+                toast.success(t("settings.themeUpdated"));
+              }}
+              className={`cursor-pointer rounded-lg border px-4 py-2 text-sm transition-colors ${
+                user?.theme_preference === theme
+                  ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
+                  : "border-[var(--color-border)]/20 text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/50"
+              }`}
+            >
+              {t(`settings.theme${theme.charAt(0).toUpperCase() + theme.slice(1)}`)}
             </button>
           ))}
         </div>
