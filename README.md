@@ -89,6 +89,62 @@ cd backend
 go run ./cmd/worker
 ```
 
+## Testing
+
+### Frontend — unit tests (Poku)
+
+```bash
+cd frontend
+npm test
+```
+
+### Frontend — coverage (c8)
+
+```bash
+cd frontend
+npm run coverage
+```
+
+Generates `lcov.info` (for IDE/CI) and `coverage/` directory (HTML report).
+
+### Backend — unit tests
+
+```bash
+cd backend
+go test ./internal/... -count=1 -v
+```
+
+### Backend — coverage
+
+```bash
+cd backend
+go test -coverprofile=coverage.out ./internal/...
+go tool cover -html=coverage.out -o coverage.html
+```
+
+Open `backend/coverage.html` in a browser.
+
+### Backend — integration tests (testcontainers)
+
+Integration tests use **testcontainers-go** to spin up a real Postgres 16 container, run migrations, and exercise repository code against an actual database.
+
+**Prerequisite**: Docker must be running.
+
+```bash
+cd backend
+go test -tags=integration -count=1 -v ./internal/adapters/postgres/ -timeout 10m
+```
+
+> Only tests with the `//go:build integration` build tag are included. Unit tests run without this tag and do not require Docker.
+
+### All coverage at once
+
+```bash
+make coverage          # both sides
+make coverage-backend  # backend only
+make coverage-frontend # frontend only
+```
+
 ## API endpoints
 
 | Method | Path | Auth | Description |

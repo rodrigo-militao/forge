@@ -1,4 +1,4 @@
-.PHONY: all setup db migrate api worker frontend dev run run-dev test test-backend lint build clean up restart restart-backend
+.PHONY: all setup db migrate api worker frontend dev run run-dev test test-backend test-frontend test-all coverage coverage-backend coverage-frontend lint build clean up restart restart-backend db-reset
 
 # Project root — resolves symlinks, works when make is invoked from any directory.
 ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -105,9 +105,18 @@ test-frontend:
 
 test-all: test-backend test-frontend
 
-# Run backend tests only
-test-backend:
-	cd backend && go test ./internal/... -count=1 -v
+# Coverage — frontend (c8 + Poku)
+coverage-frontend:
+	cd frontend && npm run coverage
+
+# Coverage — backend (go test -coverprofile + HTML report)
+coverage-backend:
+	cd backend && go test -coverprofile=coverage.out ./internal/... 2>&1; \
+		go tool cover -html=coverage.out -o coverage.html; \
+		echo "=== Coverage HTML: backend/coverage.html ==="
+
+# Coverage — both sides
+coverage: coverage-backend coverage-frontend
 
 # Run linter (Biome on frontend)
 lint:

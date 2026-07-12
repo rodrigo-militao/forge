@@ -2,3 +2,8 @@ legacy/
 .DS_Store
 backend/.env
 *.local
+
+# Coverage artifacts
+backend/coverage.out
+backend/coverage.html
+frontend/coverage/
