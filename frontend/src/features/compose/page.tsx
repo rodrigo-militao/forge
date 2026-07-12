@@ -7,9 +7,9 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import LinkExtension from "@tiptap/extension-link";
 import toast from "react-hot-toast";
-import { api, type ContentItem } from "../api/client";
-import { useJobPolling } from "../hooks/useJobPolling";
-import { FontSize } from "../components/editor/FontSize";
+import { api, type ContentItem } from "../../api/client";
+import { useJobPolling } from "../../hooks/useJobPolling";
+import { FontSize } from "../../components/editor/FontSize";
 
 type Mode = "ai" | "blank";
 

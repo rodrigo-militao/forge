@@ -4,9 +4,9 @@ import { ArrowLeft, EyeOff, Plus, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import toast from "react-hot-toast";
-import { api, type ContentItem } from "../api/client";
-import { TiptapEditor } from "../components/editor/TiptapEditor";
-import { useAutosave } from "../hooks/useAutosave";
+import { api, type ContentItem } from "../../api/client";
+import { TiptapEditor } from "../../components/editor/TiptapEditor";
+import { useAutosave } from "../../hooks/useAutosave";
 
 export function LibraryPage() {
   const { t } = useTranslation();

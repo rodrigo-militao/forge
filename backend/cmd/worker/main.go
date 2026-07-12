@@ -11,7 +11,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	"github.com/robfig/cron/v3"
 
 	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 	"github.com/rodrigo-militao/forge/internal/worker"
@@ -64,21 +63,12 @@ func main() {
 		runner.Register(jobType, fn)
 	}
 
-	// Cron scheduler for recurring jobs (ADR 0026)
-	cr := cron.New()
-	cr.AddFunc("0 7 * * *", func() {
-		// Daily digest at 07:00
-		slog.Info("scheduled: daily digest")
-	})
-	cr.Start()
-
 	// Graceful shutdown
 	go func() {
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		<-sig
 		slog.Info("shutting down worker")
-		cr.Stop()
 		cancel()
 	}()
 

@@ -11,5 +11,4 @@ type TopicRepository interface {
 	ListByUser(ctx context.Context, userID uuid.UUID) ([]Topic, error)
 	Create(ctx context.Context, topic *Topic) error
 	History(ctx context.Context, userID uuid.UUID, limit int) ([]HistoryEntry, error)
-	AppendHistory(ctx context.Context, entry HistoryEntry) error
 }

@@ -51,12 +51,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.Email == "" || req.Password == "" || req.Name == "" {
-		writeError(w, http.StatusBadRequest, "email, password, and name are required")
-		return
-	}
-	if len(req.Password) < 6 {
-		writeError(w, http.StatusBadRequest, "password must be at least 6 characters")
+	if !validateRequired(w, req.Email, "email") ||
+		!validateRequired(w, req.Password, "password") ||
+		!validateRequired(w, req.Name, "name") ||
+		!validateMinLen(w, req.Password, 6, "password") {
 		return
 	}
 

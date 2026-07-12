@@ -121,18 +121,24 @@ func (r *ContentRepository) ListUserCategories(ctx context.Context, userID uuid.
 }
 
 func (r *ContentRepository) AddTag(ctx context.Context, id uuid.UUID, tag string) error {
-	c, err := r.q.GetContentByID(ctx, uuidToPgtype(id))
+	qtx, tx, err := beginTx(ctx, r.pool, r.q)
 	if err != nil {
 		return err
 	}
-	_, err = r.q.EnsureTag(ctx, EnsureTagParams{
+	defer tx.Rollback(ctx)
+
+	c, err := qtx.GetContentByID(ctx, uuidToPgtype(id))
+	if err != nil {
+		return err
+	}
+	_, err = qtx.EnsureTag(ctx, EnsureTagParams{
 		UserID: c.UserID,
 		Label:  tag,
 	})
 	if err != nil {
 		return err
 	}
-	tagRow, err := r.q.GetTagByLabel(ctx, GetTagByLabelParams{
+	tagRow, err := qtx.GetTagByLabel(ctx, GetTagByLabelParams{
 		UserID: c.UserID,
 		Label:  tag,
 	})
@@ -140,12 +146,12 @@ func (r *ContentRepository) AddTag(ctx context.Context, id uuid.UUID, tag string
 		return err
 	}
 	if c.Product == domain.ProductDigest {
-		err = r.q.AddDigestArticleTag(ctx, AddDigestArticleTagParams{
+		err = qtx.AddDigestArticleTag(ctx, AddDigestArticleTagParams{
 			TagID:     tagRow.ID,
 			ArticleID: uuidToPgtype(id),
 		})
 	} else {
-		err = r.q.AddContentTagJunction(ctx, AddContentTagJunctionParams{
+		err = qtx.AddContentTagJunction(ctx, AddContentTagJunctionParams{
 			TagID:     tagRow.ID,
 			ContentID: uuidToPgtype(id),
 		})
@@ -154,19 +160,28 @@ func (r *ContentRepository) AddTag(ctx context.Context, id uuid.UUID, tag string
 		return err
 	}
 	tagAny := any(tag)
-	_, err = r.q.AddContentTagArray(ctx, AddContentTagArrayParams{
+	_, err = qtx.AddContentTagArray(ctx, AddContentTagArrayParams{
 		ID:          uuidToPgtype(id),
 		ArrayAppend: tagAny,
 	})
-	return err
-}
-
-func (r *ContentRepository) RemoveTag(ctx context.Context, id uuid.UUID, tag string) error {
-	c, err := r.q.GetContentByID(ctx, uuidToPgtype(id))
 	if err != nil {
 		return err
 	}
-	tagRow, err := r.q.GetTagByLabel(ctx, GetTagByLabelParams{
+	return tx.Commit(ctx)
+}
+
+func (r *ContentRepository) RemoveTag(ctx context.Context, id uuid.UUID, tag string) error {
+	qtx, tx, err := beginTx(ctx, r.pool, r.q)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	c, err := qtx.GetContentByID(ctx, uuidToPgtype(id))
+	if err != nil {
+		return err
+	}
+	tagRow, err := qtx.GetTagByLabel(ctx, GetTagByLabelParams{
 		UserID: c.UserID,
 		Label:  tag,
 	})
@@ -174,12 +189,12 @@ func (r *ContentRepository) RemoveTag(ctx context.Context, id uuid.UUID, tag str
 		return err
 	}
 	if c.Product == domain.ProductDigest {
-		err = r.q.RemoveDigestArticleTag(ctx, RemoveDigestArticleTagParams{
+		err = qtx.RemoveDigestArticleTag(ctx, RemoveDigestArticleTagParams{
 			TagID:     tagRow.ID,
 			ArticleID: uuidToPgtype(id),
 		})
 	} else {
-		err = r.q.RemoveContentTagJunction(ctx, RemoveContentTagJunctionParams{
+		err = qtx.RemoveContentTagJunction(ctx, RemoveContentTagJunctionParams{
 			TagID:     tagRow.ID,
 			ContentID: uuidToPgtype(id),
 		})
@@ -188,11 +203,14 @@ func (r *ContentRepository) RemoveTag(ctx context.Context, id uuid.UUID, tag str
 		return err
 	}
 	tagAny := any(tag)
-	_, err = r.q.RemoveContentTagArray(ctx, RemoveContentTagArrayParams{
+	_, err = qtx.RemoveContentTagArray(ctx, RemoveContentTagArrayParams{
 		ID:          uuidToPgtype(id),
 		ArrayRemove: tagAny,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *ContentRepository) ListUserTags(ctx context.Context, userID uuid.UUID) ([]string, error) {

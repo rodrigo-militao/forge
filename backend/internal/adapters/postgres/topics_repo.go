@@ -67,11 +67,6 @@ func (r *TopicRepository) History(ctx context.Context, userID uuid.UUID, limit i
 	return result, nil
 }
 
-func (r *TopicRepository) AppendHistory(ctx context.Context, entry domain.HistoryEntry) error {
-	// History is already tracked via topics table — no separate append needed.
-	return nil
-}
-
 func topicFromModel(t Topic) *domain.Topic {
 	var themeArea domain.ThemeArea
 	if t.ThemeArea != nil {

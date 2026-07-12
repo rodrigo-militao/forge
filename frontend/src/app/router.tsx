@@ -8,10 +8,10 @@ import {
 import { AppShell } from "../components/layout/app-shell";
 import { LoginPage } from "../routes/login";
 import { RegisterPage } from "../routes/register";
-import { DigestPage } from "../routes/digest";
-import { ComposePage } from "../routes/compose";
-import { LibraryPage } from "../routes/library";
-import { SettingsPage } from "../routes/settings";
+import { DigestPage } from "../features/digest/page";
+import { ComposePage } from "../features/compose/page";
+import { LibraryPage } from "../features/library/page";
+import { SettingsPage } from "../features/settings/page";
 import { useAuth } from "../features/auth/store";
 
 const rootRoute = createRootRoute();
