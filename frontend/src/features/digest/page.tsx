@@ -303,7 +303,7 @@ export function DigestPage() {
           {showUsedInEdition ? <Eye size={14} /> : <EyeOff size={14} />}
           {t("digest.showUsedInEdition")}
           {usedCount > 0 && (
-            <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px]">{usedCount}</span>
+            <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs">{usedCount}</span>
           )}
         </button>
       </div>
@@ -409,7 +409,7 @@ export function DigestPage() {
                     )}
                   </h3>
                   {isUsed && (
-                    <span className="rounded bg-[var(--color-accent-success)]/20 px-1.5 py-0.5 text-[10px] text-[var(--color-accent-success)]">
+                    <span className="rounded bg-[var(--color-accent-success)]/20 px-1.5 py-0.5 text-xs text-[var(--color-accent-success)]">
                       Used
                     </span>
                   )}

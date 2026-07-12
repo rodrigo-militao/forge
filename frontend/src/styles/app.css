@@ -15,6 +15,16 @@
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", "SF Mono", monospace;
 
+  /* Type scale — docs/design-system.md §3 */
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.4;
+  --text-ui: 0.875rem;
+  --text-ui--line-height: 1.4;
+
   /* Motion tokens — docs/design-system.md §4 */
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -33,6 +43,8 @@ body {
   background-color: var(--color-bg-base);
   color: var(--color-bg-surface);
   font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
 }
 
 /* Light theme — ADR 0010, docs/design-system.md §2.1 */

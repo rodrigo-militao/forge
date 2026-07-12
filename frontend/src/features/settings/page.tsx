@@ -119,7 +119,7 @@ export function SettingsPage() {
         <div className="mt-8 rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-hover-subtle)] p-5">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-[var(--color-bg-surface)]">{t("settings.planLimits")}</h3>
-            <span className="rounded bg-white/10 px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">
+            <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
               {user.plano_ativo ? "Active" : "Free"}
             </span>
           </div>
