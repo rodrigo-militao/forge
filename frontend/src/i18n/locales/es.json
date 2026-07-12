@@ -52,6 +52,7 @@
   },
   "settings": {
     "title": "Ajustes",
+    "preferences": "Preferencias",
     "language": "Idioma",
     "sources": "Fuentes de contenido",
     "digest": "Ajustes de Digest",
@@ -75,6 +76,9 @@
     "sourceWebSearch": "Búsqueda Web",
     "sourceURLPlaceholder": "https://ejemplo.com/feed.xml",
     "sourceQueryPlaceholder": "ej.: golang mejores prácticas",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "sourcesHint": "Feeds RSS y búsquedas web que alimentan contenido a tu Digest",
     "noSources": "Sin fuentes configuradas. Añade un feed RSS o búsqueda web para empezar.",
     "planLimits": "Límites del plan",
     "activeSources": "Fuentes activas",

@@ -111,13 +111,18 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="mx-auto max-w-2xl">
       <h1 className="font-[var(--font-display)] text-2xl">{t("settings.title")}</h1>
 
-      {/* Plan limits banner */}
+      {/* Plan limits */}
       {user && (
-        <div className="rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-hover-subtle)] p-4">
-          <h3 className="text-sm font-medium text-[var(--color-bg-surface)]">{t("settings.planLimits")}</h3>
+        <div className="mt-8 rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-hover-subtle)] p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-[var(--color-bg-surface)]">{t("settings.planLimits")}</h3>
+            <span className="rounded bg-white/10 px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">
+              {user.plano_ativo ? "Active" : "Free"}
+            </span>
+          </div>
           <div className="mt-2 flex gap-6 text-xs text-[var(--color-text-muted)]">
             <span>
               {t("settings.activeSources")}: {activeSources}/{user.max_active_sources}
@@ -136,8 +141,8 @@ export function SettingsPage() {
                 const updated = await api.auth.me();
                 useAuth.setState({ user: updated });
               }}
-              className={`h-5 w-9 cursor-pointer rounded-full transition-colors ${
-                user.restrict_search_to_sources ? "bg-[var(--color-accent-primary)]" : "bg-gray-600"
+              className={`h-5 w-9 cursor-pointer rounded-full transition-colors duration-150 ${
+                user.restrict_search_to_sources ? "bg-[var(--color-accent-primary)]" : "bg-white/15"
               }`}
             >
               <span
@@ -151,65 +156,67 @@ export function SettingsPage() {
         </div>
       )}
 
-      <section className="space-y-4">
-        <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
-          {t("settings.language")}
+      {/* Preferences: language + theme */}
+      <section className="mt-12">
+        <h2 className="text-xs font-medium text-[var(--color-text-muted)]">
+          {t("settings.preferences")}
         </h2>
-        <div className="flex gap-2">
-          {["en", "pt", "es"].map((lng) => (
-            <button
-              key={lng}
-              onClick={() => changeLanguage(lng)}
-              className={`cursor-pointer rounded-lg border px-4 py-2 text-sm transition-colors ${
-                i18n.language === lng
-                  ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "border-[var(--color-border)]/20 text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/50"
-              }`}
-            >
-              {lng.toUpperCase()}
-            </button>
-          ))}
+        <div className="mt-4 grid grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <p className="text-sm text-[var(--color-text-secondary)]">{t("settings.language")}</p>
+            <div className="flex gap-2">
+              {["en", "pt", "es"].map((lng) => (
+                <button
+                  key={lng}
+                  onClick={() => changeLanguage(lng)}
+                  className={`cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    i18n.language === lng
+                      ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
+                      : "border-[var(--color-border)]/20 text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/50"
+                  }`}
+                >
+                  {lng.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-sm text-[var(--color-text-secondary)]">{t("settings.theme")}</p>
+            <div className="flex gap-2">
+              {["dark", "light"].map((theme) => (
+                <button
+                  key={theme}
+                  onClick={async () => {
+                    await api.auth.updateTheme(theme);
+                    if (typeof document !== "undefined") {
+                      document.documentElement.dataset.theme = theme;
+                    }
+                    const updated = await api.auth.me();
+                    useAuth.setState({ user: updated });
+                    toast.success(t("settings.themeUpdated"));
+                  }}
+                  className={`cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    user?.theme_preference === theme
+                      ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
+                      : "border-[var(--color-border)]/20 text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/50"
+                  }`}
+                >
+                  {t(`settings.theme${theme.charAt(0).toUpperCase() + theme.slice(1)}`)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Theme preference */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
-          {t("settings.theme")}
-        </h2>
-        <div className="flex gap-2">
-          {["dark", "light"].map((theme) => (
-            <button
-              key={theme}
-              onClick={async () => {
-                await api.auth.updateTheme(theme);
-                if (typeof document !== "undefined") {
-                  document.documentElement.dataset.theme = theme;
-                }
-                const updated = await api.auth.me();
-                useAuth.setState({ user: updated });
-                toast.success(t("settings.themeUpdated"));
-              }}
-              className={`cursor-pointer rounded-lg border px-4 py-2 text-sm transition-colors ${
-                user?.theme_preference === theme
-                  ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "border-[var(--color-border)]/20 text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/50"
-              }`}
-            >
-              {t(`settings.theme${theme.charAt(0).toUpperCase() + theme.slice(1)}`)}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Digest interests (ADR 0032) */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
+      {/* Interests */}
+      <section className="mt-12">
+        <h2 className="text-xs font-medium text-[var(--color-text-muted)]">
           {t("settings.interests")}
         </h2>
-        <p className="text-xs text-[var(--color-text-muted)]">{t("settings.interestsHint")}</p>
+        <p className="mt-3 text-xs text-[var(--color-text-muted)]">{t("settings.interestsHint")}</p>
 
-        <div className="flex gap-2">
+        <div className="mt-4 flex gap-2">
           <input
             type="text"
             value={newInterest}
@@ -227,21 +234,21 @@ export function SettingsPage() {
           </button>
         </div>
 
-        <ul className="space-y-2">
+        <ul className="mt-4 space-y-1.5">
           {interests?.map((interest) => (
             <li
               key={interest.id}
-              className="flex items-center justify-between rounded-lg border border-[var(--color-border)]/20 px-3 py-2"
+              className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"
             >
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleToggleInterest(interest.id, !interest.enabled)}
-                  className={`h-5 w-9 cursor-pointer rounded-full transition-colors ${
-                    interest.enabled ? "bg-[var(--color-accent-primary)]" : "bg-gray-600"
+                  className={`h-5 w-9 cursor-pointer rounded-full transition-colors duration-150 ${
+                    interest.enabled ? "bg-[var(--color-accent-primary)]" : "bg-white/15"
                   }`}
                 >
                   <span
-                    className={`block h-4 w-4 translate-y-0.5 rounded-full bg-white transition-transform ${
+                    className={`block h-4 w-4 translate-y-0.5 rounded-full bg-white transition-transform duration-150 ${
                       interest.enabled ? "translate-x-[14px]" : "translate-x-0.5"
                     }`}
                   />
@@ -252,7 +259,7 @@ export function SettingsPage() {
               </div>
               <button
                 onClick={() => handleDeleteInterest(interest.id)}
-                className="cursor-pointer text-xs text-[var(--color-text-muted)] underline-offset-2 hover:underline"
+                className="cursor-pointer text-xs text-[var(--color-text-muted)] underline-offset-2 hover:text-[var(--color-accent-danger)] hover:underline"
               >
                 {t("settings.deleteInterest")}
               </button>
@@ -266,28 +273,34 @@ export function SettingsPage() {
         </ul>
       </section>
 
-      {/* Content sources */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">
+      {/* Sources */}
+      <section className="mt-12">
+        <h2 className="text-xs font-medium text-[var(--color-text-muted)]">
           {t("settings.sources")}
         </h2>
 
+        <p className="mt-3 text-xs text-[var(--color-text-muted)]">{t("settings.sourcesHint")}</p>
+
         {editingSource ? (
-          <EditSourceForm
-            source={editingSource}
-            onSave={handleSaveSource}
-            onCancel={() => setEditingSource(null)}
-          />
+          <div className="mt-4">
+            <EditSourceForm
+              source={editingSource}
+              onSave={handleSaveSource}
+              onCancel={() => setEditingSource(null)}
+            />
+          </div>
         ) : (
           <>
             {newSourceType && (
-              <AddSourceForm
-                type={newSourceType}
-                onSave={handleSaveSource}
-                onCancel={() => setNewSourceType(null)}
-              />
+              <div className="mt-4">
+                <AddSourceForm
+                  type={newSourceType}
+                  onSave={handleSaveSource}
+                  onCancel={() => setNewSourceType(null)}
+                />
+              </div>
             )}
-            <div className="flex gap-2">
+            <div className="mt-4 flex gap-2">
               <button
                 onClick={() => setNewSourceType(newSourceType === "rss" ? null : "rss")}
                 className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
@@ -296,37 +309,37 @@ export function SettingsPage() {
               </button>
               <button
                 onClick={() => setNewSourceType(newSourceType === "web_search" ? null : "web_search")}
-                className="cursor-pointer rounded-lg bg-[var(--color-accent-secondary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                className="cursor-pointer rounded-lg border border-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)] hover:text-white"
               >
                 {t("settings.addSource")} Web Search
               </button>
             </div>
 
-            <ul className="space-y-2">
+            <ul className="mt-4 space-y-1.5">
               {sources?.map((source) => (
                 <li
                   key={source.id}
-                  className="flex items-center justify-between rounded-lg border border-[var(--color-border)]/20 px-3 py-2"
+                  className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`h-2 w-2 rounded-full ${source.enabled ? "bg-green-500" : "bg-gray-500"}`} />
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${source.enabled ? "bg-[var(--color-accent-success)]" : "bg-white/15"}`} />
                     <div>
-                      <span className="text-sm font-medium">{source.name}</span>
+                      <span className="text-sm font-medium text-[var(--color-bg-surface)]">{source.name}</span>
                       <span className="ml-2 text-xs text-[var(--color-text-muted)]">
                         {source.type === "rss" ? t("settings.sourceRSS") : t("settings.sourceWebSearch")}
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <button
                       onClick={() => setEditingSource(source)}
-                      className="cursor-pointer text-xs text-[var(--color-text-muted)] underline-offset-2 hover:underline"
+                      className="cursor-pointer text-xs text-[var(--color-text-muted)] underline-offset-2 hover:text-[var(--color-bg-surface)] hover:underline"
                     >
                       {t("settings.editSource")}
                     </button>
                     <button
                       onClick={() => handleDeleteSource(source.id)}
-                      className="cursor-pointer text-xs text-[var(--color-text-muted)] underline-offset-2 hover:underline"
+                      className="cursor-pointer text-xs text-[var(--color-text-muted)] underline-offset-2 hover:text-[var(--color-accent-danger)] hover:underline"
                     >
                       {t("settings.deleteSource")}
                     </button>
@@ -341,11 +354,14 @@ export function SettingsPage() {
         )}
       </section>
 
+      {/* Profile */}
       {user && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">Profile</h2>
-          <p className="text-sm text-[var(--color-bg-surface)]">{user.name}</p>
-          <p className="text-sm text-[var(--color-text-muted)]">{user.email}</p>
+        <section className="mt-12 border-t border-[var(--color-border)]/10 pt-8">
+          <h2 className="text-xs font-medium text-[var(--color-text-muted)]">Profile</h2>
+          <div className="mt-4 space-y-1">
+            <p className="text-sm text-[var(--color-bg-surface)]">{user.name}</p>
+            <p className="text-sm text-[var(--color-text-muted)]">{user.email}</p>
+          </div>
         </section>
       )}
     </div>
@@ -367,13 +383,13 @@ function EditSourceForm({
   const [enabled, setEnabled] = useState(source.enabled);
 
   return (
-    <div className="space-y-3 rounded-lg border border-[var(--color-border)]/20 p-4">
+    <div className="space-y-3 rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-hover-subtle)] p-4">
       <input
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder={t("settings.sourceName")}
-        className="w-full rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-bg-surface)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-accent-primary)]"
+        className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]"
       />
       {source.type === "rss" ? (
         <input
@@ -381,7 +397,7 @@ function EditSourceForm({
           value={config.url ?? ""}
           onChange={(e) => setConfig({ url: e.target.value })}
           placeholder={t("settings.sourceURLPlaceholder")}
-          className="w-full rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-bg-surface)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-accent-primary)]"
+          className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]"
         />
       ) : (
         <input
@@ -389,22 +405,33 @@ function EditSourceForm({
           value={config.query ?? ""}
           onChange={(e) => setConfig({ query: e.target.value })}
           placeholder={t("settings.sourceQueryPlaceholder")}
-          className="w-full rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-bg-surface)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-accent-primary)]"
+          className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]"
         />
       )}
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+        <button
+          onClick={() => setEnabled(!enabled)}
+          className={`h-5 w-9 cursor-pointer rounded-full transition-colors duration-150 ${
+            enabled ? "bg-[var(--color-accent-primary)]" : "bg-white/15"
+          }`}
+        >
+          <span
+            className={`block h-4 w-4 translate-y-0.5 rounded-full bg-white transition-transform duration-150 ${
+              enabled ? "translate-x-[14px]" : "translate-x-0.5"
+            }`}
+          />
+        </button>
         {t("settings.sourceEnabled")}
       </label>
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-1">
         <button
           onClick={() => onSave({ id: source.id, name, type: source.type, config, enabled })}
           className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
-          {t("settings.sourceSaved")}
+          {t("settings.save")}
         </button>
-        <button onClick={onCancel} className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 px-4 py-2 text-sm transition-colors hover:bg-[var(--color-bg-surface)]/10">
-          Cancel
+        <button onClick={onCancel} className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-white/5">
+          {t("settings.cancel")}
         </button>
       </div>
     </div>
@@ -425,13 +452,13 @@ function AddSourceForm({
   const [config, setConfig] = useState<Record<string, string>>({});
 
   return (
-    <div className="space-y-3 rounded-lg border border-[var(--color-border)]/20 p-4">
+    <div className="space-y-3 rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-hover-subtle)] p-4">
       <input
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder={t("settings.sourceName")}
-        className="w-full rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-bg-surface)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-accent-primary)]"
+        className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]"
       />
       {type === "rss" ? (
         <input
@@ -439,7 +466,7 @@ function AddSourceForm({
           value={config.url ?? ""}
           onChange={(e) => setConfig({ url: e.target.value })}
           placeholder={t("settings.sourceURLPlaceholder")}
-          className="w-full rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-bg-surface)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-accent-primary)]"
+          className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]"
         />
       ) : (
         <input
@@ -447,18 +474,19 @@ function AddSourceForm({
           value={config.query ?? ""}
           onChange={(e) => setConfig({ query: e.target.value })}
           placeholder={t("settings.sourceQueryPlaceholder")}
-          className="w-full rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-bg-surface)]/5 px-3 py-2 text-sm outline-none focus:border-[var(--color-accent-primary)]"
+          className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]"
         />
       )}
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-1">
         <button
           onClick={() => onSave({ name, type, config })}
-          className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          disabled={!name.trim()}
+          className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {t("settings.addSource")}
         </button>
-        <button onClick={onCancel} className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 px-4 py-2 text-sm transition-colors hover:bg-[var(--color-bg-surface)]/10">
-          Cancel
+        <button onClick={onCancel} className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-white/5">
+          {t("settings.cancel")}
         </button>
       </div>
     </div>
