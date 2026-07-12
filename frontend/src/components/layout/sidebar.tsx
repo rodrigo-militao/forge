@@ -62,7 +62,9 @@ export function Sidebar() {
           <Link
             key={to}
             to={to}
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover-subtle)] hover:text-[var(--color-bg-surface)] [&.active]:bg-[var(--color-active-subtle)] [&.active]:text-[var(--color-accent-primary)]"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover-subtle)] hover:text-[var(--color-bg-surface)] [&.active]:bg-[var(--color-active-subtle)] [&.active]:text-[var(--color-accent-primary)] ${
+              collapsed ? "justify-center px-0" : ""
+            }`}
             title={collapsed ? t(label) : undefined}
           >
             <Icon size={18} className="shrink-0" />
@@ -74,7 +76,9 @@ export function Sidebar() {
       <div className="flex flex-col gap-2">
         <button
           onClick={toggleCollapsed}
-          className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-hover-subtle)] hover:text-[var(--color-bg-surface)]"
+          className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-hover-subtle)] hover:text-[var(--color-bg-surface)] ${
+            collapsed ? "justify-center px-0" : ""
+          }`}
           title={collapsed ? t("nav.expand") : t("nav.collapse")}
         >
           {collapsed ? <PanelLeft size={18} className="shrink-0" /> : <PanelLeftClose size={18} className="shrink-0" />}
@@ -83,7 +87,9 @@ export function Sidebar() {
 
         <button
           onClick={handleLogout}
-          className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-hover-subtle)] hover:text-[var(--color-bg-surface)]"
+          className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-hover-subtle)] hover:text-[var(--color-bg-surface)] ${
+            collapsed ? "justify-center px-0" : ""
+          }`}
           title={collapsed ? t("auth.logout") : undefined}
         >
           <LogOut size={18} className="shrink-0" />

@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-12T00:00:00.000Z",
+  "title": "Design System: Forge",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Burnt Orange", "canonical": "oklch(0.55 0.15 45)", "tonalRamp": ["oklch(0.15 0.04 45)", "oklch(0.25 0.07 45)", "oklch(0.35 0.10 45)", "oklch(0.45 0.13 45)", "oklch(0.55 0.15 45)", "oklch(0.65 0.12 45)", "oklch(0.75 0.08 45)", "oklch(0.88 0.04 45)"] },
+      "neutral-bg": { "role": "neutral", "displayName": "Charcoal", "canonical": "oklch(0.16 0.01 70)", "tonalRamp": ["oklch(0.10 0.005 70)", "oklch(0.16 0.01 70)", "oklch(0.22 0.01 70)", "oklch(0.30 0.01 70)", "oklch(0.40 0.01 70)", "oklch(0.55 0.01 70)", "oklch(0.75 0.01 70)", "oklch(0.93 0.005 70)"] },
+      "neutral-surface": { "role": "neutral", "displayName": "Warm White", "canonical": "oklch(0.95 0.005 70)", "tonalRamp": ["oklch(0.10 0.005 70)", "oklch(0.20 0.005 70)", "oklch(0.35 0.005 70)", "oklch(0.50 0.005 70)", "oklch(0.65 0.005 70)", "oklch(0.78 0.005 70)", "oklch(0.88 0.005 70)", "oklch(0.95 0.005 70)"] },
+      "success": { "role": "success", "displayName": "Moss Green", "canonical": "oklch(0.45 0.08 150)", "tonalRamp": ["oklch(0.12 0.02 150)", "oklch(0.20 0.04 150)", "oklch(0.28 0.06 150)", "oklch(0.36 0.07 150)", "oklch(0.45 0.08 150)", "oklch(0.55 0.06 150)", "oklch(0.70 0.04 150)", "oklch(0.88 0.02 150)"] },
+      "danger": { "role": "danger", "displayName": "Brick Red", "canonical": "oklch(0.42 0.14 30)", "tonalRamp": ["oklch(0.10 0.03 30)", "oklch(0.18 0.06 30)", "oklch(0.26 0.09 30)", "oklch(0.34 0.12 30)", "oklch(0.42 0.14 30)", "oklch(0.52 0.11 30)", "oklch(0.67 0.07 30)", "oklch(0.85 0.03 30)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Fraunces Display", "purpose": "Page titles only — once per screen." },
+      "body": { "displayName": "Inter Body", "purpose": "Paragraphs, descriptions, running text. Max 70ch." },
+      "label": { "displayName": "Inter Label", "purpose": "Buttons, form labels, navigation, table headers." },
+      "mono": { "displayName": "IBM Plex Mono", "purpose": "Tags, timestamps, versions, URLs." }
+    },
+    "motion": [
+      { "name": "duration-fast", "value": "120ms", "purpose": "Hover, toggle, micro-interaction." },
+      { "name": "duration-base", "value": "200ms", "purpose": "Open/close panel, tab switch, sidebar collapse." },
+      { "name": "duration-slow", "value": "320ms", "purpose": "Full-screen transitions, modal open/close." },
+      { "name": "easing-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for most transitions." },
+      { "name": "easing-enter", "value": "cubic-bezier(0, 0, 0.2, 1)", "purpose": "Elements entering the viewport." },
+      { "name": "easing-exit", "value": "cubic-bezier(0.4, 0, 1, 1)", "purpose": "Elements exiting the viewport." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary call-to-action. One per screen.",
+      "html": "<button class=\"ds-btn-primary\">Run discovery</button>",
+      "css": ".ds-btn-primary { background: #c96b2c; color: #f7f6f3; padding: 8px 16px; border: none; border-radius: 8px; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: opacity 120ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { opacity: 0.9; } .ds-btn-primary:active { opacity: 0.8; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outline action — pairs with primary.",
+      "html": "<button class=\"ds-btn-secondary\">Assemble edition</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: #c96b2c; padding: 8px 16px; border: 1px solid #c96b2c; border-radius: 8px; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 120ms cubic-bezier(0.4,0,0.2,1), color 120ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-secondary:hover { background: #c96b2c; color: #f7f6f3; } .ds-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Default text field.",
+      "html": "<input class=\"ds-input\" placeholder=\"Email\" type=\"email\" />",
+      "css": ".ds-input { width: 100%; background: rgba(255,255,255,0.05); color: #f7f6f3; padding: 8px 16px; border: 1px solid rgba(226,224,219,0.2); border-radius: 8px; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; outline: none; transition: border-color 120ms cubic-bezier(0.4,0,0.2,1); box-sizing: border-box; } .ds-input::placeholder { color: #8c8a86; } .ds-input:focus { border-color: #c96b2c; }"
+    },
+    {
+      "name": "Content Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Article/content card in list views.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Article title goes here</div><div class=\"ds-card-body\">A short preview of the article body or description text for context.</div></div>",
+      "css": ".ds-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(226,224,219,0.2); border-radius: 12px; padding: 16px; color: #f7f6f3; } .ds-card-title { font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: 1rem; margin-bottom: 4px; } .ds-card-body { font-family: Inter, system-ui, sans-serif; font-size: 0.8125rem; color: #5c5b58; line-height: 1.5; }"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Main sidebar nav item with icon + label.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-active\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z\"/><polyline points=\"14 2 14 8 20 8\"/></svg><span>Digest</span></a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/></svg><span>Compose</span></a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 8px; } .ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; color: #5c5b58; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; text-decoration: none; transition: background 120ms cubic-bezier(0.4,0,0.2,1), color 120ms cubic-bezier(0.4,0,0.2,1); } .ds-nav-item:hover { background: rgba(255,255,255,0.05); color: #f7f6f3; } .ds-nav-active { background: rgba(255,255,255,0.1); color: #c96b2c; }"
+    },
+    {
+      "name": "Filter Chip (Active)",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Active category/tag filter pill.",
+      "html": "<button class=\"ds-chip-active\">Technology</button>",
+      "css": ".ds-chip-active { background: #c96b2c; color: #f7f6f3; padding: 4px 12px; border: none; border-radius: 9999px; font-family: Inter, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; cursor: pointer; }"
+    },
+    {
+      "name": "Filter Chip (Inactive)",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Inactive category/tag filter pill.",
+      "html": "<button class=\"ds-chip-inactive\">Design</button>",
+      "css": ".ds-chip-inactive { background: rgba(255,255,255,0.1); color: #8c8a86; padding: 4px 12px; border: none; border-radius: 9999px; font-family: Inter, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: color 120ms cubic-bezier(0.4,0,0.2,1); } .ds-chip-inactive:hover { color: #f7f6f3; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Content Pipeline",
+    "overview": "Raw material flows in — RSS feeds, web searches, topic seeds — passes through the forge of LLM processing, and emerges as refined, publishable content. The interface is the pipeline control room: precise instruments, clear readouts, direct manipulation.\n\nThe system is editorial and tactile — a dark canvas that evokes the quiet focus of a writer's workspace, not a glowing SaaS dashboard. Surfaces sit in tonal layers rather than floating on shadows. Typography carries the hierarchy: Fraunces serif for headings (authoritative, warm, editorial), Inter sans for body (clean, efficient, technical). The burnt orange accent is the single point of action — every time it appears, it means 'do this thing.'\n\nForge explicitly rejects the generic AI-tool aesthetic: no purple gradients, no glassmorphism, no cute robot illustrations, no sparkle-emoji overload. The interface is restrained because the content is the point. Motion is purposeful and state-communicating. The tool disappears; the writing remains.",
+    "keyCharacteristics": [
+      "Dark-mode-first, editorial atmosphere",
+      "Tonal layering instead of shadows",
+      "Single accent color reserved exclusively for primary actions and active selection",
+      "Typography-driven hierarchy with serif/sans pairing",
+      "Restrained motion — state transitions only, no decorative choreography",
+      "Consistent component vocabulary across every screen"
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Burnt orange is the single action color. It appears on buttons, selection rings, and active nav items — nowhere else. If an element needs a color to communicate state, it uses success (green), danger (red), or neutral (gray), never a second accent.", "section": "colors" },
+      { "name": "The Tonal Layer Rule", "body": "Depth is conveyed through lightness difference, not shadow. Elevated surfaces are brighter (higher lightness) than the base, on a single plane.", "section": "colors" },
+      { "name": "The One-Family Interface Rule", "body": "Buttons, labels, navigation, body, and data use Inter exclusively. Fraunces is reserved for page and section titles only.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest and in their natural state. The only depth cue is the lightness step between layers. Shadows do not exist.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use burnt orange for exactly one primary action per screen. Its rarity communicates importance.",
+      "Do prefer tonal layering over box shadows for depth.",
+      "Do use Fraunces for page titles (once per page) and Inter for everything else.",
+      "Do keep body text at WCAG AA contrast (≥4.5:1 against background).",
+      "Do use skeleton screens (shimmer animation) for content loading in lists and cards.",
+      "Do use direct descriptive language in error messages — no apologies, no emoji, no 'Oops!'",
+      "Do keep motion under 200ms for UI transitions and 320ms for full-screen changes.",
+      "Do use prefers-reduced-motion to disable all animations for users who request it."
+    ],
+    "donts": [
+      "Don't use generic SaaS purple/blue gradients anywhere in the interface.",
+      "Don't use glassmorphism (blur + transparency as a decorative surface treatment).",
+      "Don't use gradient text (background-clip: text with gradient backgrounds).",
+      "Don't use cute robot or friendly-AI illustrations.",
+      "Don't use 'magical AI' tone in copy — no sparkle emoji, no 'look what AI can do.'",
+      "Don't put Fraunces (display font) in buttons, labels, navigation items, or body text.",
+      "Don't use border-left greater than 1px as a colored accent stripe on cards or lists.",
+      "Don't use display/h1 font sizes in sidebars, modals, or compact panels.",
+      "Don't animate layout properties (width, height, top, left) — prefer transform and opacity.",
+      "Don't use right-aligned text in left-to-right interfaces.",
+      "Don't create identical card grids — vary content density and layout rhythm.",
+      "Don't use the hero-metric template (big number, small label, supporting stats)."
+    ]
+  }
+}

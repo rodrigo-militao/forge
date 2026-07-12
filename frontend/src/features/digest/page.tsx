@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff, FileText, Plus, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { Check, Eye, EyeOff, FileText, Plus, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import toast from "react-hot-toast";
@@ -17,7 +17,10 @@ export function DigestPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [tagFilter, setTagFilter] = useState<string>("");
   const [showUsedInEdition, setShowUsedInEdition] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [addingTag, setAddingTag] = useState<string | null>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
+  const categoryInputRef = useRef<HTMLInputElement>(null);
 
   const { data: content, isLoading } = useQuery({
     queryKey: ["content"],
@@ -169,12 +172,39 @@ export function DigestPage() {
 
   const usedCount = items.filter((c) => usedSet.has(c.id)).length;
 
-  if (isLoading) return <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>;
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <div className="flex items-center justify-between">
+            <div className="skeleton skeleton-card !mb-0 !h-9 w-20 rounded-lg" />
+            <div className="skeleton skeleton-card !mb-0 !h-9 w-32 rounded-lg" />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="skeleton skeleton-text !w-16 rounded-full" />
+          <div className="skeleton skeleton-text !w-20 rounded-full" />
+          <div className="skeleton skeleton-text !w-14 rounded-full" />
+        </div>
+        <div className="space-y-3">
+          <div className="skeleton skeleton-card rounded-lg" />
+          <div className="skeleton skeleton-card rounded-lg" />
+          <div className="skeleton skeleton-card rounded-lg" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-[var(--font-display)] text-2xl">{t("digest.title")}</h1>
+        <h1 className="font-[var(--font-display)] text-2xl">
+          {t("digest.title")}
+          {items.length > 0 && (
+            <span className="ml-2 align-baseline font-[var(--font-body)] text-base font-normal text-[var(--color-text-muted)]">
+              {items.length}
+            </span>
+          )}
+        </h1>
         <div className="flex gap-2">
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["content"] })}
@@ -230,56 +260,129 @@ export function DigestPage() {
 
       {availableTags && availableTags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={tagFilter}
-            onChange={(e) => setTagFilter(e.target.value)}
-            className="rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-3 py-1.5 text-xs text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+          <button
+            onClick={() => setTagFilter("")}
+            className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              !tagFilter
+                ? "bg-[var(--color-accent-primary)] text-white"
+                : "bg-white/10 text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)]"
+            }`}
           >
-            <option value="">{t("digest.tagFilter")}</option>
-            {availableTags.map((tag) => (
-              <option key={tag} value={tag}>{tag}</option>
-            ))}
-          </select>
+            {t("digest.tagFilter")}
+          </button>
+          {availableTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setTagFilter(tag)}
+              className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                tagFilter === tag
+                  ? "bg-[var(--color-accent-primary)] text-white"
+                  : "bg-white/10 text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)]"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
         </div>
       )}
 
-      <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)]">
-        <input
-          type="checkbox"
-          checked={showUsedInEdition}
-          onChange={(e) => setShowUsedInEdition(e.target.checked)}
-          className="h-3.5 w-3.5 cursor-pointer accent-[var(--color-accent-primary)]"
-        />
+      <button
+        onClick={() => setShowUsedInEdition((prev) => !prev)}
+        className={`cursor-pointer flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+          showUsedInEdition
+            ? "bg-white/10 text-[var(--color-bg-surface)]"
+            : "bg-white/[0.06] text-[var(--color-text-muted)] hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
+        }`}
+      >
         {showUsedInEdition ? <Eye size={14} /> : <EyeOff size={14} />}
         {t("digest.showUsedInEdition")}
         {usedCount > 0 && (
           <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px]">{usedCount}</span>
         )}
-      </label>
+      </button>
 
       <div className="space-y-3">
         {filteredItems.length === 0 && !running && (
-          <p className="text-sm text-[var(--color-text-muted)]">{t("digest.noContent")}</p>
+          <div className="flex flex-col items-center py-16 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
+            <svg
+              width="128"
+              height="96"
+              viewBox="0 0 128 96"
+              fill="none"
+              className="mb-6 text-[var(--color-accent-primary)]"
+              aria-hidden="true"
+            >
+              <rect x="8" y="32" width="112" height="32" rx="6" stroke="currentColor" strokeWidth="1" opacity="0.15" />
+              <circle cx="28" cy="48" r="3" fill="currentColor" opacity="0.3" />
+              <circle cx="44" cy="48" r="3" fill="currentColor" opacity="0.5" />
+              <circle cx="60" cy="48" r="3" fill="currentColor" opacity="0.7" />
+              <circle cx="100" cy="48" r="8" fill="currentColor" />
+              <circle cx="100" cy="48" r="3" fill="var(--color-bg-base)" />
+              <path d="M72 28 Q90 20 100 40" stroke="currentColor" strokeWidth="1" opacity="0.2" fill="none" />
+              <path d="M72 68 Q90 76 100 56" stroke="currentColor" strokeWidth="1" opacity="0.2" fill="none" />
+            </svg>
+            <h2 className="font-[var(--font-display)] text-xl text-[var(--color-bg-surface)]">
+              {t("digest.emptyTitle")}
+            </h2>
+            <p className="mt-2 max-w-md text-center text-sm text-[var(--color-text-secondary)]">
+              {t("digest.emptyDesc")}
+            </p>
+            <div className="mt-8 flex items-center gap-4">
+              <button
+                onClick={handleRun}
+                className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-5 py-2.5 text-sm font-medium text-white transition-all hover:opacity-90 active:translate-y-px"
+              >
+                <Sparkles size={16} />
+                {t("digest.run")}
+              </button>
+              <button
+                onClick={() => navigate({ to: "/settings" })}
+                className="cursor-pointer text-sm text-[var(--color-text-muted)] underline-offset-2 hover:text-[var(--color-bg-surface)] hover:underline"
+              >
+                {t("digest.configureSources")}
+              </button>
+            </div>
+          </div>
         )}
         {running && filteredItems.length === 0 && (
-          <p className="text-sm text-[var(--color-accent-primary)] animate-pulse">
-            Processing articles…
-          </p>
+          <div className="flex flex-col items-center py-16 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
+            <div className="mb-6 flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse [animation-delay:150ms]" />
+              <span className="h-2 w-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse [animation-delay:300ms]" />
+            </div>
+            <p className="text-sm text-[var(--color-accent-primary)]">
+              Processing articles…
+            </p>
+          </div>
         )}
-        {filteredItems.map((item) => (
+        {filteredItems.map((item, idx) => {
+          const isUsed = usedSet.has(item.id);
+          return (
           <div
             key={item.id}
-            className={`rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 transition-colors ${
+            style={!isUsed ? { animationDelay: `${idx * 50}ms` } : undefined}
+            className={`rounded-lg border border-[var(--color-border)]/20 p-4 transition-all duration-200 ${
+              isUsed
+                ? "bg-white/[0.03] opacity-60"
+                : "animate-[fadeIn_400ms_ease-out_forwards] bg-white/5 opacity-0 hover:bg-white/[0.08]"
+            } ${
               selectedIDs.has(item.id) ? "ring-1 ring-[var(--color-accent-primary)]" : ""
-            } ${usedSet.has(item.id) ? "opacity-60" : ""}`}
+            }`}
           >
             <div className="flex items-start justify-between gap-3">
-              <input
-                type="checkbox"
-                checked={selectedIDs.has(item.id)}
-                onChange={() => toggleSelected(item.id)}
-                className="mt-1 h-4 w-4 cursor-pointer accent-[var(--color-accent-primary)]"
-              />
+              <button
+                onClick={() => toggleSelected(item.id)}
+                className={`mt-1 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all duration-150 ${
+                  selectedIDs.has(item.id)
+                    ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]"
+                    : "border-white/15 bg-transparent hover:border-white/30"
+                }`}
+              >
+                {selectedIDs.has(item.id) && (
+                  <Check size={14} className="text-white" />
+                )}
+              </button>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="truncate font-medium">
@@ -298,8 +401,8 @@ export function DigestPage() {
                       </span>
                     )}
                   </h3>
-                  {usedSet.has(item.id) && (
-                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-[var(--color-text-muted)]">
+                  {isUsed && (
+                    <span className="rounded bg-[var(--color-accent-success)]/20 px-1.5 py-0.5 text-[10px] text-[var(--color-accent-success)]">
                       Used
                     </span>
                   )}
@@ -309,24 +412,44 @@ export function DigestPage() {
                     {item.body_markdown}
                   </p>
                 )}
-                <div className="mt-2 flex items-center gap-2">
-                  <input
-                    defaultValue={item.category ?? ""}
-                    onKeyDown={(e) => handleCategoryKeyDown(e, item.id)}
-                    placeholder={t("digest.categoryPlaceholder")}
-                    className="w-40 rounded-md border border-[var(--color-border)]/10 bg-white/5 px-2 py-0.5 text-xs text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
-                  />
-                  {item.category && (
-                    <span className="rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-primary)]">
+                <div className="mt-2.5">
+                  {editingCategory === item.id ? (
+                    <input
+                      ref={categoryInputRef}
+                      defaultValue={item.category ?? ""}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleCategoryKeyDown(e, item.id);
+                          setEditingCategory(null);
+                        }
+                        if (e.key === "Escape") setEditingCategory(null);
+                      }}
+                      onBlur={() => setEditingCategory(null)}
+                      placeholder={t("digest.categoryPlaceholder")}
+                      className="w-40 rounded-md border border-[var(--color-border)]/10 bg-white/5 px-2 py-1 text-xs text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+                      autoFocus
+                    />
+                  ) : item.category ? (
+                    <button
+                      onClick={() => setEditingCategory(item.id)}
+                      className="cursor-pointer rounded-full bg-[var(--color-accent-primary)]/20 px-3 py-1 text-xs font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)]/30"
+                    >
                       {item.category}
-                    </span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setEditingCategory(item.id)}
+                      className="cursor-pointer rounded-full bg-white/[0.06] px-3 py-1 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
+                    >
+                      + {t("digest.categoryPlaceholder")}
+                    </button>
                   )}
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1">
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                   {item.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-0.5 rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]"
+                      className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-[var(--color-text-muted)]"
                     >
                       {tag}
                       <button
@@ -337,26 +460,41 @@ export function DigestPage() {
                       </button>
                     </span>
                   ))}
-                  <div className="inline-flex items-center gap-0.5">
-                    <input
-                      ref={tagInputRef}
-                      value={tagInput[item.id] ?? ""}
-                      onChange={(e) =>
-                        setTagInput((prev) => ({ ...prev, [item.id]: e.target.value }))
-                      }
-                      onKeyDown={(e) => handleTagKeyDown(e, item.id)}
-                      placeholder={t("digest.tagPlaceholder")}
-                      className="w-20 rounded border border-[var(--color-border)]/10 bg-white/5 px-1.5 py-0.5 text-xs text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
-                    />
-                    {tagInput[item.id]?.trim() && (
-                      <button
-                        onClick={() => handleAddTag(item.id)}
-                        className="cursor-pointer text-[var(--color-accent-primary)] hover:opacity-80"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    )}
-                  </div>
+                  {addingTag === item.id ? (
+                    <div className="inline-flex items-center gap-0.5">
+                      <input
+                        ref={tagInputRef}
+                        value={tagInput[item.id] ?? ""}
+                        onChange={(e) =>
+                          setTagInput((prev) => ({ ...prev, [item.id]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddTag(item.id);
+                          }
+                          if (e.key === "Escape") {
+                            setAddingTag(null);
+                            setTagInput((prev) => ({ ...prev, [item.id]: "" }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!tagInput[item.id]?.trim()) setAddingTag(null);
+                        }}
+                        placeholder={t("digest.tagPlaceholder")}
+                        className="w-28 rounded-md border border-[var(--color-border)]/10 bg-white/5 px-2 py-1 text-xs text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setAddingTag(item.id)}
+                      className="cursor-pointer inline-flex items-center gap-0.5 rounded-full bg-white/[0.06] px-2.5 py-0.5 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
+                    >
+                      <Plus size={12} />
+                      {t("digest.tagPlaceholder")}
+                    </button>
+                  )}
                 </div>
               </div>
               <button
@@ -368,7 +506,8 @@ export function DigestPage() {
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

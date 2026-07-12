@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -158,6 +159,7 @@ func (h *ContentHandler) ListTags(w http.ResponseWriter, r *http.Request) {
 	userID, _ := UserIDFromContext(r.Context())
 	tags, err := h.content.ListUserTags(r.Context(), userID)
 	if err != nil {
+		slog.Error("tags: list failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to list tags")
 		return
 	}
