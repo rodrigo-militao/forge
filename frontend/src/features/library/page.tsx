@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, EyeOff } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +16,8 @@ export function LibraryPage() {
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
-  const [saving, setSaving] = useState(false);
+
+
   const [showDeleted, setShowDeleted] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
@@ -63,16 +64,15 @@ export function LibraryPage() {
 
   const handleSave = useCallback(async () => {
     if (!selectedItem) return;
-    setSaving(true);
-    try {
-      await api.content.save(selectedItem.id, { title: editTitle, body_markdown: editBody });
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      toast.success(t("editor.saved"));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-    }
-    setSaving(false);
-  }, [selectedItem, editTitle, editBody, queryClient, t]);
+    await api.content.save(selectedItem.id, { title: editTitle, body_markdown: editBody });
+    queryClient.invalidateQueries({ queryKey: ["content"] });
+  }, [selectedItem, editTitle, editBody, queryClient]);
+
+  const { isSynced, isSaving, error: saveError } = useAutosave({
+    save: handleSave,
+    deps: [editBody, editTitle, selectedItem?.id],
+    enabled: !!selectedItem && (editBody.length > 0 || editTitle.length > 0),
+  });
 
   const handleTransform = useCallback(
     async (action: "expand" | "rewrite", editor: import("@tiptap/react").Editor) => {
@@ -88,13 +88,6 @@ export function LibraryPage() {
     },
     [],
   );
-
-  const autosave = useMemo(() => handleSave, [handleSave]);
-  useAutosave({
-    save: autosave,
-    deps: [editBody, editTitle, selectedItem?.id],
-    enabled: !!selectedItem && (editBody.length > 0 || editTitle.length > 0),
-  });
 
   const handleAddTag = useCallback(async (tag: string) => {
     if (!selectedItem) return;
@@ -163,10 +156,11 @@ export function LibraryPage() {
           availableTags={availableTags ?? []}
           status={selectedItem.status}
           onStatusChange={handleStatusChange}
-          onSave={handleSave}
-          saving={saving}
           editorKey={selectedItem.id}
           onTransform={handleTransform}
+          isSynced={isSynced}
+          isSaving={isSaving}
+          saveError={saveError}
         />
         {selectedItem.deleted_at && <span className="inline-block rounded bg-[var(--color-accent-danger)]/20 px-2 py-1 text-xs font-medium text-[var(--color-accent-danger)]">Deleted</span>}
       </div>

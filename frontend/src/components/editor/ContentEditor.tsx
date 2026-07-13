@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, X } from "lucide-react";
+import { Plus, X, CheckCircle2, AlertCircle } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { TiptapEditor } from "./TiptapEditor";
 
@@ -15,11 +15,12 @@ interface ContentEditorProps {
   availableTags: string[];
   status: string;
   onStatusChange: (status: string) => void;
-  onSave: () => void;
-  saving: boolean;
   editorKey?: string;
   titlePlaceholder?: string;
   onTransform?: (action: "expand" | "rewrite", editor: Editor) => void;
+  isSynced?: boolean;
+  isSaving?: boolean;
+  saveError?: string | null;
   children?: React.ReactNode;
 }
 
@@ -34,11 +35,12 @@ export function ContentEditor({
   availableTags,
   status,
   onStatusChange,
-  onSave,
-  saving,
   editorKey,
   titlePlaceholder = "Title",
   onTransform,
+  isSynced = false,
+  isSaving = false,
+  saveError = null,
   children,
 }: ContentEditorProps) {
   const { t } = useTranslation();
@@ -135,11 +137,23 @@ export function ContentEditor({
         </div>
       </div>
 
-      {/* Save */}
-      <div className="flex gap-2">
-        <button onClick={onSave} disabled={saving} className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-          {saving ? t("editor.saving") : t("editor.save")}
-        </button>
+      {/* Sync indicator — replaces manual save button */}
+      <div className="flex items-center gap-2">
+        {isSaving && (
+          <span className="text-xs text-[var(--color-text-muted)]">{t("editor.saving")}</span>
+        )}
+        {isSynced && !isSaving && (
+          <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-success)]">
+            <CheckCircle2 size={12} />
+            Synced
+          </span>
+        )}
+        {saveError && (
+          <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-danger)]">
+            <AlertCircle size={12} />
+            {saveError}
+          </span>
+        )}
       </div>
     </div>
   );

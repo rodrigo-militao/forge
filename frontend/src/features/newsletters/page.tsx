@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
@@ -12,7 +12,6 @@ export function NewslettersPage() {
   const [selectedItem, setSelectedItem] = useState<NewsletterEdition | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
-  const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [bodyVersion, setBodyVersion] = useState(0);
   const [articles, setArticles] = useState<ArticleRef[]>([]);
@@ -43,23 +42,15 @@ export function NewslettersPage() {
 
   const handleSave = useCallback(async () => {
     if (!selectedItem) return;
-    setSaving(true);
-    try {
-      await api.newsletters.updateBody(selectedItem.id, {
-        title: editTitle,
-        body_html: editBody,
-      });
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      toast.success(t("editor.saved"));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-    }
-    setSaving(false);
-  }, [selectedItem, editTitle, editBody, queryClient, t]);
+    await api.newsletters.updateBody(selectedItem.id, {
+      title: editTitle,
+      body_html: editBody,
+    });
+    queryClient.invalidateQueries({ queryKey: ["editions"] });
+  }, [selectedItem, editTitle, editBody, queryClient]);
 
-  const autosave = useMemo(() => handleSave, [handleSave]);
-  useAutosave({
-    save: autosave,
+  const { isSynced, isSaving, error: saveError } = useAutosave({
+    save: handleSave,
     deps: [editBody, editTitle, selectedItem?.id],
     enabled: !!selectedItem && (editBody.length > 0 || editTitle.length > 0),
   });
@@ -250,9 +241,10 @@ export function NewslettersPage() {
           availableTags={availableTags ?? []}
           status={selectedItem.status}
           onStatusChange={handleStatusChange}
-          onSave={handleSave}
-          saving={saving}
           editorKey={`${selectedItem.id}-v${bodyVersion}`}
+          isSynced={isSynced}
+          isSaving={isSaving}
+          saveError={saveError}
           titlePlaceholder={t("newsletters.titlePlaceholder")}
           onTransform={handleTransform}
         >
