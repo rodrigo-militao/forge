@@ -65,7 +65,7 @@ export interface ContentItem {
   id: string;
   user_id: string;
   product: "digest" | "compose" | "newsletter";
-  status: "draft";
+  status: "draft" | "published" | "discarded";
   source_type: string | null;
   title: string | null;
   body_markdown: string | null;
@@ -74,6 +74,25 @@ export interface ContentItem {
   category: string | null;
   tags: string[];
   deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ArticleRef {
+  content_id: string;
+  title: string;
+  body_markdown: string;
+  added_at: string;
+}
+
+export interface NewsletterEdition {
+  id: string;
+  user_id: string;
+  title: string;
+  body_html: string;
+  category: string | null;
+  status: "draft" | "published" | "discarded";
+  tags: string[];
   created_at: string;
   updated_at: string;
 }
@@ -101,16 +120,13 @@ export const api = {
       request<{ status: string }>(`/content/${id}/tags`, { method: "POST", body: JSON.stringify({ tag }) }),
     removeTag: (id: string, tag: string) =>
       request<{ status: string }>("/content/" + id + "/tags/" + encodeURIComponent(tag), { method: "DELETE" }),
-    listTags: () => request<string[]>("/content/tags")
+    listTags: () => request<string[]>("/content/tags"),
+    updateStatus: (id: string, status: string) =>
+      request<{ status: string }>(`/content/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
   },
   digest: {
     run: () => request<{ edition_id: string; item_count: number }>("/digest/run", { method: "POST" }),
-    usedContentIDs: () => request<string[]>("/digest/used-content-ids"),
-    assembleEdition: (contentIDs?: string[]) =>
-      request<{ edition_id: string; item_count: number }>("/digest/assemble-edition", {
-        method: "POST",
-        body: JSON.stringify({ content_ids: contentIDs ?? [] }),
-      }),
+    articleNewsletterIDs: () => request<string[]>("/digest/article-newsletter-ids"),
     interests: {
       list: () => request<DigestInterest[]>("/digest/interests"),
       create: (label: string) =>
@@ -139,5 +155,35 @@ export const api = {
       request<{ edition_id: string; item_count: number }>("/compose/transform", { method: "POST", body: JSON.stringify({ text, action }) }),
     writeArticle: (data: { topic_id: string; voice: string }) =>
       request<{ edition_id: string; item_count: number }>("/compose/write", { method: "POST", body: JSON.stringify(data) }),
+  },
+  newsletters: {
+    list: (params?: { status?: string; category?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.status) qs.set("status", params.status);
+      if (params?.category) qs.set("category", params.category);
+      const q = qs.toString();
+      return request<NewsletterEdition[]>(`/editions${q ? "?" + q : ""}`);
+    },
+    get: (id: string) => request<NewsletterEdition>(`/editions/${id}`),
+    create: (data?: { title?: string }) =>
+      request<NewsletterEdition>("/editions", { method: "POST", body: JSON.stringify(data ?? {}) }),
+    updateBody: (id: string, data: { title?: string; body_html?: string }) =>
+      request<{ status: string }>(`/editions/${id}/body`, { method: "PUT", body: JSON.stringify(data) }),
+    updateStatus: (id: string, status: string) =>
+      request<{ status: string }>(`/editions/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+    updateCategory: (id: string, category: string | null) =>
+      request<{ status: string }>(`/editions/${id}/category`, { method: "PUT", body: JSON.stringify({ category }) }),
+    addTag: (id: string, tag: string) =>
+      request<{ status: string }>(`/editions/${id}/tags/${encodeURIComponent(tag)}`, { method: "POST" }),
+    removeTag: (id: string, tag: string) =>
+      request<{ status: string }>(`/editions/${id}/tags/${encodeURIComponent(tag)}`, { method: "DELETE" }),
+    generateIntro: (id: string) =>
+      request<{ status: string }>(`/editions/${id}/generate-intro`, { method: "POST" }),
+    articles: (newsletterID: string) =>
+      request<ArticleRef[]>(`/editions/${newsletterID}/articles`),
+    addArticle: (newsletterID: string, contentID: string) =>
+      request<{ status: string }>(`/editions/${newsletterID}/articles`, { method: "POST", body: JSON.stringify({ content_id: contentID }) }),
+    removeArticle: (newsletterID: string, contentID: string) =>
+      request<{ status: string }>(`/editions/${newsletterID}/articles/${contentID}`, { method: "DELETE" }),
   },
 };

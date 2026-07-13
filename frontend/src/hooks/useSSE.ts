@@ -29,6 +29,7 @@ export function useSSE() {
 
       es.addEventListener("content_changed", () => {
         queryClient.invalidateQueries({ queryKey: ["content"] });
+        queryClient.invalidateQueries({ queryKey: ["editions"] });
       });
 
       es.onerror = () => {

@@ -55,6 +55,18 @@ export function ComposePage() {
     setSaving(false);
   }, [selectedItem, editTitle, editBody, queryClient, t]);
 
+  const handleStatusChange = useCallback(async (status: string) => {
+    if (!selectedItem) return;
+    try {
+      await api.content.updateStatus(selectedItem.id, status);
+      setSelectedItem((prev) => prev ? { ...prev, status: status as ContentItem["status"] } : null);
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      toast.success(t("editor.statusUpdated"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
+  }, [selectedItem, queryClient, t]);
+
   const handleAddTag = useCallback(async (tag: string) => {
     if (!selectedItem) return;
     try { await api.content.addTag(selectedItem.id, tag); queryClient.invalidateQueries({ queryKey: ["content"] }); queryClient.invalidateQueries({ queryKey: ["tags"] }); } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to add tag"); }
@@ -118,7 +130,29 @@ export function ComposePage() {
               <button onClick={() => { if (newTag.trim()) { handleAddTag(newTag.trim()); setNewTag(""); } }} disabled={!newTag.trim()} className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"><Plus size={14} /></button>
             </div>
           </div>
-          <div className="mt-6 flex gap-2">
+          <div className="mt-6">
+            <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("editor.status")}</label>
+            <div className="mt-1.5 flex gap-2">
+              {(["draft", "published", "discarded"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleStatusChange(s)}
+                  className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    selectedItem?.status === s
+                      ? s === "published"
+                        ? "bg-[var(--color-accent-primary)] text-white"
+                        : s === "discarded"
+                          ? "bg-[var(--color-accent-danger)]/20 text-[var(--color-accent-danger)]"
+                          : "bg-white/10 text-[var(--color-bg-surface)]"
+                      : "bg-white/[0.06] text-[var(--color-text-muted)] hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
+                  }`}
+                >
+                  {t(`editor.${s}` as const)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 flex gap-2">
             <button onClick={handleSave} disabled={saving} className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
               {saving ? t("editor.saving") : t("editor.save")}
             </button>

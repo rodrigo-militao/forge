@@ -52,6 +52,15 @@ func (m *mockContentRepo) UpdateCategory(ctx context.Context, id uuid.UUID, cate
 	}
 	return domain.ErrNotFound
 }
+func (m *mockContentRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
+	for i, c := range m.items {
+		if c.ID == id {
+			m.items[i].Status = status
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
 func (m *mockContentRepo) ExistsByURL(ctx context.Context, userID uuid.UUID, url string) (bool, error) { return false, nil }
 func (m *mockContentRepo) ListWithoutCategory(ctx context.Context, userID uuid.UUID, limit int) ([]domain.GeneratedContent, error) { return nil, nil }
 func (m *mockContentRepo) ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error) { return nil, nil }
@@ -168,6 +177,94 @@ func TestContentHandler_UpdateCategory(t *testing.T) {
 				t.Errorf("expected category AI, got %v", c.Category)
 			}
 		}
+	}
+}
+
+func TestContentHandler_UpdateStatus(t *testing.T) {
+	uid := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentDraft},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content)}
+
+	body := `{"status":"published"}`
+	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/status", strings.NewReader(body))
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.UpdateStatus(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	for _, c := range content.items {
+		if c.ID == cid && c.Status != domain.ContentPublished {
+			t.Errorf("expected status published, got %s", c.Status)
+		}
+	}
+}
+
+func TestContentHandler_UpdateStatus_Invalid(t *testing.T) {
+	uid := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentDraft},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content)}
+
+	body := `{"status":"invalid"}`
+	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/status", strings.NewReader(body))
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.UpdateStatus(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestContentHandler_UpdateStatus_NotOwned(t *testing.T) {
+	uid := uuid.New()
+	otherID := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: otherID, Product: domain.ProductDigest, Status: domain.ContentDraft},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content)}
+
+	body := `{"status":"published"}`
+	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/status", strings.NewReader(body))
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.UpdateStatus(w, r)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+}
+
+func TestContentHandler_UpdateStatus_NotFound(t *testing.T) {
+	uid := uuid.New()
+	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{})}
+
+	body := `{"status":"published"}`
+	r := httptest.NewRequest(http.MethodPut, "/api/content/"+uuid.New().String()+"/status", strings.NewReader(body))
+	r = addChiURLParam(r, "id", uuid.New().String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.UpdateStatus(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
 	}
 }
 

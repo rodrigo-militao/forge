@@ -87,6 +87,12 @@ SELECT DISTINCT category FROM generated_content
 WHERE user_id = $1 AND product = 'digest' AND category IS NOT NULL
 ORDER BY category;
 
+-- name: UpdateContentStatus :one
+UPDATE generated_content
+SET status = $2, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
 -- name: ContentExistsByURL :one
 SELECT EXISTS(
   SELECT 1 FROM generated_content

@@ -12,6 +12,7 @@ import { DigestPage } from "../features/digest/page";
 import { ComposePage } from "../features/compose/page";
 import { LibraryPage } from "../features/library/page";
 import { SettingsPage } from "../features/settings/page";
+import { NewslettersPage } from "../features/newsletters/page";
 import { useAuth } from "../features/auth/store";
 
 const rootRoute = createRootRoute();
@@ -73,11 +74,17 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 });
 
+const newslettersRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/newsletters",
+  component: NewslettersPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
   registerRoute,
-  authLayout.addChildren([digestRoute, composeRoute, libraryRoute, settingsRoute]),
+  authLayout.addChildren([digestRoute, newslettersRoute, composeRoute, libraryRoute, settingsRoute]),
 ]);
 
 const router = createRouter({

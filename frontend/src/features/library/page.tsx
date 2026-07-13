@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, EyeOff, Plus, X } from "lucide-react";
+import { ArrowLeft, EyeOff } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import toast from "react-hot-toast";
 import { api, type ContentItem } from "../../api/client";
-import { TiptapEditor } from "../../components/editor/TiptapEditor";
+import { ContentEditor } from "../../components/editor/ContentEditor";
 import { useAutosave } from "../../hooks/useAutosave";
 import { filterLibraryContent } from "./filter";
 
@@ -20,7 +20,7 @@ export function LibraryPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
-  const [newTag, setNewTag] = useState("");
+
 
   const { data: content, isLoading } = useQuery({
     queryKey: ["content"],
@@ -118,6 +118,18 @@ export function LibraryPage() {
     }
   }, [selectedItem, queryClient]);
 
+  const handleStatusChange = useCallback(async (status: string) => {
+    if (!selectedItem) return;
+    try {
+      await api.content.updateStatus(selectedItem.id, status);
+      setSelectedItem((prev) => prev ? { ...prev, status: status as ContentItem["status"] } : null);
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      toast.success(t("editor.statusUpdated"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
+  }, [selectedItem, queryClient, t]);
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-3xl">
@@ -135,64 +147,28 @@ export function LibraryPage() {
   }
 
   if (selectedItem) {
-    const itemTags = selectedItem.tags ?? [];
-    const unusedTags = (availableTags ?? []).filter((t) => !itemTags.includes(t));
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <button onClick={() => setSelectedItem(null)} className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] hover:underline">
           <ArrowLeft size={16} /> Back to library
         </button>
-        <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none" />
-        <TiptapEditor content={editBody} onUpdate={(html) => setEditBody(html)} className="min-h-[300px]" onTransform={handleTransform} />
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("editor.tags")}</label>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {itemTags.length > 0 ? itemTags.map((tag) => (
-              <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent-primary)]/20 px-2.5 py-0.5 text-xs text-[var(--color-accent-primary)]">
-                {tag}
-                <button onClick={() => handleRemoveTag(tag)} className="cursor-pointer hover:text-[var(--color-accent-danger)]"><X size={11} /></button>
-              </span>
-            )) : (
-              <span className="text-xs text-[var(--color-text-muted)]">{t("editor.noTags")}</span>
-            )}
-          </div>
-          {unusedTags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-[var(--color-text-muted)]">Add</span>
-              {unusedTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => handleAddTag(tag)}
-                  className="cursor-pointer rounded-full bg-white/[0.06] px-2.5 py-0.5 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
-                >
-                  + {tag}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <input
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && newTag.trim()) { handleAddTag(newTag.trim()); setNewTag(""); } }}
-              placeholder={t("editor.addTag")}
-              className="flex-1 rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-1.5 text-xs text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]"
-            />
-            <button
-              onClick={() => { if (newTag.trim()) { handleAddTag(newTag.trim()); setNewTag(""); } }}
-              disabled={!newTag.trim()}
-              className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              <Plus size={14} />
-            </button>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={handleSave} disabled={saving} className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-            {saving ? t("editor.saving") : t("editor.save")}
-          </button>
-          {selectedItem.deleted_at && <span className="inline-block rounded bg-[var(--color-accent-danger)]/20 px-2 py-1 text-xs font-medium text-[var(--color-accent-danger)]">Deleted</span>}
-        </div>
+        <ContentEditor
+          title={editTitle}
+          onTitleChange={setEditTitle}
+          body={editBody}
+          onBodyChange={setEditBody}
+          tags={selectedItem.tags ?? []}
+          onAddTag={handleAddTag}
+          onRemoveTag={handleRemoveTag}
+          availableTags={availableTags ?? []}
+          status={selectedItem.status}
+          onStatusChange={handleStatusChange}
+          onSave={handleSave}
+          saving={saving}
+          editorKey={selectedItem.id}
+          onTransform={handleTransform}
+        />
+        {selectedItem.deleted_at && <span className="inline-block rounded bg-[var(--color-accent-danger)]/20 px-2 py-1 text-xs font-medium text-[var(--color-accent-danger)]">Deleted</span>}
       </div>
     );
   }
@@ -312,6 +288,8 @@ export function LibraryPage() {
                 <h3 className="truncate font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
                 {item.product === "digest" && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">Digest</span>}
                 {item.category && <span className="shrink-0 rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-primary)]">{item.category}</span>}
+                {item.status === "published" && <span className="shrink-0 rounded bg-[var(--color-accent-primary)]/20 px-1.5 py-0.5 text-xs text-[var(--color-accent-primary)]">{t("library.published")}</span>}
+                {item.status === "discarded" && <span className="shrink-0 rounded bg-[var(--color-accent-danger)]/20 px-1.5 py-0.5 text-xs text-[var(--color-accent-danger)]">{t("library.discarded")}</span>}
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 {item.deleted_at && <span className="inline-block rounded bg-[var(--color-accent-danger)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-danger)]">Deleted</span>}

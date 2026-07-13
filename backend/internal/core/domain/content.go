@@ -11,7 +11,9 @@ import (
 type ContentStatus string
 
 const (
-	ContentDraft ContentStatus = "draft"
+	ContentDraft     ContentStatus = "draft"
+	ContentPublished ContentStatus = "published"
+	ContentDiscarded ContentStatus = "discarded"
 )
 
 // ContentProduct identifies which product generated this content.

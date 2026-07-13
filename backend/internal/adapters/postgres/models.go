@@ -55,6 +55,12 @@ type Job struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type NewsletterArticle struct {
+	NewsletterID    pgtype.UUID
+	DigestArticleID pgtype.UUID
+	AddedAt         pgtype.Timestamptz
+}
+
 type NewsletterEdition struct {
 	ID           pgtype.UUID
 	UserID       pgtype.UUID
@@ -63,14 +69,12 @@ type NewsletterEdition struct {
 	Status       string
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+	Category     *string
 }
 
-type NewsletterEditionItem struct {
-	ID        pgtype.UUID
+type NewsletterEditionTag struct {
 	EditionID pgtype.UUID
-	ContentID pgtype.UUID
-	SortOrder int32
-	CreatedAt pgtype.Timestamptz
+	TagID     pgtype.UUID
 }
 
 type Source struct {

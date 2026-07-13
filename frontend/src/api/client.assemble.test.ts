@@ -2,26 +2,47 @@ import { test } from "poku";
 import assert from "node:assert/strict";
 import { api } from "./client";
 
-test("digest.assembleEdition sends content_ids in body", async () => {
-  globalThis.fetch = async (_url: RequestInfo | URL, opts?: RequestInit) => {
-    assert.strictEqual(String(_url), "/api/digest/assemble-edition");
-    assert.strictEqual(opts?.method, "POST");
-    const body = JSON.parse(String(opts?.body));
-    assert.deepStrictEqual(body, { content_ids: ["id-1", "id-2"] });
-    return new Response(JSON.stringify({ edition_id: "e-1", item_count: 1 }), { status: 202 });
+test("digest.articleNewsletterIDs returns string array", async () => {
+  globalThis.fetch = async (_url: RequestInfo | URL) => {
+    assert.ok(String(_url).includes("/digest/article-newsletter-ids"));
+    return new Response(JSON.stringify(["id-1", "id-2"]), { status: 200 });
   };
 
-  const result = await api.digest.assembleEdition(["id-1", "id-2"]);
-  assert.strictEqual(result.item_count, 1);
+  const result = await api.digest.articleNewsletterIDs();
+  assert.deepStrictEqual(result, ["id-1", "id-2"]);
 });
 
-test("digest.assembleEdition with empty array sends content_ids: []", async () => {
-  globalThis.fetch = async (_url: RequestInfo | URL, opts?: RequestInit) => {
-    const body = JSON.parse(String(opts?.body));
-    assert.deepStrictEqual(body, { content_ids: [] });
-    return new Response(JSON.stringify({ edition_id: "e-2", item_count: 1 }), { status: 202 });
+test("digest.articleNewsletterIDs returns empty array when none used", async () => {
+  globalThis.fetch = async () => new Response(JSON.stringify([]), { status: 200 });
+
+  const result = await api.digest.articleNewsletterIDs();
+  assert.deepStrictEqual(result, []);
+});
+
+test("newsletters.addArticle sends POST with content_id", async () => {
+  let url = "";
+  let body = "";
+  globalThis.fetch = async (u: RequestInfo, opts?: RequestInit) => {
+    url = u.toString();
+    body = opts?.body as string;
+    return new Response(JSON.stringify({ status: "article added" }), { status: 200 });
   };
 
-  const result = await api.digest.assembleEdition([]);
-  assert.strictEqual(result.item_count, 1);
+  await api.newsletters.addArticle("newsletter-1", "article-1");
+  assert.ok(url.includes("/editions/newsletter-1/articles"));
+  assert.strictEqual(JSON.parse(body).content_id, "article-1");
+});
+
+test("newsletters.removeArticle sends DELETE", async () => {
+  let url = "";
+  let method = "";
+  globalThis.fetch = async (u: RequestInfo, opts?: RequestInit) => {
+    url = u.toString();
+    method = opts?.method ?? "";
+    return new Response(JSON.stringify({ status: "article removed" }), { status: 200 });
+  };
+
+  await api.newsletters.removeArticle("newsletter-1", "article-1");
+  assert.ok(url.includes("/editions/newsletter-1/articles/article-1"));
+  assert.strictEqual(method, "DELETE");
 });

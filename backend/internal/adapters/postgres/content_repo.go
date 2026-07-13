@@ -91,6 +91,14 @@ func (r *ContentRepository) UpdateCategory(ctx context.Context, id uuid.UUID, ca
 	return err
 }
 
+func (r *ContentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
+	_, err := r.q.UpdateContentStatus(ctx, UpdateContentStatusParams{
+		ID:     uuidToPgtype(id),
+		Status: status,
+	})
+	return err
+}
+
 func (r *ContentRepository) ListWithoutCategory(ctx context.Context, userID uuid.UUID, limit int) ([]domain.GeneratedContent, error) {
 	rows, err := r.q.ListContentWithoutCategory(ctx, ListContentWithoutCategoryParams{
 		UserID: uuidToPgtype(userID),
