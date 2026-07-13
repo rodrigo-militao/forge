@@ -49,12 +49,32 @@ export function ContentEditor({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <input
-        value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
-        placeholder={titlePlaceholder}
-        className="w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
-      />
+      <div className="flex items-center gap-3">
+        <input
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          placeholder={titlePlaceholder}
+          className="flex-1 rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+        />
+        {/* Sync indicator — visible at a glance while editing */}
+        <div className="shrink-0">
+          {isSaving && (
+            <span className="text-xs text-[var(--color-text-muted)]">{t("editor.saving")}</span>
+          )}
+          {isSynced && !isSaving && (
+            <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-success)]">
+              <CheckCircle2 size={12} />
+              Synced
+            </span>
+          )}
+          {saveError && (
+            <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-danger)]">
+              <AlertCircle size={12} />
+              {saveError}
+            </span>
+          )}
+        </div>
+      </div>
 
       <TiptapEditor
         key={editorKey}
@@ -137,24 +157,6 @@ export function ContentEditor({
         </div>
       </div>
 
-      {/* Sync indicator — replaces manual save button */}
-      <div className="flex items-center gap-2">
-        {isSaving && (
-          <span className="text-xs text-[var(--color-text-muted)]">{t("editor.saving")}</span>
-        )}
-        {isSynced && !isSaving && (
-          <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-success)]">
-            <CheckCircle2 size={12} />
-            Synced
-          </span>
-        )}
-        {saveError && (
-          <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-danger)]">
-            <AlertCircle size={12} />
-            {saveError}
-          </span>
-        )}
-      </div>
     </div>
   );
 }
