@@ -5,7 +5,9 @@
     "library": "Biblioteca",
     "settings": "Configurações",
     "collapse": "Recolher sidebar",
-    "expand": "Expandir sidebar"
+    "expand": "Expandir sidebar",
+    "back": "Voltar",
+    "backToList": "Voltar à lista"
   },
   "auth": {
     "login": "Entrar",
@@ -38,7 +40,9 @@
     "writeArticle": "Escrever artigo",
     "noTopics": "Nenhum tópico ainda. Gere um para começar a escrever.",
     "generateWithAI": "Gerar com IA",
-    "startBlank": "Começar em branco"
+    "startBlank": "Começar em branco",
+    "generating": "Gerando…",
+    "bodyPlaceholder": "Escreva seu artigo aqui…"
   },
   "library": {
     "title": "Biblioteca",

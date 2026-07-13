@@ -5,6 +5,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import LinkExtension from "@tiptap/extension-link";
 import {
   Bold,
+  Bot,
   Code,
   Heading1,
   Heading2,
@@ -13,6 +14,7 @@ import {
   Link,
   List,
   ListOrdered,
+  Type,
 } from "lucide-react";
 import { FontSize, fontSizeOptions } from "./FontSize";
 
@@ -22,6 +24,7 @@ interface TiptapEditorProps {
   onUpdate?: (html: string) => void;
   editable?: boolean;
   className?: string;
+  onTransform?: (action: "expand" | "rewrite", editor: Editor) => void;
 }
 
 export function TiptapEditor({
@@ -30,6 +33,7 @@ export function TiptapEditor({
   onUpdate,
   editable = true,
   className = "",
+  onTransform,
 }: TiptapEditorProps) {
   const [linkURL, setLinkURL] = useState("");
 
@@ -173,6 +177,19 @@ export function TiptapEditor({
             <Link size={15} />
           </ToolbarButton>
         </div>
+
+        {onTransform && (
+          <>
+            <span className="mx-1 h-4 w-px bg-[var(--color-border)]/20" />
+            <span className="text-xs text-[var(--color-text-muted)]">AI</span>
+            <ToolbarButton onClick={() => onTransform("expand", editor)} title="Expand selected text">
+              <Bot size={15} />
+            </ToolbarButton>
+            <ToolbarButton onClick={() => onTransform("rewrite", editor)} title="Rewrite selected text">
+              <Type size={15} />
+            </ToolbarButton>
+          </>
+        )}
       </div>
 
       {/* Editor content */}

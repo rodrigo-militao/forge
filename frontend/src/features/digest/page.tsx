@@ -160,16 +160,6 @@ export function DigestPage() {
     [queryClient],
   );
 
-  const handleTagKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>, id: string) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleAddTag(id);
-      }
-    },
-    [handleAddTag],
-  );
-
   const usedCount = items.filter((c) => usedSet.has(c.id)).length;
 
   if (isLoading) {
@@ -235,7 +225,7 @@ export function DigestPage() {
       </div>
 
       {/* Filter toolbar */}
-      <div className="mt-6 flex flex-wrap items-center gap-2">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => setCategoryFilter("")}
@@ -328,7 +318,7 @@ export function DigestPage() {
               <path d="M72 28 Q90 20 100 40" stroke="currentColor" strokeWidth="1" opacity="0.2" fill="none" />
               <path d="M72 68 Q90 76 100 56" stroke="currentColor" strokeWidth="1" opacity="0.2" fill="none" />
             </svg>
-            <h2 className="font-[var(--font-display)] text-xl text-[var(--color-bg-surface)]">
+            <h2 className="font-[var(--font-display)] text-2xl text-[var(--color-bg-surface)]">
               {t("digest.emptyTitle")}
             </h2>
             <p className="mt-2 max-w-md text-center text-sm text-[var(--color-text-secondary)]">
@@ -415,11 +405,11 @@ export function DigestPage() {
                   )}
                 </div>
                 {item.body_markdown && (
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                  <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">
                     {item.body_markdown}
                   </p>
                 )}
-                <div className="mt-2.5">
+                <div className="mt-3">
                   {editingCategory === item.id ? (
                     <input
                       ref={categoryInputRef}
@@ -506,7 +496,7 @@ export function DigestPage() {
               </div>
               <button
                 onClick={() => handleDelete(item.id)}
-                className="cursor-pointer rounded-lg p-2 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-accent-danger)]/20 hover:text-[var(--color-accent-danger)]"
+                className="cursor-pointer shrink-0 rounded-lg p-2 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-accent-danger)]/20 hover:text-[var(--color-accent-danger)]"
                 title={t("digest.delete")}
               >
                 <Trash2 size={16} />

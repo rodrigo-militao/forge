@@ -74,6 +74,21 @@ export function LibraryPage() {
     setSaving(false);
   }, [selectedItem, editTitle, editBody, queryClient, t]);
 
+  const handleTransform = useCallback(
+    async (action: "expand" | "rewrite", editor: import("@tiptap/react").Editor) => {
+      const { from, to } = editor.state.selection;
+      const selectedText = editor.state.doc.textBetween(from, to);
+      if (!selectedText.trim()) { toast.error("Select some text first"); return; }
+      try {
+        await api.compose.transform(selectedText, action);
+        toast.success("Transform queued");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Transform failed");
+      }
+    },
+    [],
+  );
+
   const autosave = useMemo(() => handleSave, [handleSave]);
   useAutosave({
     save: autosave,
@@ -128,7 +143,7 @@ export function LibraryPage() {
           <ArrowLeft size={16} /> Back to library
         </button>
         <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none" />
-        <TiptapEditor content={editBody} onUpdate={(html) => setEditBody(html)} className="min-h-[300px]" />
+        <TiptapEditor content={editBody} onUpdate={(html) => setEditBody(html)} className="min-h-[300px]" onTransform={handleTransform} />
         <div className="space-y-3">
           <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("editor.tags")}</label>
           <div className="flex flex-wrap items-center gap-1.5">

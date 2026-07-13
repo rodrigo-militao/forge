@@ -1,15 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bot, PenLine, Plus, Sparkles, Type, WandSparkles, X } from "lucide-react";
+import { PenLine, Plus, Sparkles, WandSparkles, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import LinkExtension from "@tiptap/extension-link";
 import toast from "react-hot-toast";
 import { api, type ContentItem } from "../../api/client";
 import { useJobPolling } from "../../hooks/useJobPolling";
-import { FontSize } from "../../components/editor/FontSize";
+import { TiptapEditor } from "../../components/editor/TiptapEditor";
 
 type Mode = "ai" | "blank";
 
@@ -25,17 +21,6 @@ export function ComposePage() {
   const [editBody, setEditBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [newTag, setNewTag] = useState("");
-  const [transformAction, setTransformAction] = useState<string | null>(null);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-      FontSize,
-      LinkExtension.configure({ openOnClick: false, HTMLAttributes: { class: "text-[var(--color-accent-primary)] underline cursor-pointer" } }),
-      Placeholder.configure({ placeholder: "Start writing\u2026" }),
-    ],
-    editorProps: { attributes: { class: "focus:outline-none min-h-[300px] text-sm leading-relaxed" } },
-  });
 
   const { data: content } = useQuery({ queryKey: ["content"], queryFn: api.content.list });
   const { data: availableTags } = useQuery({ queryKey: ["tags"], queryFn: api.content.listTags });
@@ -43,10 +28,20 @@ export function ComposePage() {
 
   useJobPolling(generating, items.length, { interval: 3000, timeout: 60000, filter: (c) => c.product === "compose", onComplete: () => { setGenerating(false); toast.success("Draft ready in Library"); }, onTimeout: () => { setGenerating(false); } });
   useJobPolling(aiRunning, items.length, { interval: 3000, timeout: 90000, filter: (c) => c.product === "compose", onComplete: () => { setAiRunning(false); toast.success("Topic ready in Library"); }, onTimeout: () => { setAiRunning(false); } });
-  useJobPolling(transformAction !== null, items.length, { interval: 3000, filter: (c) => c.source_type === transformAction, onComplete: (newItems) => { const result = newItems[newItems.length - 1]; if (editor) { const { from, to } = editor.state.selection; editor.chain().focus().deleteRange({ from, to }).insertContent(result.body_markdown ?? "").run(); } setTransformAction(null); toast.success("Applied"); }, onTimeout: () => { setTransformAction(null); } });
 
   const handleGenerateDraft = useCallback(async () => { if (!theme.trim()) return; setGenerating(true); try { await api.compose.generateDraft(theme); toast.success("Draft generation queued"); } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); setGenerating(false); } }, [theme]);
-  const handleTransform = useCallback(async (action: "expand" | "rewrite") => { if (!editor) return; const { from, to } = editor.state.selection; const selected = editor.state.doc.textBetween(from, to); if (!selected.trim()) { toast.error("Select some text first"); return; } try { await api.compose.transform(selected, action); setTransformAction(action); toast.success(`${action} job queued`); } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); } }, [editor]);
+  const handleTransform = useCallback(
+    async (action: "expand" | "rewrite", editor: import("@tiptap/react").Editor) => {
+      const { from, to } = editor.state.selection;
+      const selectedText = editor.state.doc.textBetween(from, to);
+      if (!selectedText.trim()) { toast.error("Select some text first"); return; }
+      try {
+        await api.compose.transform(selectedText, action);
+        toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} queued`);
+      } catch (err) { toast.error(err instanceof Error ? err.message : "Transform failed"); }
+    },
+    [],
+  );
   const handleGenerateTopic = useCallback(async () => { setAiRunning(true); try { await api.compose.generateTopic(); toast.success("Topic generation queued"); } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); setAiRunning(false); } }, []);
 
   const handleSave = useCallback(async () => {
@@ -72,15 +67,15 @@ export function ComposePage() {
 
   if (!mode) {
     return (
-      <div className="mx-auto max-w-lg space-y-6 pt-20">
-        <h1 className="font-[var(--font-display)] text-center text-2xl">{t("compose.title")}</h1>
-        <div className="grid grid-cols-2 gap-4">
-          <button onClick={() => setMode("ai")} className="cursor-pointer flex flex-col items-center gap-3 rounded-xl border border-[var(--color-border)]/20 bg-white/5 p-8 text-center transition-colors hover:border-[var(--color-accent-primary)] hover:bg-white/10">
+      <div className="mx-auto max-w-lg pt-20">
+        <h1 className="font-[var(--font-display)] text-center text-2xl text-balance">{t("compose.title")}</h1>
+        <div className="mt-8 grid grid-cols-2 gap-4">
+          <button onClick={() => setMode("ai")} className="cursor-pointer flex flex-col items-center gap-3 rounded-xl border bg-white/5 p-8 text-center transition-all duration-200 hover:bg-white/10 hover:shadow-[inset_0_0_0_1px_var(--color-accent-primary)]">
             <Sparkles size={32} className="text-[var(--color-accent-primary)]" />
             <span className="font-medium text-[var(--color-bg-surface)]">{t("compose.generateWithAI")}</span>
-            <span className="text-xs text-[var(--color-text-muted)]">Topic &rarr; voice &rarr; full article</span>
+            <span className="text-xs text-[var(--color-text-muted)]">Topic → voice → full article</span>
           </button>
-          <button onClick={() => setMode("blank")} className="cursor-pointer flex flex-col items-center gap-3 rounded-xl border border-[var(--color-border)]/20 bg-white/5 p-8 text-center transition-colors hover:border-[var(--color-accent-primary)] hover:bg-white/10">
+          <button onClick={() => setMode("blank")} className="cursor-pointer flex flex-col items-center gap-3 rounded-xl border bg-white/5 p-8 text-center transition-all duration-200 hover:bg-white/10 hover:shadow-[inset_0_0_0_1px_var(--color-accent-primary)]">
             <PenLine size={32} className="text-[var(--color-accent-primary)]" />
             <span className="font-medium text-[var(--color-bg-surface)]">{t("compose.startBlank")}</span>
             <span className="text-xs text-[var(--color-text-muted)]">TipTap editor with AI on demand</span>
@@ -91,82 +86,118 @@ export function ComposePage() {
   }
 
   if (mode === "ai") {
-    return (
-      <div className="max-w-3xl space-y-6">
-        <button onClick={() => setMode(null)} className="cursor-pointer text-sm text-[var(--color-accent-primary)] hover:underline">&larr; Back</button>
-        <div className="flex items-center justify-between">
-          <h1 className="font-[var(--font-display)] text-2xl">{t("compose.generateWithAI")}</h1>
-          <button onClick={handleGenerateTopic} disabled={aiRunning} className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-            <Sparkles size={16} className={aiRunning ? "animate-pulse" : ""} />
-            {aiRunning ? "Generating\u2026" : t("compose.generateTopic")}
+    if (selectedItem) {
+      return (
+        <div className="mx-auto max-w-3xl">
+          <button onClick={() => setSelectedItem(null)} className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-primary)]">
+            &larr; {t("nav.backToList")}
           </button>
-        </div>
-        {selectedItem ? (
-          <div className="space-y-4">
-            <button onClick={() => setSelectedItem(null)} className="cursor-pointer text-sm text-[var(--color-accent-primary)] hover:underline">&larr; Back to list</button>
-            <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none" />
-            <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} className="h-96 w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 text-sm leading-relaxed text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none" />
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("editor.tags")}</label>
-              <div className="flex flex-wrap gap-2">
-                {(selectedItem.tags ?? []).map((tag) => (
-                  <span key={tag} className="flex items-center gap-1 rounded bg-[var(--color-accent-primary)]/20 px-2 py-1 text-xs text-[var(--color-accent-primary)]">
-                    {tag}<button onClick={() => handleRemoveTag(tag)} className="cursor-pointer hover:opacity-70"><X size={12} /></button>
-                  </span>
-                ))}
-                {(selectedItem.tags ?? []).length === 0 && <span className="text-xs text-[var(--color-text-muted)]">{t("editor.noTags")}</span>}
-              </div>
-              {(availableTags ?? []).filter((t) => !(selectedItem.tags ?? []).includes(t)).length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {(availableTags ?? []).filter((t) => !(selectedItem.tags ?? []).includes(t)).map((tag) => (
-                    <button key={tag} onClick={() => handleAddTag(tag)} className="cursor-pointer rounded bg-white/10 px-2 py-1 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-white/20">{tag}</button>
-                  ))}
-                </div>
+          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="mt-5 w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
+          <TiptapEditor key={selectedItem.id} content={selectedItem.body_markdown ?? ""} onTransform={handleTransform} className="mt-5 min-h-[300px]" />
+          <div className="mt-5 space-y-3">
+            <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("editor.tags")}</label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(selectedItem.tags ?? []).length > 0 ? (selectedItem.tags ?? []).map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent-primary)]/20 px-2.5 py-0.5 text-xs text-[var(--color-accent-primary)]">
+                  {tag}
+                  <button onClick={() => handleRemoveTag(tag)} className="cursor-pointer hover:text-[var(--color-accent-danger)]"><X size={11} /></button>
+                </span>
+              )) : (
+                <span className="text-xs text-[var(--color-text-muted)]">{t("editor.noTags")}</span>
               )}
-              <div className="flex gap-2">
-                <input value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newTag.trim()) { handleAddTag(newTag.trim()); setNewTag(""); } }} placeholder={t("editor.addTag")} className="flex-1 rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-3 py-1.5 text-xs text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none" />
-                <button onClick={() => { if (newTag.trim()) { handleAddTag(newTag.trim()); setNewTag(""); } }} disabled={!newTag.trim()} className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"><Plus size={14} /></button>
-              </div>
             </div>
+            {(availableTags ?? []).filter((t) => !(selectedItem.tags ?? []).includes(t)).length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(availableTags ?? []).filter((t) => !(selectedItem.tags ?? []).includes(t)).map((tag) => (
+                  <button key={tag} onClick={() => handleAddTag(tag)} className="cursor-pointer rounded-full bg-white/[0.06] px-2.5 py-0.5 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]">+ {tag}</button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newTag.trim()) { handleAddTag(newTag.trim()); setNewTag(""); } }} placeholder={t("editor.addTag")} className="flex-1 rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-1.5 text-xs text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
+              <button onClick={() => { if (newTag.trim()) { handleAddTag(newTag.trim()); setNewTag(""); } }} disabled={!newTag.trim()} className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"><Plus size={14} /></button>
+            </div>
+          </div>
+          <div className="mt-6 flex gap-2">
             <button onClick={handleSave} disabled={saving} className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
               {saving ? t("editor.saving") : t("editor.save")}
             </button>
+            <button onClick={() => setSelectedItem(null)} className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-white/5">
+              {t("settings.cancel")}
+            </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {items.length === 0 && !aiRunning && <p className="text-sm text-[var(--color-text-muted)]">{t("compose.noTopics")}</p>}
-            {aiRunning && items.length === 0 && <p className="animate-pulse text-sm text-[var(--color-accent-primary)]">Generating topic\u2026</p>}
-            {items.map((item) => (
-              <div key={item.id} onClick={() => { setSelectedItem(item); setEditTitle(item.title ?? ""); setEditBody(item.body_markdown ?? ""); }} className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 transition-colors hover:border-[var(--color-accent-primary)]">
-                <h3 className="font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
-                {item.body_markdown && <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.body_markdown}</p>}
-                <span className="mt-2 inline-block rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]">{item.status}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto max-w-3xl">
+        <button onClick={() => setMode(null)} className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-primary)]">
+          &larr; {t("nav.back")}
+        </button>
+        <div className="mt-4 flex items-center justify-between">
+          <h1 className="font-[var(--font-display)] text-2xl">{t("compose.generateWithAI")}</h1>
+          <button onClick={handleGenerateTopic} disabled={aiRunning} className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+            <Sparkles size={16} className={aiRunning ? "animate-pulse" : ""} />
+            {aiRunning ? t("compose.generating") : t("compose.generateTopic")}
+          </button>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {items.length === 0 && !aiRunning && (
+            <div className="flex flex-col items-center py-12 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
+              <svg width="96" height="72" viewBox="0 0 96 72" fill="none" className="mb-5 text-[var(--color-text-muted)]" aria-hidden="true">
+                <rect x="8" y="8" width="80" height="56" rx="6" stroke="currentColor" strokeWidth="1" opacity="0.2" />
+                <path d="M28 24h40" stroke="currentColor" strokeWidth="1" opacity="0.15" />
+                <path d="M28 36h24" stroke="currentColor" strokeWidth="1" opacity="0.1" />
+                <path d="M28 48h16" stroke="currentColor" strokeWidth="1" opacity="0.08" />
+              </svg>
+              <p className="text-sm text-[var(--color-text-muted)]">{t("compose.noTopics")}</p>
+              <button onClick={handleGenerateTopic} className="mt-4 cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90">
+                <Sparkles size={14} className="inline" /> {t("compose.generateTopic")}
+              </button>
+            </div>
+          )}
+          {aiRunning && items.length === 0 && (
+            <div className="flex flex-col items-center py-12 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
+              <div className="mb-5 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse [animation-delay:150ms]" />
+                <span className="h-2 w-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse [animation-delay:300ms]" />
               </div>
-            ))}
-          </div>
-        )}
+              <p className="text-sm text-[var(--color-accent-primary)]">{t("compose.generating")}</p>
+            </div>
+          )}
+          {items.map((item, idx) => (
+            <div
+              key={item.id}
+              onClick={() => { setSelectedItem(item); setEditTitle(item.title ?? ""); setEditBody(item.body_markdown ?? ""); }}
+              style={{ animationDelay: `${idx * 50}ms` }}
+              className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 transition-all duration-200 opacity-0 animate-[fadeIn_400ms_ease-out_forwards] hover:bg-white/[0.08]"
+            >
+              <h3 className="font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
+              {item.body_markdown && <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.body_markdown}</p>}
+              <span className="mt-2 inline-block rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]">{item.status}</span>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-center gap-2">
-        <button onClick={() => setMode(null)} className="cursor-pointer text-sm text-[var(--color-accent-primary)] hover:underline">&larr; Back</button>
-        <span className="text-xs text-[var(--color-text-muted)]">|</span>
-        <span className="text-xs text-[var(--color-text-muted)]">{t("compose.startBlank")}</span>
-      </div>
-      <div className="flex gap-2">
-        <input type="text" value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="Enter a theme to generate a draft\u2026" className="flex-1 rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-sm text-[var(--color-bg-surface)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)] focus:outline-none" />
+    <div className="mx-auto max-w-3xl">
+      <button onClick={() => setMode(null)} className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-primary)]">
+        &larr; {t("nav.back")}
+      </button>
+      <h1 className="mt-4 font-[var(--font-display)] text-2xl text-balance">{t("compose.startBlank")}</h1>
+      <div className="mt-5 flex gap-2">
+        <input type="text" value={theme} onChange={(e) => setTheme(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleGenerateDraft(); }} placeholder={t("compose.writeArticle")} className="flex-1 rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
         <button onClick={handleGenerateDraft} disabled={generating || !theme.trim()} className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
           <WandSparkles size={16} /> Generate
         </button>
       </div>
-      <div className="flex gap-2 border-b border-[var(--color-border)]/20 pb-2">
-        <button onClick={() => handleTransform("expand")} className="cursor-pointer flex items-center gap-1 rounded px-2 py-1 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]" title="Select text first, then click Expand"><Bot size={14} /> Expand</button>
-        <button onClick={() => handleTransform("rewrite")} className="cursor-pointer flex items-center gap-1 rounded px-2 py-1 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]" title="Select text first, then click Rewrite"><Type size={14} /> Rewrite</button>
-      </div>
-      <div className="rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4"><EditorContent editor={editor} /></div>
+      <TiptapEditor content={editBody} onUpdate={(html) => setEditBody(html)} onTransform={handleTransform} className="mt-5 min-h-[300px]" />
     </div>
   );
 }

@@ -5,7 +5,9 @@
     "library": "Library",
     "settings": "Settings",
     "collapse": "Collapse sidebar",
-    "expand": "Expand sidebar"
+    "expand": "Expand sidebar",
+    "back": "Back",
+    "backToList": "Back to list"
   },
   "auth": {
     "login": "Log in",
@@ -40,7 +42,9 @@
     "writeArticle": "Write article",
     "noTopics": "No topics yet. Generate one to start writing.",
     "generateWithAI": "Generate with AI",
-    "startBlank": "Start blank"
+    "startBlank": "Start blank",
+    "generating": "Generating…",
+    "bodyPlaceholder": "Write your article here…"
   },
   "library": {
     "title": "Library",
