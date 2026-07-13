@@ -74,6 +74,10 @@ run:
 # idempotent and will not error if already applied.
 run-dev:
 	@trap 'echo "=== Stopping all processes ==="; kill 0 2>/dev/null; exit' EXIT INT TERM; \
+	echo "=== Step 0: Cleaning stale processes ==="; \
+	pkill -f "go-build.*api" 2>/dev/null || true; \
+	pkill -f "go-build.*worker" 2>/dev/null || true; \
+	sleep 1; \
 	echo "=== Step 1: Installing dependencies ==="; \
 	cd $(B) && go mod tidy; \
 	cd $(F) && npm install; \
@@ -91,6 +95,14 @@ run-dev:
 	sleep 1; \
 	echo "=== Step 7: Starting Frontend ==="; \
 	cd $(F) && npm run dev
+
+# Kill stale API/worker binaries from previous runs
+kill:
+	@pkill -f "go-build.*api" 2>/dev/null || true; \
+	pkill -f "go-build.*worker" 2>/dev/null || true; \
+	pkill -f "exe/api" 2>/dev/null || true; \
+	pkill -f "exe/worker" 2>/dev/null || true; \
+	echo "Stale processes cleaned."
 
 # Run all tests
 test:

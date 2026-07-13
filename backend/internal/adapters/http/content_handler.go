@@ -163,3 +163,29 @@ func (h *ContentHandler) ListTags(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, tags)
 }
+
+func (h *ContentHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	c, ok := h.saveOrDelete(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	status := domain.ContentStatus(req.Status)
+	switch status {
+	case domain.ContentDraft, domain.ContentPublished, domain.ContentDiscarded:
+	default:
+		writeError(w, http.StatusBadRequest, "invalid status: must be draft, published, or discarded")
+		return
+	}
+	if err := h.svc.UpdateStatus(r.Context(), c.ID, status); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update status")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}

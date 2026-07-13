@@ -11,33 +11,31 @@ import (
 type EditionStatus string
 
 const (
-	EditionDraft    EditionStatus = "draft"
-	EditionExported EditionStatus = "exported"
+	EditionDraft     EditionStatus = "draft"
+	EditionPublished EditionStatus = "published"
+	EditionDiscarded EditionStatus = "discarded"
 )
 
-// Edition is a curated collection of approved digest items assembled
-// into a single editable document (ADR 0029).
+// Edition is a newsletter edition — a curated collection of digest articles
+// assembled into a single editable document.
 type Edition struct {
 	ID           uuid.UUID
 	UserID       uuid.UUID
 	Title        string
-	Introduction string // LLM-generated intro, editable by user
+	Introduction string // LLM-generated intro / body, editable by user
+	Category     *string
 	Status       EditionStatus
-	Items        []EditionItem
+	Tags         []string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
 
-// EditionItem is a single approved article within an edition.
-type EditionItem struct {
-	ID          uuid.UUID
-	EditionID   uuid.UUID
-	ContentID   uuid.UUID
-	SortOrder   int
-	Title       string
-	BodySummary string
-	SourceURL   string
-	CreatedAt   time.Time
+// ArticleRef is a reference to a digest article linked to a newsletter.
+type ArticleRef struct {
+	ContentID    uuid.UUID `json:"content_id"`
+	Title        string    `json:"title"`
+	BodyMarkdown string    `json:"body_markdown"`
+	AddedAt      string    `json:"added_at"`
 }
 
 // EditionRepository persists newsletter editions.
@@ -45,8 +43,15 @@ type EditionRepository interface {
 	Create(ctx context.Context, edition *Edition) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Edition, error)
 	ListByUser(ctx context.Context, userID uuid.UUID) ([]Edition, error)
+	ListByUserFiltered(ctx context.Context, userID uuid.UUID, status, category *string) ([]Edition, error)
 	UpdateBody(ctx context.Context, id uuid.UUID, title, introduction string) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status EditionStatus) error
-	// ListUsedContentIDs returns content_ids that already appear in any edition.
-	ListUsedContentIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+	UpdateCategory(ctx context.Context, id uuid.UUID, category *string) error
+	AddTag(ctx context.Context, editionID uuid.UUID, tag string) error
+	RemoveTag(ctx context.Context, editionID uuid.UUID, tag string) error
+	AddArticle(ctx context.Context, newsletterID, contentID uuid.UUID) error
+	RemoveArticle(ctx context.Context, newsletterID, contentID uuid.UUID) error
+	ListArticles(ctx context.Context, editionID uuid.UUID) ([]ArticleRef, error)
+	// ListArticleIDsInAnyNewsletter returns content_ids present in any newsletter.
+	ListArticleIDsInAnyNewsletter(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 }

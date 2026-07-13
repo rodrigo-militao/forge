@@ -520,3 +520,37 @@ func (q *Queries) UpdateContentCategory(ctx context.Context, arg UpdateContentCa
 	)
 	return i, err
 }
+
+const updateContentStatus = `-- name: UpdateContentStatus :one
+UPDATE generated_content
+SET status = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags
+`
+
+type UpdateContentStatusParams struct {
+	ID     pgtype.UUID
+	Status domain.ContentStatus
+}
+
+func (q *Queries) UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) (GeneratedContent, error) {
+	row := q.db.QueryRow(ctx, updateContentStatus, arg.ID, arg.Status)
+	var i GeneratedContent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Product,
+		&i.Status,
+		&i.SourceType,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
+	)
+	return i, err
+}

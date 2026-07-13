@@ -4,6 +4,7 @@
     "compose": "Compose",
     "library": "Library",
     "settings": "Settings",
+    "newsletters": "Newsletters",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
     "back": "Back",
@@ -49,6 +50,8 @@
   "library": {
     "title": "Library",
     "draft": "Draft",
+    "published": "Published",
+    "discarded": "Discarded",
     "empty": "No content yet.",
     "showDeleted": "Show deleted",
     "tagFilter": "Filter by tag…",
@@ -60,7 +63,12 @@
     "noTags": "No tags yet",
     "save": "Save",
     "saving": "Saving…",
-    "saved": "Saved"
+    "saved": "Saved",
+    "status": "Status",
+    "draft": "Draft",
+    "published": "Published",
+    "discarded": "Discarded",
+    "statusUpdated": "Status updated"
   },
   "settings": {
     "title": "Settings",
@@ -103,5 +111,22 @@
     "themeDark": "Dark",
     "themeLight": "Light",
     "themeUpdated": "Theme updated"
+  },
+  "newsletters": {
+    "title": "Newsletters",
+    "createNew": "Create new",
+    "empty": "No newsletters yet.",
+    "emptyDesc": "Create your first newsletter to get started.",
+    "titlePlaceholder": "Newsletter title…",
+    "bodyPlaceholder": "Write your newsletter content here…",
+    "categoryPlaceholder": "Category…",
+    "generateIntro": "Gerar introdução com IA",
+    "generatingIntro": "Generating…",
+    "introQueued": "Introduction generation queued",
+    "introReady": "Introduction ready",
+    "tagPlaceholder": "Add tag…",
+    "deleteConfirm": "Delete this newsletter?",
+    "deleted": "Newsletter deleted",
+    "backToList": "Back to newsletters"
   }
 }

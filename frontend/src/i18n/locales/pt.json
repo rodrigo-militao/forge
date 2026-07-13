@@ -4,6 +4,7 @@
     "compose": "Compor",
     "library": "Biblioteca",
     "settings": "Configurações",
+    "newsletters": "Newsletters",
     "collapse": "Recolher sidebar",
     "expand": "Expandir sidebar",
     "back": "Voltar",
@@ -44,15 +45,27 @@
     "generating": "Gerando…",
     "bodyPlaceholder": "Escreva seu artigo aqui…"
   },
+  "editor": {
+    "tags": "Tags",
+    "addTag": "Adicionar tag…",
+    "noTags": "Nenhuma tag ainda",
+    "save": "Salvar",
+    "saving": "Salvando…",
+    "saved": "Salvo",
+    "status": "Status",
+    "draft": "Rascunho",
+    "published": "Publicado",
+    "discarded": "Descartado",
+    "statusUpdated": "Status atualizado"
+  },
   "library": {
     "title": "Biblioteca",
-    "approve": "Aprovar",
-    "reject": "Rejeitar",
     "draft": "Rascunho",
-    "approved": "Aprovado",
-    "rejected": "Rejeitado",
+    "published": "Publicado",
+    "discarded": "Descartado",
     "empty": "Nenhum conteúdo ainda.",
-    "showDeleted": "Mostrar excluídos"
+    "showDeleted": "Mostrar excluídos",
+    "tagFilter": "Filtrar por tag…"
   },
   "settings": {
     "title": "Configurações",
@@ -95,5 +108,22 @@
     "themeDark": "Escuro",
     "themeLight": "Claro",
     "themeUpdated": "Tema atualizado"
+  },
+  "newsletters": {
+    "title": "Newsletters",
+    "createNew": "Criar nova",
+    "empty": "Nenhuma newsletter ainda.",
+    "emptyDesc": "Crie sua primeira newsletter para começar.",
+    "titlePlaceholder": "Título da newsletter…",
+    "bodyPlaceholder": "Escreva o conteúdo da sua newsletter aqui…",
+    "categoryPlaceholder": "Categoria…",
+    "generateIntro": "Gerar introdução com IA",
+    "generatingIntro": "Gerando…",
+    "introQueued": "Geração de introdução enfileirada",
+    "introReady": "Introdução pronta",
+    "tagPlaceholder": "Adicionar tag…",
+    "deleteConfirm": "Excluir esta newsletter?",
+    "deleted": "Newsletter excluída",
+    "backToList": "Voltar para newsletters"
   }
 }

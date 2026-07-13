@@ -11,21 +11,60 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addNewsletterArticle = `-- name: AddNewsletterArticle :exec
+INSERT INTO newsletter_articles (newsletter_id, digest_article_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type AddNewsletterArticleParams struct {
+	NewsletterID    pgtype.UUID
+	DigestArticleID pgtype.UUID
+}
+
+func (q *Queries) AddNewsletterArticle(ctx context.Context, arg AddNewsletterArticleParams) error {
+	_, err := q.db.Exec(ctx, addNewsletterArticle, arg.NewsletterID, arg.DigestArticleID)
+	return err
+}
+
+const addNewsletterEditionTag = `-- name: AddNewsletterEditionTag :exec
+INSERT INTO newsletter_edition_tags (edition_id, tag_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type AddNewsletterEditionTagParams struct {
+	EditionID pgtype.UUID
+	TagID     pgtype.UUID
+}
+
+// Newsletter edition tags
+func (q *Queries) AddNewsletterEditionTag(ctx context.Context, arg AddNewsletterEditionTagParams) error {
+	_, err := q.db.Exec(ctx, addNewsletterEditionTag, arg.EditionID, arg.TagID)
+	return err
+}
+
 const createEdition = `-- name: CreateEdition :one
-INSERT INTO newsletter_editions (user_id, title, introduction)
-VALUES ($1, $2, $3)
-RETURNING id, user_id, title, introduction, status, created_at, updated_at
+INSERT INTO newsletter_editions (user_id, title, introduction, category)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category
 `
 
 type CreateEditionParams struct {
 	UserID       pgtype.UUID
 	Title        string
 	Introduction string
+	Category     *string
 }
 
 // Newsletter editions (ADR 0029)
 func (q *Queries) CreateEdition(ctx context.Context, arg CreateEditionParams) (NewsletterEdition, error) {
-	row := q.db.QueryRow(ctx, createEdition, arg.UserID, arg.Title, arg.Introduction)
+	row := q.db.QueryRow(ctx, createEdition,
+		arg.UserID,
+		arg.Title,
+		arg.Introduction,
+		arg.Category,
+	)
 	var i NewsletterEdition
 	err := row.Scan(
 		&i.ID,
@@ -35,38 +74,13 @@ func (q *Queries) CreateEdition(ctx context.Context, arg CreateEditionParams) (N
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const createEditionItem = `-- name: CreateEditionItem :one
-INSERT INTO newsletter_edition_items (edition_id, content_id, sort_order)
-VALUES ($1, $2, $3)
-RETURNING id, edition_id, content_id, sort_order, created_at
-`
-
-type CreateEditionItemParams struct {
-	EditionID pgtype.UUID
-	ContentID pgtype.UUID
-	SortOrder int32
-}
-
-// Edition items
-func (q *Queries) CreateEditionItem(ctx context.Context, arg CreateEditionItemParams) (NewsletterEditionItem, error) {
-	row := q.db.QueryRow(ctx, createEditionItem, arg.EditionID, arg.ContentID, arg.SortOrder)
-	var i NewsletterEditionItem
-	err := row.Scan(
-		&i.ID,
-		&i.EditionID,
-		&i.ContentID,
-		&i.SortOrder,
-		&i.CreatedAt,
+		&i.Category,
 	)
 	return i, err
 }
 
 const getEditionByID = `-- name: GetEditionByID :one
-SELECT id, user_id, title, introduction, status, created_at, updated_at FROM newsletter_editions WHERE id = $1
+SELECT id, user_id, title, introduction, status, created_at, updated_at, category FROM newsletter_editions WHERE id = $1
 `
 
 func (q *Queries) GetEditionByID(ctx context.Context, id pgtype.UUID) (NewsletterEdition, error) {
@@ -80,35 +94,33 @@ func (q *Queries) GetEditionByID(ctx context.Context, id pgtype.UUID) (Newslette
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Category,
 	)
 	return i, err
 }
 
-const listEditionItems = `-- name: ListEditionItems :many
-SELECT id, edition_id, content_id, sort_order, created_at FROM newsletter_edition_items
-WHERE edition_id = $1
-ORDER BY sort_order
+const listArticleIDsInAnyNewsletter = `-- name: ListArticleIDsInAnyNewsletter :many
+
+SELECT DISTINCT na.digest_article_id
+FROM newsletter_articles na
+JOIN newsletter_editions ne ON na.newsletter_id = ne.id
+WHERE ne.user_id = $1
 `
 
-func (q *Queries) ListEditionItems(ctx context.Context, editionID pgtype.UUID) ([]NewsletterEditionItem, error) {
-	rows, err := q.db.Query(ctx, listEditionItems, editionID)
+// Edition items (removed — replaced by newsletter_articles in ADR 0043)
+func (q *Queries) ListArticleIDsInAnyNewsletter(ctx context.Context, userID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listArticleIDsInAnyNewsletter, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []NewsletterEditionItem
+	var items []pgtype.UUID
 	for rows.Next() {
-		var i NewsletterEditionItem
-		if err := rows.Scan(
-			&i.ID,
-			&i.EditionID,
-			&i.ContentID,
-			&i.SortOrder,
-			&i.CreatedAt,
-		); err != nil {
+		var digest_article_id pgtype.UUID
+		if err := rows.Scan(&digest_article_id); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, digest_article_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -117,7 +129,7 @@ func (q *Queries) ListEditionItems(ctx context.Context, editionID pgtype.UUID) (
 }
 
 const listEditionsByUser = `-- name: ListEditionsByUser :many
-SELECT id, user_id, title, introduction, status, created_at, updated_at FROM newsletter_editions
+SELECT id, user_id, title, introduction, status, created_at, updated_at, category FROM newsletter_editions
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -139,6 +151,7 @@ func (q *Queries) ListEditionsByUser(ctx context.Context, userID pgtype.UUID) ([
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Category,
 		); err != nil {
 			return nil, err
 		}
@@ -150,26 +163,42 @@ func (q *Queries) ListEditionsByUser(ctx context.Context, userID pgtype.UUID) ([
 	return items, nil
 }
 
-const listUsedContentIDs = `-- name: ListUsedContentIDs :many
-SELECT DISTINCT nei.content_id
-FROM newsletter_edition_items nei
-JOIN newsletter_editions ne ON nei.edition_id = ne.id
-WHERE ne.user_id = $1
+const listEditionsByUserFiltered = `-- name: ListEditionsByUserFiltered :many
+SELECT id, user_id, title, introduction, status, created_at, updated_at, category FROM newsletter_editions
+WHERE user_id = $1
+  AND ($2::TEXT IS NULL OR status = $2)
+  AND ($3::TEXT IS NULL OR category = $3)
+ORDER BY created_at DESC
 `
 
-func (q *Queries) ListUsedContentIDs(ctx context.Context, userID pgtype.UUID) ([]pgtype.UUID, error) {
-	rows, err := q.db.Query(ctx, listUsedContentIDs, userID)
+type ListEditionsByUserFilteredParams struct {
+	UserID         pgtype.UUID
+	StatusFilter   *string
+	CategoryFilter *string
+}
+
+func (q *Queries) ListEditionsByUserFiltered(ctx context.Context, arg ListEditionsByUserFilteredParams) ([]NewsletterEdition, error) {
+	rows, err := q.db.Query(ctx, listEditionsByUserFiltered, arg.UserID, arg.StatusFilter, arg.CategoryFilter)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []pgtype.UUID
+	var items []NewsletterEdition
 	for rows.Next() {
-		var content_id pgtype.UUID
-		if err := rows.Scan(&content_id); err != nil {
+		var i NewsletterEdition
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Introduction,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Category,
+		); err != nil {
 			return nil, err
 		}
-		items = append(items, content_id)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -177,11 +206,140 @@ func (q *Queries) ListUsedContentIDs(ctx context.Context, userID pgtype.UUID) ([
 	return items, nil
 }
 
+const listNewsletterArticlesByEditionID = `-- name: ListNewsletterArticlesByEditionID :many
+SELECT na.digest_article_id, na.added_at, gc.title, gc.body_markdown
+FROM newsletter_articles na
+JOIN generated_content gc ON na.digest_article_id = gc.id
+WHERE na.newsletter_id = $1
+ORDER BY na.added_at
+`
+
+type ListNewsletterArticlesByEditionIDRow struct {
+	DigestArticleID pgtype.UUID
+	AddedAt         pgtype.Timestamptz
+	Title           *string
+	BodyMarkdown    *string
+}
+
+func (q *Queries) ListNewsletterArticlesByEditionID(ctx context.Context, newsletterID pgtype.UUID) ([]ListNewsletterArticlesByEditionIDRow, error) {
+	rows, err := q.db.Query(ctx, listNewsletterArticlesByEditionID, newsletterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListNewsletterArticlesByEditionIDRow
+	for rows.Next() {
+		var i ListNewsletterArticlesByEditionIDRow
+		if err := rows.Scan(
+			&i.DigestArticleID,
+			&i.AddedAt,
+			&i.Title,
+			&i.BodyMarkdown,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listNewsletterEditionTags = `-- name: ListNewsletterEditionTags :many
+SELECT t.label FROM newsletter_edition_tags net
+JOIN tags t ON t.id = net.tag_id
+WHERE net.edition_id = $1
+ORDER BY t.label
+`
+
+func (q *Queries) ListNewsletterEditionTags(ctx context.Context, editionID pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listNewsletterEditionTags, editionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var label string
+		if err := rows.Scan(&label); err != nil {
+			return nil, err
+		}
+		items = append(items, label)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listNewsletterEditionTagsByEditionIDs = `-- name: ListNewsletterEditionTagsByEditionIDs :many
+SELECT net.edition_id, t.label FROM newsletter_edition_tags net
+JOIN tags t ON t.id = net.tag_id
+WHERE net.edition_id = ANY($1::UUID[])
+ORDER BY t.label
+`
+
+type ListNewsletterEditionTagsByEditionIDsRow struct {
+	EditionID pgtype.UUID
+	Label     string
+}
+
+func (q *Queries) ListNewsletterEditionTagsByEditionIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]ListNewsletterEditionTagsByEditionIDsRow, error) {
+	rows, err := q.db.Query(ctx, listNewsletterEditionTagsByEditionIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListNewsletterEditionTagsByEditionIDsRow
+	for rows.Next() {
+		var i ListNewsletterEditionTagsByEditionIDsRow
+		if err := rows.Scan(&i.EditionID, &i.Label); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeNewsletterArticle = `-- name: RemoveNewsletterArticle :exec
+DELETE FROM newsletter_articles
+WHERE newsletter_id = $1 AND digest_article_id = $2
+`
+
+type RemoveNewsletterArticleParams struct {
+	NewsletterID    pgtype.UUID
+	DigestArticleID pgtype.UUID
+}
+
+func (q *Queries) RemoveNewsletterArticle(ctx context.Context, arg RemoveNewsletterArticleParams) error {
+	_, err := q.db.Exec(ctx, removeNewsletterArticle, arg.NewsletterID, arg.DigestArticleID)
+	return err
+}
+
+const removeNewsletterEditionTag = `-- name: RemoveNewsletterEditionTag :exec
+DELETE FROM newsletter_edition_tags
+WHERE edition_id = $1 AND tag_id = $2
+`
+
+type RemoveNewsletterEditionTagParams struct {
+	EditionID pgtype.UUID
+	TagID     pgtype.UUID
+}
+
+func (q *Queries) RemoveNewsletterEditionTag(ctx context.Context, arg RemoveNewsletterEditionTagParams) error {
+	_, err := q.db.Exec(ctx, removeNewsletterEditionTag, arg.EditionID, arg.TagID)
+	return err
+}
+
 const updateEditionBody = `-- name: UpdateEditionBody :one
 UPDATE newsletter_editions
 SET title = $2, introduction = $3, updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, title, introduction, status, created_at, updated_at
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category
 `
 
 type UpdateEditionBodyParams struct {
@@ -201,6 +359,35 @@ func (q *Queries) UpdateEditionBody(ctx context.Context, arg UpdateEditionBodyPa
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Category,
+	)
+	return i, err
+}
+
+const updateEditionCategory = `-- name: UpdateEditionCategory :one
+UPDATE newsletter_editions
+SET category = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category
+`
+
+type UpdateEditionCategoryParams struct {
+	ID       pgtype.UUID
+	Category *string
+}
+
+func (q *Queries) UpdateEditionCategory(ctx context.Context, arg UpdateEditionCategoryParams) (NewsletterEdition, error) {
+	row := q.db.QueryRow(ctx, updateEditionCategory, arg.ID, arg.Category)
+	var i NewsletterEdition
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Title,
+		&i.Introduction,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Category,
 	)
 	return i, err
 }
@@ -209,7 +396,7 @@ const updateEditionStatus = `-- name: UpdateEditionStatus :one
 UPDATE newsletter_editions
 SET status = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, title, introduction, status, created_at, updated_at
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category
 `
 
 type UpdateEditionStatusParams struct {
@@ -228,6 +415,7 @@ func (q *Queries) UpdateEditionStatus(ctx context.Context, arg UpdateEditionStat
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Category,
 	)
 	return i, err
 }

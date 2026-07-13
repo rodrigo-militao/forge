@@ -126,24 +126,6 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			return nil
 		},
 
-		"assemble_edition": func(ctx context.Context, userID string, payload []byte) error {
-			svc := digestApp.NewEditionService(contentRepo, contentRepo, editionsRepo)
-			var req struct {
-				ContentIDs []string `json:"content_ids"`
-			}
-			if len(payload) > 0 && string(payload) != "{}" {
-				if err := json.Unmarshal(payload, &req); err != nil {
-					slog.Warn("assemble_edition: ignoring invalid payload", "error", err)
-				}
-			}
-			result, err := svc.Assemble(ctx, userID, req.ContentIDs...)
-			if err != nil {
-				return fmt.Errorf("edition assembly: %w", err)
-			}
-			slog.Info("edition assembled", "items", result.ItemCount)
-			return nil
-		},
-
 		"compose_generate_draft": func(ctx context.Context, userID string, payload []byte) error {
 			id, err := uuid.Parse(userID)
 			if err != nil {
@@ -198,6 +180,62 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 		"compose_write": func(ctx context.Context, userID string, payload []byte) error {
 			return fmt.Errorf("compose_write handler not yet implemented")
 		},
+
+		"generate_edition_intro": func(ctx context.Context, userID string, payload []byte) error {
+			id, err := uuid.Parse(userID)
+			if err != nil {
+				return fmt.Errorf("invalid user id: %w", err)
+			}
+			var req struct {
+				EditionID string `json:"edition_id"`
+			}
+			if err := json.Unmarshal(payload, &req); err != nil || req.EditionID == "" {
+				return fmt.Errorf("invalid payload: edition_id required")
+			}
+			editionID, err := uuid.Parse(req.EditionID)
+			if err != nil {
+				return fmt.Errorf("invalid edition_id: %w", err)
+			}
+
+			edition, err := editionsRepo.GetByID(ctx, editionID)
+			if err != nil {
+				return fmt.Errorf("fetching edition: %w", err)
+			}
+			if edition.UserID != id {
+				return fmt.Errorf("edition does not belong to user")
+			}
+
+			var tagSection string
+			if len(edition.Tags) > 0 {
+				tagSection = fmt.Sprintf("Relevant tags: %s\n", joinStrings(edition.Tags, ", "))
+			}
+			var categorySection string
+			if edition.Category != nil {
+				categorySection = fmt.Sprintf("Category: %s\n", *edition.Category)
+			}
+
+			resp, err := llmClient.Complete(ctx, coredomain.LLMRequest{
+				SystemPrompt: "You are a newsletter writer. Generate a compelling introduction for a newsletter edition. Return only the introduction HTML, no markdown or extra commentary.",
+				Messages: []coredomain.LLMMessage{
+					{Role: "user", Content: fmt.Sprintf(
+						"Title: %s\n%s%s\n\nGenerate a friendly, engaging introduction paragraph (2-3 sentences) for this newsletter edition.",
+						edition.Title, categorySection, tagSection,
+					)},
+				},
+				MaxTokens:   500,
+				Temperature: 0.7,
+			})
+			if err != nil {
+				return fmt.Errorf("LLM completion: %w", err)
+			}
+
+			if err := editionsRepo.UpdateBody(ctx, editionID, edition.Title, resp.Content); err != nil {
+				return fmt.Errorf("persisting introduction: %w", err)
+			}
+
+			slog.Info("edition intro generated", "edition_id", editionID)
+			return nil
+		},
 	}
 }
 
@@ -227,3 +265,14 @@ func buildContentSources(configs []digestDomain.SourceConfig) []digestDomain.Con
 }
 
 func strPtr(s string) *string { return &s }
+
+func joinStrings(items []string, sep string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	result := items[0]
+	for _, s := range items[1:] {
+		result += sep + s
+	}
+	return result
+}

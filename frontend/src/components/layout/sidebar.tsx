@@ -1,11 +1,12 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { FileText, PenLine, Library, Settings, LogOut, PanelLeftClose, PanelLeft } from "lucide-react";
+import { FileText, PenLine, Library, Settings, LogOut, PanelLeftClose, PanelLeft, Mail } from "lucide-react";
 import { useAuth } from "../../features/auth/store";
 import { useCallback, useEffect, useState } from "react";
 
 const navItems = [
   { to: "/digest", label: "nav.digest", icon: FileText },
+  { to: "/newsletters", label: "nav.newsletters", icon: Mail },
   { to: "/compose", label: "nav.compose", icon: PenLine },
   { to: "/library", label: "nav.library", icon: Library },
   { to: "/settings", label: "nav.settings", icon: Settings },
