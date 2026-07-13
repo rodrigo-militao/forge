@@ -27,14 +27,14 @@ const categorizeBatchSize = 20
 
 // CategorizeService processes a batch of uncategorized digest articles using a cheap LLM.
 type CategorizeService struct {
-	cheapLLM      domain.LLMClient
+	cheapLLM      ports.LLMClient
 	content       ports.ContentWriter
 	digestQueries ports.ContentDigestReader
 	userID        uuid.UUID
 }
 
 // NewCategorizeService creates a categorizer.
-func NewCategorizeService(cheapLLM domain.LLMClient, content ports.ContentWriter, digestQueries ports.ContentDigestReader, userID uuid.UUID) *CategorizeService {
+func NewCategorizeService(cheapLLM ports.LLMClient, content ports.ContentWriter, digestQueries ports.ContentDigestReader, userID uuid.UUID) *CategorizeService {
 	return &CategorizeService{cheapLLM: cheapLLM, content: content, digestQueries: digestQueries, userID: userID}
 }
 

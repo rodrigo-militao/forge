@@ -7,16 +7,17 @@ import (
 	"time"
 
 	"github.com/rodrigo-militao/forge/internal/core/domain"
+	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
 // LoggingWrapper adds structured logging and latency tracking around any LLMClient.
-// It implements domain.LLMClient so it can be used as a drop-in replacement.
+// It implements ports.LLMClient so it can be used as a drop-in replacement.
 type LoggingWrapper struct {
-	inner domain.LLMClient
+	inner ports.LLMClient
 }
 
 // NewLoggingWrapper creates a logging decorator for an LLM client.
-func NewLoggingWrapper(inner domain.LLMClient) *LoggingWrapper {
+func NewLoggingWrapper(inner ports.LLMClient) *LoggingWrapper {
 	return &LoggingWrapper{inner: inner}
 }
 

@@ -9,17 +9,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/rodrigo-militao/forge/internal/compose/domain"
 	coredomain "github.com/rodrigo-militao/forge/internal/core/domain"
+	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
 // TopicGeneratorService generates article topics via LLM, avoiding repetition.
 type TopicGeneratorService struct {
-	llm    coredomain.LLMClient
+	llm    ports.LLMClient
 	topics domain.TopicRepository
 	userID uuid.UUID
 }
 
 // NewTopicGeneratorService creates a topic generator.
-func NewTopicGeneratorService(llm coredomain.LLMClient, topics domain.TopicRepository, userID uuid.UUID) *TopicGeneratorService {
+func NewTopicGeneratorService(llm ports.LLMClient, topics domain.TopicRepository, userID uuid.UUID) *TopicGeneratorService {
 	return &TopicGeneratorService{
 		llm:    llm,
 		topics: topics,

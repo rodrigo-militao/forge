@@ -1,7 +1,5 @@
 package domain
 
-import "context"
-
 // LLMMessage represents a single message in a conversation.
 type LLMMessage struct {
 	Role    string // "user" | "assistant" | "system"
@@ -28,7 +26,3 @@ type LLMUsage struct {
 	OutputTokens int
 }
 
-// LLMClient abstracts over any LLM provider (OpenAI-compatible, Anthropic, etc.).
-type LLMClient interface {
-	Complete(ctx context.Context, req LLMRequest) (*LLMResponse, error)
-}

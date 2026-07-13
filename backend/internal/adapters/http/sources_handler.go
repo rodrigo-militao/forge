@@ -5,18 +5,18 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rodrigo-militao/forge/internal/core/ports"
+	"github.com/rodrigo-militao/forge/internal/core/application"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
 // SourcesHandler handles CRUD for digest content sources.
 type SourcesHandler struct {
 	sources digest.SourceRepository
-	users   ports.UserRepository
+	plans   *application.Plans
 }
 
-func NewSourcesHandler(sources digest.SourceRepository, users ports.UserRepository) *SourcesHandler {
-	return &SourcesHandler{sources: sources, users: users}
+func NewSourcesHandler(sources digest.SourceRepository, plans *application.Plans) *SourcesHandler {
+	return &SourcesHandler{sources: sources, plans: plans}
 }
 
 func (h *SourcesHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -93,23 +93,14 @@ func (h *SourcesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Enabled {
-		user, err := h.users.GetByID(r.Context(), userID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to check limits")
-			return
-		}
 		existing, _ := h.sources.ListByUser(r.Context(), userID)
 		count := 0
-		for _, s := range existing {
-			if s.ID == id {
-				continue // don't count the source being updated
-			}
-			if s.Enabled {
-				count++
-			}
+		for _, src := range existing {
+			if src.ID == id { continue }
+			if src.Enabled { count++ }
 		}
-		if count >= user.MaxActiveSources {
-			writeError(w, http.StatusConflict, "max_active_sources limit reached")
+		if err := h.plans.CheckSourceLimit(r.Context(), userID, count); err != nil {
+			writeError(w, http.StatusConflict, err.Error())
 			return
 		}
 	}

@@ -12,13 +12,13 @@ import (
 
 // WriterService generates complete articles via LLM using voice routing.
 type WriterService struct {
-	llm     coredomain.LLMClient
+	llm     ports.LLMClient
 	content ports.ContentWriter
 	userID  uuid.UUID
 }
 
 // NewWriterService creates a writer service.
-func NewWriterService(llm coredomain.LLMClient, content ports.ContentWriter, userID uuid.UUID) *WriterService {
+func NewWriterService(llm ports.LLMClient, content ports.ContentWriter, userID uuid.UUID) *WriterService {
 	return &WriterService{
 		llm:     llm,
 		content: content,

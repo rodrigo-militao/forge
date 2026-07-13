@@ -9,12 +9,13 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/rodrigo-militao/forge/internal/adapters/events"
+	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 	digestApp "github.com/rodrigo-militao/forge/internal/digest/application"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
-func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, content ports.ContentRepository, jobs ports.JobRepository, interests digest.DigestInterestRepository, sources digest.SourceRepository, editions digest.EditionRepository, hub *events.Hub) http.Handler {
+func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, content ports.ContentRepository, jobs ports.JobRepository, interests digest.DigestInterestRepository, sources digest.SourceRepository, editions digest.EditionRepository, hub *events.Hub, editionSvc *digestApp.EditionService, plans *application.Plans) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -30,8 +31,8 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 
 	authH := NewAuthHandler(users, usages)
 	contentH := NewContentHandler(content)
-	interestsH := NewInterestsHandler(interests, users)
-	sourcesH := NewSourcesHandler(sources, users)
+	interestsH := NewInterestsHandler(interests, plans)
+	sourcesH := NewSourcesHandler(sources, plans)
 
 	r.Route("/api/auth", func(r chi.Router) {
 		r.Post("/register", authH.Register)
@@ -69,8 +70,7 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 				writeError(w, http.StatusBadRequest, "invalid body")
 				return
 			}
-			svc := digestApp.NewEditionService(content, content, editions)
-			result, err := svc.Assemble(r.Context(), userUUID.String(), req.ContentIDs...)
+			result, err := editionSvc.Assemble(r.Context(), userUUID.String(), req.ContentIDs...)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return

@@ -1,4 +1,4 @@
-// Package llm implements domain.LLMClient for OpenAI-compatible Chat Completions API.
+// Package llm implements ports.LLMClient for OpenAI-compatible Chat Completions API.
 package llm
 
 import (
@@ -15,6 +15,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rodrigo-militao/forge/internal/core/domain"
+	"github.com/rodrigo-militao/forge/internal/core/ports"
 	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
@@ -26,7 +27,7 @@ const (
 	rateLimitRequests = 4
 )
 
-// Client implements domain.LLMClient for OpenAI-compatible APIs.
+// Client implements ports.LLMClient for OpenAI-compatible APIs.
 type Client struct {
 	apiKey     string
 	baseURL    string
@@ -227,4 +228,4 @@ func parseAPIError(statusCode int, body []byte) error {
 }
 
 // Compile-time interface check.
-var _ domain.LLMClient = (*Client)(nil)
+var _ ports.LLMClient = (*Client)(nil)

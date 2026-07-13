@@ -17,7 +17,7 @@ import (
 // DiscoveryService orchestrates the daily content curation pipeline:
 // fetch sources → classify via LLM → persist digest.
 type DiscoveryService struct {
-	llm     domain.LLMClient
+	llm     ports.LLMClient
 	sources []digest.ContentSource
 	content       ports.ContentWriter
 	digestQueries ports.ContentDigestReader
@@ -25,7 +25,7 @@ type DiscoveryService struct {
 }
 
 // NewDiscoveryService creates a discovery service.
-func NewDiscoveryService(llm domain.LLMClient, sources []digest.ContentSource, content ports.ContentWriter, digestQueries ports.ContentDigestReader, userID uuid.UUID) *DiscoveryService {
+func NewDiscoveryService(llm ports.LLMClient, sources []digest.ContentSource, content ports.ContentWriter, digestQueries ports.ContentDigestReader, userID uuid.UUID) *DiscoveryService {
 	return &DiscoveryService{
 		llm:           llm,
 		sources:       sources,

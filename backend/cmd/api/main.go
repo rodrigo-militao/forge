@@ -15,6 +15,8 @@ import (
 	handler "github.com/rodrigo-militao/forge/internal/adapters/http"
 	"github.com/rodrigo-militao/forge/internal/adapters/events"
 	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
+	"github.com/rodrigo-militao/forge/internal/core/application"
+	digestApp "github.com/rodrigo-militao/forge/internal/digest/application"
 )
 
 func main() {
@@ -51,8 +53,12 @@ func main() {
 		}
 	}()
 
+	// Edition service (wired once, shared with HTTP route)
+	editionSvc := digestApp.NewEditionService(content, content, editions)
+
 	// Router
-	router := handler.NewRouter(users, usages, content, jobs, interests, sources, editions, hub)
+	plans := application.NewPlans(users)
+	router := handler.NewRouter(users, usages, content, jobs, interests, sources, editions, hub, editionSvc, plans)
 
 	srv := &http.Server{
 		Addr:         ":" + port,

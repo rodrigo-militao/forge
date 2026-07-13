@@ -187,36 +187,12 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			if err := json.Unmarshal(payload, &req); err != nil || req.Text == "" {
 				return fmt.Errorf("invalid payload: text required")
 			}
-			actionPrompt := ""
-			switch req.Action {
-			case "expand":
-				actionPrompt = fmt.Sprintf("Expand the following text with more details, examples, and depth. Keep the same tone and style.\n\n%s", req.Text)
-			case "rewrite":
-				actionPrompt = fmt.Sprintf("Rewrite the following text to be clearer and more engaging. Keep the same meaning but improve flow and readability.\n\n%s", req.Text)
-			default:
-				return fmt.Errorf("unknown action: %s", req.Action)
-			}
-			resp, err := llmClient.Complete(ctx, coredomain.LLMRequest{
-				SystemPrompt: "You are a writing assistant. Respond only with the transformed text, no explanations.",
-				Messages:     []coredomain.LLMMessage{{Role: "user", Content: actionPrompt}},
-				MaxTokens:    2048,
-				Temperature:  0.6,
-			})
+			id, err := uuid.Parse(userID)
 			if err != nil {
-				return fmt.Errorf("LLM transform: %w", err)
+				return fmt.Errorf("invalid user id: %w", err)
 			}
-			title := fmt.Sprintf("AI %s suggestion", req.Action)
-			if err := contentRepo.Create(ctx, &coredomain.GeneratedContent{
-				UserID:       uuid.MustParse(userID),
-				Product:      coredomain.ProductCompose,
-				Status:       coredomain.ContentDraft,
-				SourceType:   strPtr(req.Action),
-				Title:        &title,
-				BodyMarkdown: &resp.Content,
-			}); err != nil {
-				return fmt.Errorf("persisting transform result: %w", err)
-			}
-			return nil
+			svc := composeApp.NewTransformService(llmClient, contentRepo, id)
+			return svc.Run(ctx, composeApp.TransformOptions{Text: req.Text, Action: req.Action})
 		},
 
 		"compose_write": func(ctx context.Context, userID string, payload []byte) error {
