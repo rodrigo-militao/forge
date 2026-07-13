@@ -71,7 +71,15 @@ export function TiptapEditor({
     setLinkURL("");
   }, [editor, linkURL]);
 
-  if (!editor) return null;
+  const [isTransforming, setIsTransforming] = useState(false);
+
+  if (!editor) {
+    return (
+      <div className={`rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 ${className}`}>
+        <p className="text-sm text-[var(--color-text-muted)]">Editor unavailable</p>
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-lg border border-[var(--color-border)]/20 bg-white/5 ${className}`}>
@@ -182,11 +190,19 @@ export function TiptapEditor({
           <>
             <span className="mx-1 h-4 w-px bg-[var(--color-border)]/20" />
             <span className="text-xs text-[var(--color-text-muted)]">AI</span>
-            <ToolbarButton onClick={() => onTransform("expand", editor)} title="Expand selected text">
-              <Bot size={15} />
+            <ToolbarButton
+              onClick={() => { setIsTransforming(true); onTransform("expand", editor); setTimeout(() => setIsTransforming(false), 2000); }}
+              title="Expand selected text"
+              disabled={isTransforming}
+            >
+              <Bot size={15} className={isTransforming ? "animate-pulse" : ""} />
             </ToolbarButton>
-            <ToolbarButton onClick={() => onTransform("rewrite", editor)} title="Rewrite selected text">
-              <Type size={15} />
+            <ToolbarButton
+              onClick={() => { setIsTransforming(true); onTransform("rewrite", editor); setTimeout(() => setIsTransforming(false), 2000); }}
+              title="Rewrite selected text"
+              disabled={isTransforming}
+            >
+              <Type size={15} className={isTransforming ? "animate-pulse" : ""} />
             </ToolbarButton>
           </>
         )}
@@ -204,20 +220,23 @@ function ToolbarButton({
   active,
   onClick,
   title,
+  disabled,
   children,
 }: {
   active?: boolean;
   onClick: () => void;
   title?: string;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
-      className={`cursor-pointer rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)] ${
+      disabled={disabled}
+      className={`rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)] ${
         active ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]" : ""
-      }`}
+      } ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
     >
       {children}
     </button>

@@ -3,53 +3,50 @@ import { useQueryClient } from "@tanstack/react-query";
 
 const SSE_URL = "/api/events";
 
-/**
- * Subscribes to the SSE event stream (GET /api/events).
- * On receiving a "content_changed" event, invalidates the TanStack
- * Query cache so the affected pages refetch content.
- *
- * Automatically reconnects (EventSource native behavior).
- */
 export function useSSE() {
   const queryClient = useQueryClient();
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const esRef = useRef<EventSource | null>(null);
+  const staleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    function connect() {
-      const es = new EventSource(SSE_URL);
-      eventSourceRef.current = es;
+    const es = new EventSource(SSE_URL);
+    esRef.current = es;
 
-      es.onopen = () => {
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-          reconnectTimeoutRef.current = null;
-        }
-      };
+    es.addEventListener("content_changed", () => {
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+    });
 
-      es.addEventListener("content_changed", () => {
-        queryClient.invalidateQueries({ queryKey: ["content"] });
-        queryClient.invalidateQueries({ queryKey: ["editions"] });
-      });
+    es.onopen = () => {
+      // Clear the stale-data fallback — we're connected
+      if (staleTimerRef.current) {
+        clearTimeout(staleTimerRef.current);
+        staleTimerRef.current = null;
+      }
+      // Invalidate on reconnect to catch events missed during downtime
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+    };
 
-      es.onerror = () => {
-        es.close();
-        eventSourceRef.current = null;
-        // Native EventSource reconnects automatically, but add a safety timeout
-        reconnectTimeoutRef.current = setTimeout(connect, 5000);
-      };
-    }
-
-    connect();
+    es.onerror = () => {
+      // Don't close the EventSource — the browser auto-reconnects.
+      // Set a fallback: if we don't reconnect within 30s, invalidate
+      // the cache so the next interaction triggers a fresh fetch.
+      if (!staleTimerRef.current) {
+        staleTimerRef.current = setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["content"] });
+          queryClient.invalidateQueries({ queryKey: ["editions"] });
+          staleTimerRef.current = null;
+        }, 30000);
+      }
+    };
 
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
+      es.close();
+      esRef.current = null;
+      if (staleTimerRef.current) {
+        clearTimeout(staleTimerRef.current);
+        staleTimerRef.current = null;
       }
     };
   }, [queryClient]);
