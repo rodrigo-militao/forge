@@ -49,29 +49,29 @@ export function ContentEditor({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="relative">
         <input
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder={titlePlaceholder}
           maxLength={200}
-          className="flex-1 rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+          className="w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 pr-24 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
         />
-        {/* Sync indicator — visible at a glance while editing */}
-        <div className="shrink-0">
-          {isSaving && (
-            <span className="text-xs text-[var(--color-text-muted)]">{t("editor.saving")}</span>
-          )}
-          {isSynced && !isSaving && (
+        {/* Sync indicator — overlaid on the title bar */}
+        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+          {isSynced && !isSaving && !saveError && (
             <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-success)]">
               <CheckCircle2 size={12} />
               {t("editor.synced")}
             </span>
           )}
+          {isSaving && !isSynced && !saveError && (
+            <span className="text-xs text-[var(--color-text-muted)]">{t("editor.saving")}</span>
+          )}
           {saveError && (
-            <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-danger)]">
+            <span className="pointer-events-auto inline-flex items-center gap-1 rounded bg-[var(--color-accent-danger)]/10 px-2 py-0.5 text-xs text-[var(--color-accent-danger)]">
               <AlertCircle size={12} />
-              {saveError}
+              Save failed
             </span>
           )}
         </div>
