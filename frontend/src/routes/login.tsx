@@ -30,7 +30,7 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg-base)]">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 p-8">
-        <h1 className="font-[var(--font-display)] text-3xl text-[var(--color-bg-surface)]">Forge</h1>
+        <img src="/logo.svg" alt="Forge" className="mx-auto w-56" />
         <h2 className="text-lg text-[var(--color-text-secondary)]">{t("auth.login")}</h2>
 
         {error && (

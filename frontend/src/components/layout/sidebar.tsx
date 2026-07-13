@@ -45,15 +45,13 @@ export function Sidebar() {
     >
       <Link
         to="/digest"
-        className="mb-8 flex items-center gap-2"
+        className="mb-6 flex items-center"
         tabIndex={collapsed ? -1 : 0}
       >
         {collapsed ? (
-          <span className="font-[var(--font-display)] text-xl font-semibold text-[var(--color-bg-surface)]">F</span>
+          <img src="/favicon.svg" alt="F" className="mx-auto h-7 w-7" />
         ) : (
-          <span className="font-[var(--font-display)] text-xl font-semibold text-[var(--color-bg-surface)]">
-            Forge
-          </span>
+          <img src="/logo.svg" alt="Forge" className="w-full max-w-[160px]" />
         )}
       </Link>
 
