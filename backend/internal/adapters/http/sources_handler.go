@@ -100,7 +100,7 @@ func (h *SourcesHandler) Update(w http.ResponseWriter, r *http.Request) {
 			if src.Enabled { count++ }
 		}
 		if err := h.plans.CheckSourceLimit(r.Context(), userID, count); err != nil {
-			writeError(w, http.StatusConflict, err.Error())
+			writeErrorWithCode(w, http.StatusConflict, err)
 			return
 		}
 	}

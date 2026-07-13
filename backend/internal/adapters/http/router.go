@@ -15,7 +15,7 @@ import (
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
-func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, content ports.ContentRepository, jobs ports.JobRepository, interests digest.DigestInterestRepository, sources digest.SourceRepository, editions digest.EditionRepository, hub *events.Hub, editionSvc *digestApp.EditionService, plans *application.Plans) http.Handler {
+func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, content ports.ContentRepository, jobs ports.JobRepository, interests digest.DigestInterestRepository, sources digest.SourceRepository, editions digest.EditionRepository, hub *events.Hub, editionSvc *digestApp.EditionService, plans *application.Plans, contentSvc *application.ContentService) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -30,7 +30,7 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 	}))
 
 	authH := NewAuthHandler(users, usages)
-	contentH := NewContentHandler(content)
+	contentH := NewContentHandler(contentSvc)
 	interestsH := NewInterestsHandler(interests, plans)
 	sourcesH := NewSourcesHandler(sources, plans)
 
@@ -55,7 +55,7 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
 		r.Get("/api/content/tags", contentH.ListTags)
 
-		r.Post("/api/digest/run", enqueueJob(jobs, users, usages, "curate_digest", false))
+		r.Post("/api/digest/run", enqueueJob(jobs, usages, "curate_digest", false, plans))
 
 		r.Post("/api/digest/assemble-edition", func(w http.ResponseWriter, r *http.Request) {
 			userUUID, ok := UserIDFromContext(r.Context())
@@ -96,10 +96,10 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 			writeJSON(w, http.StatusOK, strIDs)
 		})
 
-		r.Post("/api/compose/generate-topic", enqueueJob(jobs, users, usages, "generate_topic", false))
-		r.Post("/api/compose/generate-draft", enqueueJob(jobs, users, usages, "compose_generate_draft", true))
-		r.Post("/api/compose/transform", enqueueJob(jobs, users, usages, "compose_transform", true))
-		r.Post("/api/compose/write", enqueueJob(jobs, users, usages, "compose_write", true))
+		r.Post("/api/compose/generate-topic", enqueueJob(jobs, usages, "generate_topic", false, plans))
+		r.Post("/api/compose/generate-draft", enqueueJob(jobs, usages, "compose_generate_draft", true, plans))
+		r.Post("/api/compose/transform", enqueueJob(jobs, usages, "compose_transform", true, plans))
+		r.Post("/api/compose/write", enqueueJob(jobs, usages, "compose_write", true, plans))
 
 		r.Route("/api/digest/interests", func(r chi.Router) {
 			r.Get("/", interestsH.List)

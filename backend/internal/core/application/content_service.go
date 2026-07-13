@@ -24,7 +24,7 @@ func NewContentService(content ports.ContentRepository) *ContentService {
 func (s *ContentService) GetOwnedContent(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*domain.GeneratedContent, error) {
 	content, err := s.content.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("content not found")
+		return nil, fmt.Errorf("get content: %w", err)
 	}
 	if content.UserID != userID {
 		return nil, fmt.Errorf("not your content")
@@ -123,3 +123,5 @@ type LimitError struct {
 func (e *LimitError) Error() string {
 	return fmt.Sprintf("%s limit reached (%d/%d)", e.Name, e.Current, e.Limit)
 }
+
+func (e *LimitError) Code() string { return "plan_limit" }

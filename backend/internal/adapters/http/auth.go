@@ -113,6 +113,13 @@ func clearSessionCookie(w http.ResponseWriter) {
 
 type apiError struct {
 	Error string `json:"error"`
+	Code  string `json:"code,omitempty"`
+}
+
+// ErrorCoder is implemented by errors that carry a machine-readable code.
+type ErrorCoder interface {
+	Code() string
+	Error() string
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -123,4 +130,12 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, apiError{Error: msg})
+}
+
+func writeErrorWithCode(w http.ResponseWriter, status int, err error) {
+	var code string
+	if coder, ok := err.(ErrorCoder); ok {
+		code = coder.Code()
+	}
+	writeJSON(w, status, apiError{Error: err.Error(), Code: code})
 }

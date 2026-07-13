@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
@@ -65,7 +66,7 @@ func TestContentHandler_List(t *testing.T) {
 			{ID: uuid.New(), UserID: uid, Product: domain.ProductDigest, Title: strPtr("test")},
 		},
 	}
-	h := &ContentHandler{content: content}
+	h := &ContentHandler{svc: application.NewContentService(content)}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
@@ -90,7 +91,7 @@ func TestContentHandler_Delete_Owned(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{content: content}
+	h := &ContentHandler{svc: application.NewContentService(content)}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String(), nil)
 	r = addChiURLParam(r, "id", cid.String())
@@ -112,7 +113,7 @@ func TestContentHandler_Delete_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{content: content}
+	h := &ContentHandler{svc: application.NewContentService(content)}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String(), nil)
 	r = addChiURLParam(r, "id", cid.String())
@@ -127,7 +128,7 @@ func TestContentHandler_Delete_NotOwned(t *testing.T) {
 
 func TestContentHandler_Delete_NotFound(t *testing.T) {
 	uid := uuid.New()
-	h := &ContentHandler{content: &mockContentRepo{}}
+	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{})}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+uuid.New().String(), nil)
 	r = addChiURLParam(r, "id", uuid.New().String())
@@ -148,7 +149,7 @@ func TestContentHandler_UpdateCategory(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{content: content}
+	h := &ContentHandler{svc: application.NewContentService(content)}
 
 	body := `{"category":"AI"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/category", strings.NewReader(body))

@@ -6,13 +6,14 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
 // enqueueJob returns an HTTP handler that creates a job and returns 202 Accepted.
 // It checks the user's monthly generation quota before enqueuing.
-func enqueueJob(jobs ports.JobRepository, users ports.UserRepository, usages ports.UsageCounterRepository, jobType string, withBody bool) http.HandlerFunc {
+func enqueueJob(jobs ports.JobRepository, usages ports.UsageCounterRepository, jobType string, withBody bool, plans *application.Plans) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := UserIDFromContext(r.Context())
 		if !ok {
@@ -20,22 +21,11 @@ func enqueueJob(jobs ports.JobRepository, users ports.UserRepository, usages por
 			return
 		}
 
-		// Quota check: fetch user's limit and current monthly usage
-		user, err := users.GetByID(r.Context(), userID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to check quota")
+		if err := plans.CheckMonthGenerationQuota(r.Context(), userID, usages); err != nil {
+			writeErrorWithCode(w, http.StatusTooManyRequests, err)
 			return
 		}
-		monthName := "" // computed inside the repo
-		used, err := usages.Get(r.Context(), userID, monthName)
-		if err != nil {
-			// Treat missing counter as zero
-			used = 0
-		}
-		if used >= user.MaxMonthlyGenerations {
-			writeError(w, http.StatusTooManyRequests, "monthly generation limit reached")
-			return
-		}
+		monthName := ""
 
 		var payload []byte
 		if withBody {

@@ -100,7 +100,7 @@ func (h *InterestsHandler) UpdateEnabled(w http.ResponseWriter, r *http.Request)
 			if item.Enabled { count++ }
 		}
 		if err := h.plans.CheckInterestLimit(r.Context(), userID, count); err != nil {
-			writeError(w, http.StatusConflict, err.Error())
+			writeErrorWithCode(w, http.StatusConflict, err)
 			return
 		}
 	}
