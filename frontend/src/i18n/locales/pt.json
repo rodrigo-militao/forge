@@ -33,7 +33,9 @@
     "delete": "Excluir",
     "deleted": "Artigo excluído",
     "categoryPlaceholder": "Categoria…",
-    "tagPlaceholder": "Tag…"
+    "tagPlaceholder": "Tag…",
+    "showUsedInEdition": "Mostrar já enviados para newsletter",
+    "tagFilter": "Filtrar por tag…"
   },
   "compose": {
     "title": "Compor",

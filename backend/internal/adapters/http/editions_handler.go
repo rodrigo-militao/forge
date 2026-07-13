@@ -27,6 +27,27 @@ func NewEditionHandler(editions domain.EditionRepository, jobs ports.JobReposito
 	return &EditionHandler{editions: editions, jobs: jobs, usages: usages, plans: plans}
 }
 
+// editionFromRequest fetches the edition by URL param {id} and checks ownership.
+// On failure it writes an error response and returns nil.
+func (h *EditionHandler) editionFromRequest(w http.ResponseWriter, r *http.Request) *domain.Edition {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return nil
+	}
+	edition, err := h.editions.GetByID(r.Context(), id)
+	if err != nil {
+		writeNotFoundOrErr(w, err)
+		return nil
+	}
+	if edition.UserID != userID {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return nil
+	}
+	return edition
+}
+
 // GET /api/editions
 func (h *EditionHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID, _ := UserIDFromContext(r.Context())
@@ -112,20 +133,8 @@ func (h *EditionHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/editions/{id}
 func (h *EditionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	userID, _ := UserIDFromContext(r.Context())
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
-		return
-	}
-
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
 	writeJSON(w, http.StatusOK, editionToResponse(*edition))
@@ -133,10 +142,8 @@ func (h *EditionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 // PUT /api/editions/{id}/body
 func (h *EditionHandler) UpdateBody(w http.ResponseWriter, r *http.Request) {
-	userID, _ := UserIDFromContext(r.Context())
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
 
@@ -149,18 +156,7 @@ func (h *EditionHandler) UpdateBody(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// check ownership
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	if err := h.editions.UpdateBody(r.Context(), id, req.Title, req.Body); err != nil {
+	if err := h.editions.UpdateBody(r.Context(), edition.ID, req.Title, req.Body); err != nil {
 		slog.Error("editions: update body failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to update body")
 		return
@@ -170,10 +166,8 @@ func (h *EditionHandler) UpdateBody(w http.ResponseWriter, r *http.Request) {
 
 // PUT /api/editions/{id}/status
 func (h *EditionHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	userID, _ := UserIDFromContext(r.Context())
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
 
@@ -193,17 +187,7 @@ func (h *EditionHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	if err := h.editions.UpdateStatus(r.Context(), id, s); err != nil {
+	if err := h.editions.UpdateStatus(r.Context(), edition.ID, s); err != nil {
 		slog.Error("editions: update status failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to update status")
 		return
@@ -213,10 +197,8 @@ func (h *EditionHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 // PUT /api/editions/{id}/category
 func (h *EditionHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
-	userID, _ := UserIDFromContext(r.Context())
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
 
@@ -228,21 +210,11 @@ func (h *EditionHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
 	cat := req.Category
 	if cat != nil && *cat == "" {
 		cat = nil
 	}
-	if err := h.editions.UpdateCategory(r.Context(), id, cat); err != nil {
+	if err := h.editions.UpdateCategory(r.Context(), edition.ID, cat); err != nil {
 		slog.Error("editions: update category failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to update category")
 		return
@@ -252,10 +224,8 @@ func (h *EditionHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) 
 
 // POST /api/editions/{id}/tags/{tag}
 func (h *EditionHandler) AddTag(w http.ResponseWriter, r *http.Request) {
-	userID, _ := UserIDFromContext(r.Context())
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
 	tag := chi.URLParam(r, "tag")
@@ -264,17 +234,7 @@ func (h *EditionHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	if err := h.editions.AddTag(r.Context(), id, tag); err != nil {
+	if err := h.editions.AddTag(r.Context(), edition.ID, tag); err != nil {
 		slog.Error("editions: add tag failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to add tag")
 		return
@@ -284,10 +244,8 @@ func (h *EditionHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /api/editions/{id}/tags/{tag}
 func (h *EditionHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
-	userID, _ := UserIDFromContext(r.Context())
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
 	tag := chi.URLParam(r, "tag")
@@ -296,17 +254,7 @@ func (h *EditionHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	if err := h.editions.RemoveTag(r.Context(), id, tag); err != nil {
+	if err := h.editions.RemoveTag(r.Context(), edition.ID, tag); err != nil {
 		slog.Error("editions: remove tag failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to remove tag")
 		return
@@ -321,31 +269,17 @@ func (h *EditionHandler) GenerateIntro(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
 
-	// check quota
 	if err := h.plans.CheckMonthGenerationQuota(r.Context(), userID, h.usages); err != nil {
 		writeErrorWithCode(w, http.StatusTooManyRequests, err)
 		return
 	}
 
-	// check ownership
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	// enqueue job
-	payload, _ := json.Marshal(map[string]string{"edition_id": id.String()})
+	payload, _ := json.Marshal(map[string]string{"edition_id": edition.ID.String()})
 	job := &coredomain.Job{
 		UserID:  userID,
 		Type:    "generate_edition_intro",
@@ -357,7 +291,6 @@ func (h *EditionHandler) GenerateIntro(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// increment usage counter
 	if _, incErr := h.usages.Increment(r.Context(), userID, ""); incErr != nil {
 		slog.Warn("usage counter increment failed", "error", incErr)
 	}
@@ -370,12 +303,11 @@ func (h *EditionHandler) GenerateIntro(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/editions/{id}/articles
 func (h *EditionHandler) AddArticle(w http.ResponseWriter, r *http.Request) {
-	userID, _ := UserIDFromContext(r.Context())
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
+
 	var req struct {
 		ContentID string `json:"content_id"`
 	}
@@ -389,18 +321,7 @@ func (h *EditionHandler) AddArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// check ownership
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	if err := h.editions.AddArticle(r.Context(), id, contentID); err != nil {
+	if err := h.editions.AddArticle(r.Context(), edition.ID, contentID); err != nil {
 		slog.Error("editions: add article failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to add article")
 		return
@@ -410,24 +331,12 @@ func (h *EditionHandler) AddArticle(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/editions/{id}/articles
 func (h *EditionHandler) ListArticles(w http.ResponseWriter, r *http.Request) {
-	userID, _ := UserIDFromContext(r.Context())
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
 
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	articles, err := h.editions.ListArticles(r.Context(), id)
+	articles, err := h.editions.ListArticles(r.Context(), edition.ID)
 	if err != nil {
 		slog.Error("editions: list articles failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to list articles")
@@ -438,10 +347,8 @@ func (h *EditionHandler) ListArticles(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /api/editions/{id}/articles/{contentID}
 func (h *EditionHandler) RemoveArticle(w http.ResponseWriter, r *http.Request) {
-	userID, _ := UserIDFromContext(r.Context())
-	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
 		return
 	}
 	contentID, err := uuid.Parse(chi.URLParam(r, "contentID"))
@@ -450,17 +357,7 @@ func (h *EditionHandler) RemoveArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	edition, err := h.editions.GetByID(r.Context(), id)
-	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return
-	}
-	if edition.UserID != userID {
-		writeError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	if err := h.editions.RemoveArticle(r.Context(), id, contentID); err != nil {
+	if err := h.editions.RemoveArticle(r.Context(), edition.ID, contentID); err != nil {
 		slog.Error("editions: remove article failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to remove article")
 		return

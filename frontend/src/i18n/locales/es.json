@@ -33,7 +33,9 @@
     "delete": "Eliminar",
     "deleted": "Artículo eliminado",
     "categoryPlaceholder": "Categoría…",
-    "tagPlaceholder": "Etiqueta…"
+    "tagPlaceholder": "Etiqueta…",
+    "showUsedInEdition": "Mostrar ya enviados a newsletter",
+    "tagFilter": "Filtrar por etiqueta…"
   },
   "compose": {
     "title": "Redactar",

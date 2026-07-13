@@ -55,7 +55,18 @@ func main() {
 	// Router
 	plans := application.NewPlans(users)
 	contentSvc := application.NewContentService(content)
-	router := handler.NewRouter(users, usages, content, jobs, interests, sources, editions, hub, plans, contentSvc)
+	router := handler.NewRouter(handler.RouterConfig{
+		Users:      users,
+		Usages:     usages,
+		Content:    content,
+		Jobs:       jobs,
+		Interests:  interests,
+		Sources:    sources,
+		Editions:   editions,
+		Hub:        hub,
+		Plans:      plans,
+		ContentSvc: contentSvc,
+	})
 
 	srv := &http.Server{
 		Addr:         ":" + port,

@@ -13,7 +13,22 @@ import (
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
-func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, content ports.ContentRepository, jobs ports.JobRepository, interests digest.DigestInterestRepository, sources digest.SourceRepository, editions digest.EditionRepository, hub *events.Hub, plans *application.Plans, contentSvc *application.ContentService) http.Handler {
+// RouterConfig wires the HTTP router. Passed as a struct to avoid
+// the 10-positional-parameter trap.
+type RouterConfig struct {
+	Users     ports.UserRepository
+	Usages    ports.UsageCounterRepository
+	Content   ports.ContentRepository
+	Jobs      ports.JobRepository
+	Interests digest.DigestInterestRepository
+	Sources   digest.SourceRepository
+	Editions  digest.EditionRepository
+	Hub       *events.Hub
+	Plans     *application.Plans
+	ContentSvc *application.ContentService
+}
+
+func NewRouter(cfg RouterConfig) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -27,10 +42,10 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 		MaxAge:           300,
 	}))
 
-	authH := NewAuthHandler(users, usages)
-	contentH := NewContentHandler(contentSvc)
-	interestsH := NewInterestsHandler(interests, plans)
-	sourcesH := NewSourcesHandler(sources, plans)
+	authH := NewAuthHandler(cfg.Users, cfg.Usages)
+	contentH := NewContentHandler(cfg.ContentSvc)
+	interestsH := NewInterestsHandler(cfg.Interests, cfg.Plans)
+	sourcesH := NewSourcesHandler(cfg.Sources, cfg.Plans)
 
 	r.Route("/api/auth", func(r chi.Router) {
 		r.Post("/register", authH.Register)
@@ -54,7 +69,7 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
 		r.Get("/api/content/tags", contentH.ListTags)
 
-		r.Post("/api/digest/run", enqueueJob(jobs, usages, "curate_digest", false, plans))
+		r.Post("/api/digest/run", enqueueJob(cfg.Jobs, cfg.Usages, "curate_digest", false, cfg.Plans))
 
 		r.Get("/api/digest/article-newsletter-ids", func(w http.ResponseWriter, r *http.Request) {
 			userID, ok := UserIDFromContext(r.Context())
@@ -62,7 +77,7 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 				writeError(w, http.StatusUnauthorized, "unauthorized")
 				return
 			}
-			ids, err := editions.ListArticleIDsInAnyNewsletter(r.Context(), userID)
+			ids, err := cfg.Editions.ListArticleIDsInAnyNewsletter(r.Context(), userID)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, "failed to list article newsletter ids")
 				return
@@ -74,12 +89,12 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 			writeJSON(w, http.StatusOK, strIDs)
 		})
 
-		r.Post("/api/compose/generate-topic", enqueueJob(jobs, usages, "generate_topic", false, plans))
-		r.Post("/api/compose/generate-draft", enqueueJob(jobs, usages, "compose_generate_draft", true, plans))
-		r.Post("/api/compose/transform", enqueueJob(jobs, usages, "compose_transform", true, plans))
-		r.Post("/api/compose/write", enqueueJob(jobs, usages, "compose_write", true, plans))
+		r.Post("/api/compose/generate-topic", enqueueJob(cfg.Jobs, cfg.Usages, "generate_topic", false, cfg.Plans))
+		r.Post("/api/compose/generate-draft", enqueueJob(cfg.Jobs, cfg.Usages, "compose_generate_draft", true, cfg.Plans))
+		r.Post("/api/compose/transform", enqueueJob(cfg.Jobs, cfg.Usages, "compose_transform", true, cfg.Plans))
+		r.Post("/api/compose/write", enqueueJob(cfg.Jobs, cfg.Usages, "compose_write", true, cfg.Plans))
 
-		editionH := NewEditionHandler(editions, jobs, usages, plans)
+		editionH := NewEditionHandler(cfg.Editions, cfg.Jobs, cfg.Usages, cfg.Plans)
 		r.Route("/api/editions", func(r chi.Router) {
 			r.Get("/", editionH.List)
 			r.Post("/", editionH.Create)
@@ -109,7 +124,7 @@ func NewRouter(users ports.UserRepository, usages ports.UsageCounterRepository, 
 			r.Delete("/{id}", sourcesH.Delete)
 		})
 
-		r.Get("/api/events", NewEventsHandler(hub))
+		r.Get("/api/events", NewEventsHandler(cfg.Hub))
 	})
 
 	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
