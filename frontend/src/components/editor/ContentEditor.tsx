@@ -54,6 +54,7 @@ export function ContentEditor({
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder={titlePlaceholder}
+          maxLength={200}
           className="flex-1 rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] focus:border-[var(--color-accent-primary)] focus:outline-none"
         />
         {/* Sync indicator — visible at a glance while editing */}
@@ -64,7 +65,7 @@ export function ContentEditor({
           {isSynced && !isSaving && (
             <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-success)]">
               <CheckCircle2 size={12} />
-              Synced
+              {t("editor.synced")}
             </span>
           )}
           {saveError && (
@@ -103,7 +104,7 @@ export function ContentEditor({
         </div>
         {unusedTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-[var(--color-text-muted)]">Add</span>
+            <span className="text-xs text-[var(--color-text-muted)]">{t("editor.add")}</span>
             {unusedTags.map((tag) => (
               <button
                 key={tag}
@@ -121,6 +122,7 @@ export function ContentEditor({
             onChange={(e) => setNewTag(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && newTag.trim()) { onAddTag(newTag.trim()); setNewTag(""); } }}
             placeholder={t("editor.addTag")}
+            maxLength={50}
             className="flex-1 rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-1.5 text-xs text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]"
           />
           <button

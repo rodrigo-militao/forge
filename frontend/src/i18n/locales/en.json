@@ -68,7 +68,9 @@
     "draft": "Draft",
     "published": "Published",
     "discarded": "Discarded",
-    "statusUpdated": "Status updated"
+    "statusUpdated": "Status updated",
+    "synced": "Synced",
+    "add": "Add"
   },
   "settings": {
     "title": "Settings",

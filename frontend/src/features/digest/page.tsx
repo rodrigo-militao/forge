@@ -487,7 +487,7 @@ export function DigestPage() {
                   )}
                 </div>
                 {item.body_markdown && (
-                  <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">
+                  <p className="mt-1.5 line-clamp-3 text-sm text-[var(--color-text-secondary)]">
                     {item.body_markdown}
                   </p>
                 )}

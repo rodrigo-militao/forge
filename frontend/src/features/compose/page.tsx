@@ -104,7 +104,7 @@ export function ComposePage() {
           <button onClick={() => setSelectedItem(null)} className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-primary)]">
             &larr; {t("nav.backToList")}
           </button>
-          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="mt-5 w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
+          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} maxLength={200} className="mt-5 w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
           <TiptapEditor key={selectedItem.id} content={selectedItem.body_markdown ?? ""} onTransform={handleTransform} className="mt-5 min-h-[300px]" />
           <div className="mt-5 space-y-3">
             <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("editor.tags")}</label>

@@ -58,7 +58,9 @@
     "draft": "Borrador",
     "published": "Publicado",
     "discarded": "Descartado",
-    "statusUpdated": "Estado actualizado"
+    "statusUpdated": "Estado actualizado",
+    "synced": "Sincronizado",
+    "add": "Añadir"
   },
   "library": {
     "title": "Biblioteca",
