@@ -59,20 +59,18 @@ export function ContentEditor({
         />
         {/* Sync indicator — overlaid on the title bar */}
         <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-          {isSynced && !isSaving && !saveError && (
+          {saveError ? (
+            <span className="pointer-events-auto inline-flex items-center gap-1 rounded bg-[var(--color-accent-danger)]/10 px-2 py-0.5 text-xs text-[var(--color-accent-danger)]">
+              <AlertCircle size={12} />
+              {saveError}
+            </span>
+          ) : isSynced ? (
             <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-success)]">
               <CheckCircle2 size={12} />
               {t("editor.synced")}
             </span>
-          )}
-          {isSaving && !isSynced && !saveError && (
+          ) : (
             <span className="text-xs text-[var(--color-text-muted)]">{t("editor.saving")}</span>
-          )}
-          {saveError && (
-            <span className="pointer-events-auto inline-flex items-center gap-1 rounded bg-[var(--color-accent-danger)]/10 px-2 py-0.5 text-xs text-[var(--color-accent-danger)]">
-              <AlertCircle size={12} />
-              Save failed
-            </span>
           )}
         </div>
       </div>
