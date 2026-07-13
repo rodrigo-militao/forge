@@ -13,11 +13,6 @@ interface UseAutosaveResult {
   error: string | null;
 }
 
-function depsChanged(a: unknown[], b: unknown[]): boolean {
-  if (a.length !== b.length) return true;
-  return a.some((v, i) => v !== b[i]);
-}
-
 export function useAutosave({
   save,
   deps,
@@ -31,8 +26,7 @@ export function useAutosave({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
   const mountedRef = useRef(true);
-  const lastDepsRef = useRef<unknown[]>(deps);
-  const isDirtyRef = useRef(false);
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -40,24 +34,22 @@ export function useAutosave({
     };
   }, []);
 
-  // Track whether deps have changed since last save
+  // Mark dirty whenever deps change — content hasn't been saved yet
   useEffect(() => {
-    if (depsChanged(deps, lastDepsRef.current)) {
-      isDirtyRef.current = true;
-      setIsSynced(false);
-      setError(null);
-    }
+    dirtyRef.current = true;
+    setIsSynced(false);
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   const triggerSave = useCallback(async () => {
-    if (savingRef.current || !isDirtyRef.current) return;
+    if (savingRef.current) return;
     savingRef.current = true;
     setIsSaving(true);
     try {
       await save();
       if (mountedRef.current) {
-        lastDepsRef.current = [...deps];
-        isDirtyRef.current = false;
+        dirtyRef.current = false;
         setIsSynced(true);
         setError(null);
       }
@@ -73,10 +65,9 @@ export function useAutosave({
         setIsSaving(false);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [save]);
 
-  // Debounce: schedule save after delay ms of inactivity
+  // Debounce: schedule save after `delay` ms of inactivity
   useEffect(() => {
     if (!enabled) return;
 
@@ -84,12 +75,9 @@ export function useAutosave({
       clearTimeout(timeoutRef.current);
     }
 
-    // Only schedule if there are unsaved changes
-    if (isDirtyRef.current) {
-      timeoutRef.current = setTimeout(() => {
-        triggerSave();
-      }, delay);
-    }
+    timeoutRef.current = setTimeout(() => {
+      triggerSave();
+    }, delay);
 
     return () => {
       if (timeoutRef.current) {
