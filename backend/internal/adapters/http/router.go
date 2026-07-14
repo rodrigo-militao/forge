@@ -44,7 +44,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	authH := NewAuthHandler(cfg.Users, cfg.Usages)
 	contentH := NewContentHandler(cfg.ContentSvc)
-	digestH := NewDigestHandler(cfg.Content, cfg.Editions)
+	digestH := NewDigestHandler(cfg.Content, cfg.Editions, cfg.Jobs)
 	interestsH := NewInterestsHandler(cfg.Interests, cfg.Plans)
 	sourcesH := NewSourcesHandler(cfg.Sources, cfg.Plans)
 
@@ -73,8 +73,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
 		r.Get("/api/content/tags", contentH.ListTags)
 
-		r.Post("/api/digest/run", enqueueJob(cfg.Jobs, cfg.Usages, "curate_digest", false, cfg.Plans))
+		r.Post("/api/digest/run", EnqueueDigestJob(cfg.Jobs, cfg.Usages, cfg.Plans))
 		r.Get("/api/digest/stats", digestH.GetStats)
+		r.Get("/api/digest/jobs", digestH.ListJobs)
 
 		r.Get("/api/digest/article-newsletter-ids", func(w http.ResponseWriter, r *http.Request) {
 			userID, ok := UserIDFromContext(r.Context())

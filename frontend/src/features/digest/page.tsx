@@ -1,11 +1,11 @@
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUpDown, EyeOff, Mail, Plus, Sparkles } from "lucide-react";
+import { ArrowUpDown, ChevronRight, EyeOff, Mail, Plus, Sparkles } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { api, type ContentItem, type NewsletterEdition } from "../../api/client";
-import { useJobPolling } from "../../hooks/useJobPolling";
-import { StatsBar } from "./components/stats-bar";
+import { api, type ContentItem, type NewsletterEdition, type DigestSource, type DigestInterest, type DigestJob } from "../../api/client";
+import { useAuth } from "../auth/store";
+import { StatsBar, formatTimeAgo } from "./components/stats-bar";
 import { FilterTabs, type FilterTab } from "./components/filter-tabs";
 import { ArticleCard } from "./components/article-card";
 import { DetailPanel } from "./components/detail-panel";
@@ -30,6 +30,26 @@ function sortArticles(items: ContentItem[], sort: SortKey) {
   });
 }
 
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function jobTypeDisplayName(type: string, t: (key: string) => string): string {
+  const key = `digest.jobType${capitalize(type)}`;
+  const translated = t(key);
+  return translated !== key ? translated : type;
+}
+
+function StatusDot({ status }: { status: DigestJob["status"] }) {
+  const colors: Record<string, string> = {
+    pending: "bg-yellow-500",
+    processing: "bg-blue-500 animate-pulse",
+    done: "bg-green-500",
+    failed: "bg-red-500",
+  };
+  return <span className={`h-2 w-2 rounded-full ${colors[status] ?? "bg-gray-500"}`} />;
+}
+
 /* ───── component ───── */
 
 export function DigestPage() {
@@ -42,6 +62,7 @@ export function DigestPage() {
   const [selectedArticle, setSelectedArticle] = useState<ContentItem | null>(null);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+  const runningSinceRef = useRef(0);
 
   // Processing step delight
   const [processingStep, setProcessingStep] = useState(0);
@@ -55,9 +76,10 @@ export function DigestPage() {
   const newsletterOpen = newsletterAnchor?.articleId ?? null;
   const [draftNewsletters, setDraftNewsletters] = useState<NewsletterEdition[]>([]);
   const [creatingNewsletter, setCreatingNewsletter] = useState(false);
+  const [showJobs, setShowJobs] = useState(false);
   const selectorRef = useRef<HTMLDivElement>(null);
 
-  const { data: content, isLoading, isError } = useQuery({
+  const { data: content, isLoading, isError, dataUpdatedAt } = useQuery({
     queryKey: ["content"],
     queryFn: api.content.list,
   });
@@ -72,12 +94,45 @@ export function DigestPage() {
     queryFn: api.digest.stats,
   });
 
+  const { data: jobs } = useQuery({
+    queryKey: ["digest", "jobs"],
+    queryFn: api.digest.jobs,
+    enabled: showJobs,
+  });
+
+  const user = useAuth((s) => s.user);
+  const { data: sources } = useQuery({
+    queryKey: ["digest-sources"],
+    queryFn: api.digest.sources.list,
+    staleTime: 30000,
+  });
+  const { data: interestsData } = useQuery({
+    queryKey: ["digest-interests"],
+    queryFn: api.digest.interests.list,
+    staleTime: 30000,
+  });
+
+  const hasActiveSources = (sources ?? []).some((s: DigestSource) => s.enabled);
+  const hasActiveInterests = (interestsData ?? []).some((i: DigestInterest) => i.enabled);
+
   const usedSet = new Set(usedIDs ?? []);
 
   // All non-deleted digest items
   const digestItems = (content ?? []).filter(
     (c) => c.product === "digest" && c.deleted_at === null,
   );
+
+  // Contextual tip for empty state
+  let contextualTipKey: string | null = null;
+  if (digestItems.length === 0) {
+    if (user?.restrict_search_to_sources && !hasActiveSources) {
+      contextualTipKey = "digest.restrictNoSources";
+    } else if (!hasActiveSources && !hasActiveInterests) {
+      contextualTipKey = "digest.noSourcesNoInterests";
+    } else {
+      contextualTipKey = "digest.emptyWithSources";
+    }
+  }
 
   // Tab-based filtering
   const filteredByTab = (() => {
@@ -105,38 +160,41 @@ export function DigestPage() {
     enviados: [...usedSet].filter((id) => digestItems.some((c) => c.id === id)).length,
   };
 
-  useJobPolling(running, digestItems.length, {
-    interval: 5000,
-    filter: (c) => c.product === "digest",
-    onComplete: (newItems) => {
-      setRunning(false);
-      setProcessingStep(3);
-      queryClient.invalidateQueries({ queryKey: ["digest", "stats"] });
-      toast.success(t("digest.articleCount", { count: newItems.length }));
-    },
-    onTimeout: () => {
-      setRunning(false);
-      setProcessingStep(3);
-      queryClient.invalidateQueries({ queryKey: ["digest", "stats"] });
-      toast(t("digest.articleCount", { count: 0 }));
-    },
-  });
-
-  // Invalidate stats when content changes
+  // Pick up an active job on page load (from a previous session / another tab)
   useEffect(() => {
-    const unsub = queryClient.getQueryCache().subscribe((event) => {
-      if (event.query.queryKey[0] === "content" && event.type === "updated") {
-        queryClient.invalidateQueries({ queryKey: ["digest", "stats"] });
-      }
-    });
-    return () => unsub();
-  }, [queryClient]);
+    if (running) return;
+    if (stats?.active_job_status !== "processing" && stats?.active_job_status !== "pending") return;
+    if (content === undefined) return;
+    setRunning(true);
+    runningSinceRef.current = Date.now();
+    setProcessingStep(1);
+  }, [running, stats?.active_job_status, content]);
+
+  // Safety timeout: stop running after 60s if SSE never fires
+  useEffect(() => {
+    if (!running) return;
+    const timer = setTimeout(() => {
+      setRunning(false);
+      setProcessingStep(3);
+    }, 60000);
+    return () => clearTimeout(timer);
+  }, [running]);
+
+  // Detect completion via dataUpdatedAt — SSE refetch updates this
+  useEffect(() => {
+    if (!running || !dataUpdatedAt) return;
+    if (dataUpdatedAt > runningSinceRef.current) {
+      runningSinceRef.current = 0;
+      setRunning(false);
+      setProcessingStep(3);
+    }
+  }, [dataUpdatedAt, running]);
 
   // Processing step progression
   useEffect(() => {
     if (!running) return;
     setProcessingStep(0);
-    let stepIndex = 0;
+        let stepIndex = 0;
     const intervals: ReturnType<typeof setTimeout>[] = [];
     let accum = 0;
     for (const step of PROCESSING_STEPS) {
@@ -189,13 +247,19 @@ export function DigestPage() {
   const handleRun = useCallback(async () => {
     setRunning(true);
     setProcessingStep(0);
+    runningSinceRef.current = Date.now();
     try {
       await api.digest.run();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("digest.runFailed"));
+      const msg = err instanceof Error ? err.message : t("digest.runFailed");
+      if (msg.includes("already in progress")) {
+        toast(msg, { icon: "ℹ️" });
+      } else {
+        toast.error(msg);
+      }
       setRunning(false);
     }
-  }, [t]);
+  }, [t, queryClient]);
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -371,6 +435,34 @@ export function DigestPage() {
         <StatsBar stats={stats} selectedCount={selectedIDs.size} />
       </div>
 
+      {/* Jobs section */}
+      {jobs && jobs.length > 0 && (
+        <div className="mt-3 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
+          <button
+            onClick={() => setShowJobs(!showJobs)}
+            className="flex cursor-pointer items-center gap-1 text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-bg-surface)]"
+          >
+            <ChevronRight size={12} className={`transition-transform ${showJobs ? "rotate-90" : ""}`} />
+            {t("digest.jobsTitle")} ({jobs.length})
+          </button>
+          {showJobs && (
+            <div className="mt-2 space-y-1 rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02] p-2">
+              {jobs.slice(0, 5).map((job) => (
+                <div key={job.id} className="flex items-center gap-2 text-xs">
+                  <StatusDot status={job.status} />
+                  <span className="font-medium text-[var(--color-bg-surface)]">{jobTypeDisplayName(job.type, t)}</span>
+                  <span className="text-[var(--color-text-muted)]">{t(`digest.job${capitalize(job.status)}`)}</span>
+                  {job.error && <span className="text-red-400" title={job.error}>!</span>}
+                  <span className="ml-auto text-[var(--color-text-muted)]">
+                    {formatTimeAgo(job.created_at, t)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Toolbar: filters + sort + batch newsletter */}
       <div className="mt-3 flex items-center justify-between">
         <FilterTabs active={activeTab} onChange={setActiveTab} counts={tabCounts} />
@@ -510,6 +602,11 @@ export function DigestPage() {
                   <p className="mt-2 max-w-md text-center text-sm text-[var(--color-text-secondary)]">
                     {t("digest.emptyDesc")}
                   </p>
+                  {contextualTipKey && (
+                    <p className="mt-3 max-w-sm text-center text-xs text-[var(--color-text-muted)]">
+                      {t(contextualTipKey)}
+                    </p>
+                  )}
                   <div className="mt-8 flex items-center gap-4">
                     <button
                       onClick={handleRun}
@@ -530,8 +627,8 @@ export function DigestPage() {
             </div>
           )}
 
-          {/* Running state */}
-          {running && sortedItems.length === 0 && (
+          {/* Running state — always visible when running, regardless of existing items */}
+          {running && (
             <div className="flex flex-col items-center py-12 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
               <div className="mb-6 flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-accent-primary)] animate-[dotSweep_1.2s_ease-in-out_infinite]" />
@@ -542,7 +639,8 @@ export function DigestPage() {
             </div>
           )}
 
-          {/* Card list */}
+          {/* Card list (hidden while running to avoid confusion) */}
+          {!running && (
           <div className="space-y-2.5">
             {sortedItems.map((item, idx) => {
               const isUsed = usedSet.has(item.id);
@@ -566,6 +664,7 @@ export function DigestPage() {
               );
             })}
           </div>
+          )}
         </div>
 
         {/* Detail panel */}
@@ -586,6 +685,7 @@ export function DigestPage() {
       </div>
 
       {newsletterAnchor && (
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         <NewsletterSelector
           ref={selectorRef}
           top={newsletterAnchor.top}

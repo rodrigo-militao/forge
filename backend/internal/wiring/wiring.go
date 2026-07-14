@@ -36,10 +36,9 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 	contentRepo := postgres.NewContentRepository(cfg.Pool)
 	topicsRepo := postgres.NewTopicRepository(cfg.Pool)
 	editionsRepo := postgres.NewEditionRepository(cfg.Pool)
-	jobsRepo := postgres.NewJobRepository(cfg.Pool)
 	rawLLM := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL)
 	llmClient := llm.NewLoggingWrapper(rawLLM)
-	rawCheap := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL, llm.WithModel("deepseek-chat"))
+	rawCheap := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL)
 	cheapLLM := llm.NewLoggingWrapper(rawCheap)
 
 	return map[string]worker.Handler{
@@ -62,6 +61,20 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			}
 
 			sources := buildContentSources(configs)
+
+			// Add DuckDuckGo searches from enabled interests
+			interestsRepo := postgres.NewDigestInterestRepository(cfg.Pool)
+			interestList, err := interestsRepo.ListByUser(ctx, id)
+			var interestLabels []string
+			if err == nil {
+				for _, interest := range interestList {
+					if interest.Enabled {
+						sources = append(sources, search.NewDuckDuckGo([]string{interest.Label}))
+						interestLabels = append(interestLabels, interest.Label)
+					}
+				}
+			}
+
 			if len(sources) == 0 {
 				if user.RestrictSearchToSources {
 					slog.Info("curate_digest: restrict_search enabled and no sources configured, skipping")
@@ -75,20 +88,15 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				}
 			}
 
-			svc := digestApp.NewDiscoveryService(llmClient, sources, contentRepo, contentRepo, id)
-			result, err := svc.Run(ctx, time.Now())
-			if err != nil {
+			svc := digestApp.NewDiscoveryService(llmClient, sources, contentRepo, contentRepo, id, interestLabels)
+			if _, err := svc.Run(ctx, time.Now()); err != nil {
 				return fmt.Errorf("digest run: %w", err)
 			}
-			_ = result
 
-			// Enqueue batch categorization after discovery
-			if err := jobsRepo.Create(ctx, &coredomain.Job{
-				UserID:  id,
-				Type:    "categorize_batch",
-				Payload: []byte("{}"),
-			}); err != nil {
-				slog.Warn("failed to enqueue categorize_batch", "error", err)
+			// Categorize inline after discovery so articles appear with categories
+			catSvc := digestApp.NewCategorizeService(cheapLLM, contentRepo, contentRepo, id)
+			if err := catSvc.Run(ctx); err != nil {
+				slog.Warn("inline categorization failed", "error", err)
 			}
 			return nil
 		},

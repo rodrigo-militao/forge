@@ -12,7 +12,7 @@ func TestBuildDiscoveryPrompt(t *testing.T) {
 		{Title: "Rust vs Go", Content: "A comparison of the two languages", URL: "https://example.com/2", SourceName: "Dev Blog"},
 	}
 
-	prompt := BuildDiscoveryPrompt(articles)
+	prompt := BuildDiscoveryPrompt(articles, nil)
 
 	if prompt == "" {
 		t.Fatal("expected non-empty prompt")
@@ -35,7 +35,7 @@ func TestBuildDiscoveryPrompt(t *testing.T) {
 }
 
 func TestBuildDiscoveryPrompt_empty(t *testing.T) {
-	prompt := BuildDiscoveryPrompt(nil)
+	prompt := BuildDiscoveryPrompt(nil, nil)
 	if prompt == "" {
 		t.Error("expected non-empty prompt even with no articles")
 	}

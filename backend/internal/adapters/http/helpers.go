@@ -15,6 +15,36 @@ import (
 // It checks the user's monthly generation quota before enqueuing.
 func enqueueJob(jobs ports.JobRepository, usages ports.UsageCounterRepository, jobType string, withBody bool, plans *application.Plans) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		enqueueJobInner(w, r, jobs, usages, jobType, withBody, plans)
+	}
+}
+
+// EnqueueDigestJob is like enqueueJob for "curate_digest" but checks for an
+// active job first. Returns 409 Conflict if one is already pending/processing.
+func EnqueueDigestJob(jobs ports.JobRepository, usages ports.UsageCounterRepository, plans *application.Plans) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := UserIDFromContext(r.Context())
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+
+		active, err := jobs.FindActiveByUserAndType(r.Context(), userID, "curate_digest")
+		if err != nil {
+			slog.Warn("check active digest job failed", "error", err)
+			writeError(w, http.StatusInternalServerError, "failed to check active jobs")
+			return
+		}
+		if active != nil {
+			writeError(w, http.StatusConflict, "a digest discovery is already in progress")
+			return
+		}
+
+		enqueueJobInner(w, r, jobs, usages, "curate_digest", false, plans)
+	}
+}
+
+func enqueueJobInner(w http.ResponseWriter, r *http.Request, jobs ports.JobRepository, usages ports.UsageCounterRepository, jobType string, withBody bool, plans *application.Plans) {
 		userID, ok := UserIDFromContext(r.Context())
 		if !ok {
 			writeError(w, http.StatusUnauthorized, "unauthorized")
@@ -59,7 +89,6 @@ func enqueueJob(jobs ports.JobRepository, usages ports.UsageCounterRepository, j
 			"job_id": job.ID.String(),
 			"status": "enqueued",
 		})
-	}
 }
 
 // compile-time check that uuid is used (required by domain.Job.UserID type)

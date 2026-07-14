@@ -39,7 +39,7 @@ func (f *Feed) Fetch(ctx context.Context) ([]digest.SourceItem, error) {
 		return nil, fmt.Errorf("parsing feed %s: %w", f.url, err)
 	}
 
-	since := time.Now().Add(-24 * time.Hour)
+	since := time.Now().Add(-7 * 24 * time.Hour)
 
 	var articles []digest.SourceItem
 	seen := make(map[string]bool)

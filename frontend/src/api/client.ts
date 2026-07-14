@@ -130,6 +130,17 @@ export interface DigestStats {
   in_newsletter_count: number;
   last_discovery: string | null;
   draft_newsletters: number;
+  active_job_id: string | null;
+  active_job_status: string | null;
+}
+
+export interface DigestJob {
+  id: string;
+  type: string;
+  status: "pending" | "processing" | "done" | "failed";
+  error: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export const api = {
@@ -165,8 +176,9 @@ export const api = {
       request<{ status: string }>(`/content/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
   },
   digest: {
-    run: () => request<{ edition_id: string; item_count: number }>("/digest/run", { method: "POST" }),
+    run: () => request<{ job_id: string; status: string }>("/digest/run", { method: "POST" }),
     stats: () => request<DigestStats>("/digest/stats"),
+    jobs: () => request<DigestJob[]>("/digest/jobs"),
     articleNewsletterIDs: () => request<string[]>("/digest/article-newsletter-ids"),
     interests: {
       list: () => request<DigestInterest[]>("/digest/interests"),

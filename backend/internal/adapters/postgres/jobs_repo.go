@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rodrigo-militao/forge/internal/core/domain"
@@ -51,6 +53,32 @@ func (r *JobRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status d
 		Error:  errMsg,
 	})
 	return err
+}
+
+func (r *JobRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit int) ([]domain.Job, error) {
+	rows, err := r.q.ListJobsByUser(ctx, ListJobsByUserParams{
+		UserID: uuidToPgtype(userID),
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	jobs := make([]domain.Job, len(rows))
+	for i, row := range rows {
+		jobs[i] = *jobFromModel(row)
+	}
+	return jobs, nil
+}
+
+func (r *JobRepository) FindActiveByUserAndType(ctx context.Context, userID uuid.UUID, jobType string) (*domain.Job, error) {
+	row, err := r.q.FindActiveDigestJob(ctx, uuidToPgtype(userID))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return jobFromModel(row), nil
 }
 
 func jobFromModel(j Job) *domain.Job {

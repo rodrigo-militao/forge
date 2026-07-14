@@ -73,6 +73,72 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 	return i, err
 }
 
+const findActiveDigestJob = `-- name: FindActiveDigestJob :one
+SELECT id, user_id, type, status, payload, error, created_at, updated_at FROM jobs
+WHERE user_id = $1
+  AND type = 'curate_digest'
+  AND status IN ('pending', 'processing')
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+func (q *Queries) FindActiveDigestJob(ctx context.Context, userID pgtype.UUID) (Job, error) {
+	row := q.db.QueryRow(ctx, findActiveDigestJob, userID)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Type,
+		&i.Status,
+		&i.Payload,
+		&i.Error,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listJobsByUser = `-- name: ListJobsByUser :many
+SELECT id, user_id, type, status, payload, error, created_at, updated_at FROM jobs
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT $2
+`
+
+type ListJobsByUserParams struct {
+	UserID pgtype.UUID
+	Limit  int32
+}
+
+func (q *Queries) ListJobsByUser(ctx context.Context, arg ListJobsByUserParams) ([]Job, error) {
+	rows, err := q.db.Query(ctx, listJobsByUser, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Type,
+			&i.Status,
+			&i.Payload,
+			&i.Error,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateJobStatus = `-- name: UpdateJobStatus :one
 UPDATE jobs
 SET status = $2, error = $3, updated_at = now()

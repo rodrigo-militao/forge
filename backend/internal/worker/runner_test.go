@@ -29,6 +29,8 @@ func (m *mockJobRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status dom
 	m.lastErrMsg = errMsg
 	return nil
 }
+func (m *mockJobRepo) ListByUser(ctx context.Context, userID uuid.UUID, limit int) ([]domain.Job, error) { return nil, nil }
+func (m *mockJobRepo) FindActiveByUserAndType(ctx context.Context, userID uuid.UUID, jobType string) (*domain.Job, error) { return nil, nil }
 
 func TestProcessNext_Success(t *testing.T) {
 	handled := false

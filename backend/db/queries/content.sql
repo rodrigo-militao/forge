@@ -95,7 +95,7 @@ SELECT EXISTS(
 -- name: EnsureCategory :one
 INSERT INTO categories (user_id, label)
 VALUES ($1, $2)
-ON CONFLICT (user_id, label) DO NOTHING
+ON CONFLICT (user_id, label) DO UPDATE SET label = EXCLUDED.label
 RETURNING *;
 
 -- name: GetCategoryByLabel :one

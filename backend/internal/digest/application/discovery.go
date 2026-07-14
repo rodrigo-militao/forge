@@ -17,21 +17,23 @@ import (
 // DiscoveryService orchestrates the daily content curation pipeline:
 // fetch sources → classify via LLM → persist digest.
 type DiscoveryService struct {
-	llm     ports.LLMClient
-	sources []digest.ContentSource
-	content       ports.ContentWriter
-	digestQueries ports.ContentDigestReader
-	userID        uuid.UUID
+	llm            ports.LLMClient
+	sources        []digest.ContentSource
+	content        ports.ContentWriter
+	digestQueries  ports.ContentDigestReader
+	userID         uuid.UUID
+	interestLabels []string
 }
 
 // NewDiscoveryService creates a discovery service.
-func NewDiscoveryService(llm ports.LLMClient, sources []digest.ContentSource, content ports.ContentWriter, digestQueries ports.ContentDigestReader, userID uuid.UUID) *DiscoveryService {
+func NewDiscoveryService(llm ports.LLMClient, sources []digest.ContentSource, content ports.ContentWriter, digestQueries ports.ContentDigestReader, userID uuid.UUID, interestLabels []string) *DiscoveryService {
 	return &DiscoveryService{
-		llm:           llm,
-		sources:       sources,
-		content:       content,
-		digestQueries: digestQueries,
-		userID:        userID,
+		llm:            llm,
+		sources:        sources,
+		content:        content,
+		digestQueries:  digestQueries,
+		userID:         userID,
+		interestLabels: interestLabels,
 	}
 }
 
@@ -49,7 +51,7 @@ func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult,
 		return nil, fmt.Errorf("no articles found from any source")
 	}
 
-	prompt := BuildDiscoveryPrompt(articles)
+	prompt := BuildDiscoveryPrompt(articles, s.interestLabels)
 	resp, err := s.llm.Complete(ctx, domain.LLMRequest{
 		SystemPrompt: discoverySystemPrompt,
 		Messages:     []domain.LLMMessage{{Role: "user", Content: prompt}},

@@ -74,6 +74,8 @@ type JobRepository interface {
 	Create(ctx context.Context, job *domain.Job) error
 	ClaimNext(ctx context.Context) (*domain.Job, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.JobStatus, errMsg *string) error
+	ListByUser(ctx context.Context, userID uuid.UUID, limit int) ([]domain.Job, error)
+	FindActiveByUserAndType(ctx context.Context, userID uuid.UUID, jobType string) (*domain.Job, error)
 }
 
 // UserRepository persists user accounts.

@@ -22,8 +22,12 @@ ARTICLE_NUMBER | CLASSIFICATION | SUMMARY
 IMPORTANT: Always include the article number as the first field. Match it to the "--- Article N ---" numbering in the input.`
 
 // BuildDiscoveryPrompt formats articles into the LLM prompt for classification.
-func BuildDiscoveryPrompt(articles []digest.SourceItem) string {
+func BuildDiscoveryPrompt(articles []digest.SourceItem, interestLabels []string) string {
 	var b strings.Builder
+	if len(interestLabels) > 0 {
+		fmt.Fprintf(&b, "The user is interested in: %s.\n", strings.Join(interestLabels, ", "))
+		b.WriteString("Prioritize articles matching these interests.\n\n")
+	}
 	b.WriteString("Analyze the following articles and classify each one:\n\n")
 	for i, a := range articles {
 		fmt.Fprintf(&b, "--- Article %d ---\n", i+1)

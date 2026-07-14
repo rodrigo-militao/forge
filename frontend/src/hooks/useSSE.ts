@@ -15,6 +15,7 @@ export function useSSE() {
     es.addEventListener("content_changed", () => {
       queryClient.invalidateQueries({ queryKey: ["content"] });
       queryClient.invalidateQueries({ queryKey: ["editions"] });
+      queryClient.invalidateQueries({ queryKey: ["digest", "stats"] });
     });
 
     es.onopen = () => {
@@ -26,6 +27,7 @@ export function useSSE() {
       // Invalidate on reconnect to catch events missed during downtime
       queryClient.invalidateQueries({ queryKey: ["content"] });
       queryClient.invalidateQueries({ queryKey: ["editions"] });
+      queryClient.invalidateQueries({ queryKey: ["digest", "stats"] });
     };
 
     es.onerror = () => {
@@ -36,6 +38,7 @@ export function useSSE() {
         staleTimerRef.current = setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ["content"] });
           queryClient.invalidateQueries({ queryKey: ["editions"] });
+          queryClient.invalidateQueries({ queryKey: ["digest", "stats"] });
           staleTimerRef.current = null;
         }, 30000);
       }
