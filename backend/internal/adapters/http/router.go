@@ -76,6 +76,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Post("/api/digest/run", EnqueueDigestJob(cfg.Jobs, cfg.Usages, cfg.Plans))
 		r.Get("/api/digest/stats", digestH.GetStats)
 		r.Get("/api/digest/jobs", digestH.ListJobs)
+		r.Post("/api/digest/cancel", digestH.CancelJob)
 
 		r.Get("/api/digest/article-newsletter-ids", func(w http.ResponseWriter, r *http.Request) {
 			userID, ok := UserIDFromContext(r.Context())

@@ -179,6 +179,7 @@ export const api = {
     run: () => request<{ job_id: string; status: string }>("/digest/run", { method: "POST" }),
     stats: () => request<DigestStats>("/digest/stats"),
     jobs: () => request<DigestJob[]>("/digest/jobs"),
+    cancel: () => request<{ status: string }>("/digest/cancel", { method: "POST" }),
     articleNewsletterIDs: () => request<string[]>("/digest/article-newsletter-ids"),
     interests: {
       list: () => request<DigestInterest[]>("/digest/interests"),

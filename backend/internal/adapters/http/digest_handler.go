@@ -107,3 +107,32 @@ func (h *DigestHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, result)
 }
+
+// CancelJob cancels the active digest job for the authenticated user.
+func (h *DigestHandler) CancelJob(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	active, err := h.jobs.FindActiveByUserAndType(r.Context(), userID, "curate_digest")
+	if err != nil {
+		slog.Error("digest cancel: find active failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to check active jobs")
+		return
+	}
+	if active == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	errMsg := "cancelled by user"
+	if err := h.jobs.UpdateStatus(r.Context(), active.ID, domain.JobFailed, &errMsg); err != nil {
+		slog.Error("digest cancel: update failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to cancel job")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
+}

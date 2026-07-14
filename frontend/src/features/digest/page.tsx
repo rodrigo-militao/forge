@@ -617,10 +617,13 @@ export function DigestPage() {
               </div>
               <span className="text-sm text-[var(--color-accent-primary)]">{stepLabel}</span>
               <button
-                onClick={() => setRunning(false)}
+                onClick={async () => {
+                  await api.digest.cancel().catch(() => {});
+                  setRunning(false);
+                }}
                 className="mt-3 cursor-pointer text-xs text-[var(--color-text-muted)] underline-offset-2 transition-colors hover:text-[var(--color-bg-surface)] hover:underline"
               >
-                {t("digest.cancel")}
+                {t("settings.cancel")}
               </button>
             </div>
           )}
