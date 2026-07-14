@@ -44,6 +44,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	authH := NewAuthHandler(cfg.Users, cfg.Usages)
 	contentH := NewContentHandler(cfg.ContentSvc)
+	digestH := NewDigestHandler(cfg.Content, cfg.Editions)
 	interestsH := NewInterestsHandler(cfg.Interests, cfg.Plans)
 	sourcesH := NewSourcesHandler(cfg.Sources, cfg.Plans)
 
@@ -63,13 +64,17 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Get("/api/content", contentH.List)
 		r.Put("/api/content/{id}", contentH.Save)
 		r.Delete("/api/content/{id}", contentH.Delete)
-		r.Put("/api/content/{id}/category", contentH.UpdateCategory)
+		r.Put("/api/content/{id}/categories", contentH.UpdateCategories)
+		r.Post("/api/content/{id}/categories", contentH.AddCategory)
+		r.Delete("/api/content/{id}/categories/{category}", contentH.RemoveCategory)
+		r.Get("/api/content/categories", contentH.ListCategories)
 		r.Put("/api/content/{id}/status", contentH.UpdateStatus)
 		r.Post("/api/content/{id}/tags", contentH.AddTag)
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
 		r.Get("/api/content/tags", contentH.ListTags)
 
 		r.Post("/api/digest/run", enqueueJob(cfg.Jobs, cfg.Usages, "curate_digest", false, cfg.Plans))
+		r.Get("/api/digest/stats", digestH.GetStats)
 
 		r.Get("/api/digest/article-newsletter-ids", func(w http.ResponseWriter, r *http.Request) {
 			userID, ok := UserIDFromContext(r.Context())

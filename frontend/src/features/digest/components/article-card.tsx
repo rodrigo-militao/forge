@@ -1,0 +1,189 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Mail, Trash2, X, Check } from "lucide-react";
+import type { ContentItem } from "../../../api/client";
+
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+interface ArticleCardProps {
+  item: ContentItem;
+  isSelected: boolean;
+  isUsed: boolean;
+  onToggleSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  onAddToNewsletter: (id: string) => void;
+  onClick: (id: string) => void;
+}
+
+export function ArticleCard({
+  item,
+  isSelected,
+  isUsed,
+  onToggleSelect,
+  onDelete,
+  onAddToNewsletter,
+  onClick,
+}: ArticleCardProps) {
+  const { t } = useTranslation();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const sourceUrl = (item.metadata?.source_url as string) ?? "";
+  const domain = sourceUrl ? extractDomain(sourceUrl) : "";
+
+  const itemTimeAgo = (() => {
+    const diffMs = Date.now() - new Date(item.created_at).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return t("digest.justNow");
+    if (diffMin < 60) return t("digest.minutesAgo", { n: diffMin });
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return t("digest.hoursAgo", { n: diffH });
+    return t("digest.daysAgo", { n: Math.floor(diffH / 24) });
+  })();
+
+  return (
+    <div
+      onClick={() => onClick(item.id)}
+      className={`cursor-pointer rounded-lg border bg-white/5 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.08] hover:border-white/10 ${
+        isSelected
+          ? "ring-1 ring-[var(--color-accent-primary)]"
+          : "border-[var(--color-border)]/20"
+      } ${isUsed ? "opacity-60" : ""}`}
+    >
+      <div className="flex items-start gap-3">
+        {/* Selection circle */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(item.id);
+          }}
+          className={`mt-0.5 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors ${
+            isSelected
+              ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white animate-[pop_250ms_ease-out]"
+              : "border-white/20 hover:border-[var(--color-accent-primary)]"
+          }`}
+        >
+          {isSelected && <Check size={12} />}
+        </button>
+
+        {/* Content */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="truncate font-[var(--font-display)] text-sm font-semibold text-[var(--color-bg-surface)] transition-colors hover:text-[var(--color-accent-primary)]"
+            >
+              {item.title || "(no title)"}
+            </a>
+            {isUsed && (
+              <span className="shrink-0 rounded bg-[var(--color-accent-success)]/20 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent-success)]">
+                Used
+              </span>
+            )}
+          </div>
+
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+            {domain && <span>{domain}</span>}
+            <span>·</span>
+            <span>{itemTimeAgo}</span>
+          </div>
+
+          {item.body_markdown && (
+            <p className="mt-1 line-clamp-2 text-xs text-[var(--color-text-muted)]/80">
+              {item.body_markdown}
+            </p>
+          )}
+
+          {/* Categories + Tags badges */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {/* Category badges — orange pills */}
+            {item.categories &&
+              item.categories.map((cat) => (
+                <span
+                  key={cat}
+                  className="rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent-primary)]"
+                >
+                  {cat}
+                </span>
+              ))}
+            {/* Tag badges — muted monospace with # */}
+            {(item.tags || []).slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]"
+              >
+                #{tag}
+              </span>
+            ))}
+            {(item.tags || []).length > 3 && (
+              <span className="text-[10px] text-[var(--color-text-muted)]">
+                +{item.tags.length - 3}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Action icons */}
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToNewsletter(item.id);
+            }}
+            title={t("digest.addToNewsletterLabel")}
+            className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
+          >
+            <Mail size={14} />
+          </button>
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteConfirm(!showDeleteConfirm);
+              }}
+              title={t("digest.delete")}
+              className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-red-400 active:scale-[0.92]"
+            >
+              <Trash2 size={14} />
+            </button>
+            {showDeleteConfirm && (
+              <div
+                className="absolute right-0 top-8 z-50 w-40 animate-[scaleIn_150ms_ease-out] rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-bg-base)] p-2 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="mb-2 text-xs text-[var(--color-text-muted)]">
+                  {t("digest.deleteConfirm")}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--color-text-muted)] hover:bg-white/10"
+                  >
+                    <X size={12} /> {t("digest.deleteCancel")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      onDelete(item.id);
+                      setShowDeleteConfirm(false);
+                    }}
+                    className="flex cursor-pointer items-center gap-1 rounded-md bg-red-500/20 px-2 py-1 text-xs text-red-400 hover:bg-red-500/30"
+                  >
+                    <Trash2 size={12} /> {t("digest.deleteConfirmAction")}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

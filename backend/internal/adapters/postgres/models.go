@@ -9,6 +9,18 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
+type ArticleCategory struct {
+	CategoryID pgtype.UUID
+	ArticleID  pgtype.UUID
+}
+
+type Category struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	Label     string
+	CreatedAt pgtype.Timestamptz
+}
+
 type ContentTag struct {
 	TagID     pgtype.UUID
 	ContentID pgtype.UUID
@@ -42,6 +54,7 @@ type GeneratedContent struct {
 	DeletedAt    pgtype.Timestamptz
 	Category     *string
 	Tags         []string
+	Categories   []string
 }
 
 type Job struct {

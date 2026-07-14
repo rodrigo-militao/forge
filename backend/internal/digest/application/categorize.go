@@ -13,12 +13,12 @@ import (
 )
 
 const categorizeSystemPrompt = `You are a categorization assistant.
-For each article, assign a single category (one word or short phrase).
+For each article, assign 1-3 categories (short phrases).
 Prefer reusing existing categories from the provided list when possible.
 Only propose a new category when none of the existing ones fit.
 
-Respond with ONLY a JSON object mapping article IDs to categories, like:
-{"<article_uuid>": "category", "<article_uuid>": "..."}
+Respond with ONLY a JSON object mapping article IDs to category arrays, like:
+{"<article_uuid>": ["cat1", "cat2"], "<article_uuid>": ["cat1"]}
 
 Do not include any text outside the JSON object.`
 
@@ -28,14 +28,14 @@ const categorizeBatchSize = 20
 // CategorizeService processes a batch of uncategorized digest articles using a cheap LLM.
 type CategorizeService struct {
 	cheapLLM      ports.LLMClient
-	content       ports.ContentWriter
+	categorizer   ports.ContentCategorizer
 	digestQueries ports.ContentDigestReader
 	userID        uuid.UUID
 }
 
 // NewCategorizeService creates a categorizer.
-func NewCategorizeService(cheapLLM ports.LLMClient, content ports.ContentWriter, digestQueries ports.ContentDigestReader, userID uuid.UUID) *CategorizeService {
-	return &CategorizeService{cheapLLM: cheapLLM, content: content, digestQueries: digestQueries, userID: userID}
+func NewCategorizeService(cheapLLM ports.LLMClient, categorizer ports.ContentCategorizer, digestQueries ports.ContentDigestReader, userID uuid.UUID) *CategorizeService {
+	return &CategorizeService{cheapLLM: cheapLLM, categorizer: categorizer, digestQueries: digestQueries, userID: userID}
 }
 
 // Run categorizes all uncategorized digest articles for the user in batches.
@@ -49,7 +49,7 @@ func (s *CategorizeService) Run(ctx context.Context) error {
 	}
 
 	// Fetch existing categories for vocabulary guidance
-	existingCategories, err := s.digestQueries.ListUserCategories(ctx, s.userID)
+	existingCategories, err := s.categorizer.ListUserCategories(ctx, s.userID)
 	if err != nil {
 		slog.Warn("categorize: failed to list existing categories, proceeding without vocabulary", "error", err)
 		existingCategories = nil
@@ -67,21 +67,26 @@ func (s *CategorizeService) Run(ctx context.Context) error {
 		return fmt.Errorf("LLM categorize: %w", err)
 	}
 
-	// Parse JSON response mapping article_id -> category
-	var categories map[string]string
+	// Parse JSON response mapping article_id -> list of categories
+	var categories map[string][]string
 	if err := json.Unmarshal([]byte(resp.Content), &categories); err != nil {
 		return fmt.Errorf("parse category response: %w", err)
 	}
 
-	// Update each article
+	// Update each article with its categories
 	for _, article := range articles {
-		cat, ok := categories[article.ID.String()]
-		if !ok || cat == "" {
+		cats, ok := categories[article.ID.String()]
+		if !ok || len(cats) == 0 {
 			continue
 		}
-		cat = strings.TrimSpace(cat)
-		if err := s.content.UpdateCategory(ctx, article.ID, &cat); err != nil {
-			slog.Warn("categorize: failed to update", "article_id", article.ID, "error", err)
+		for _, cat := range cats {
+			cat = strings.TrimSpace(cat)
+			if cat == "" {
+				continue
+			}
+			if err := s.categorizer.AddCategory(ctx, article.ID, cat); err != nil {
+				slog.Warn("categorize: failed to add category", "article_id", article.ID, "category", cat, "error", err)
+			}
 		}
 	}
 
@@ -99,22 +104,24 @@ func buildCategorizePrompt(articles []domain.GeneratedContent, existingCategorie
 		b.WriteString("\n")
 	}
 
-	b.WriteString("Categorize these articles:\n")
-	for _, a := range articles {
-		title := ""
-		if a.Title != nil {
-			title = *a.Title
+	b.WriteString("Articles:\n")
+	for _, article := range articles {
+		title := "(no title)"
+		if article.Title != nil {
+			title = *article.Title
 		}
 		body := ""
-		if a.BodyMarkdown != nil {
-			body = *a.BodyMarkdown
+		if article.BodyMarkdown != nil {
+			body = *article.BodyMarkdown
 		}
+		fmt.Fprintf(&b, "- %s %s\n", article.ID.String(), title)
 		if len(body) > 500 {
-			body = body[:500]
+			body = body[:500] + "..."
 		}
-		fmt.Fprintf(&b, "%s | %s | %s\n", a.ID.String(), title, body)
+		if body != "" {
+			fmt.Fprintf(&b, "  %s\n", body)
+		}
 	}
 
-	b.WriteString("\nRespond with JSON mapping each UUID to its category.")
 	return b.String()
 }

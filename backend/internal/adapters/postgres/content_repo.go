@@ -83,12 +83,161 @@ func (r *ContentRepository) UpdateBody(ctx context.Context, id uuid.UUID, title,
 	return err
 }
 
-func (r *ContentRepository) UpdateCategory(ctx context.Context, id uuid.UUID, category *string) error {
-	_, err := r.q.UpdateContentCategory(ctx, UpdateContentCategoryParams{
-		ID:       uuidToPgtype(id),
-		Category: category,
+func (r *ContentRepository) AddCategory(ctx context.Context, id uuid.UUID, category string) error {
+	qtx, tx, err := beginTx(ctx, r.pool, r.q)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	c, err := qtx.GetContentByID(ctx, uuidToPgtype(id))
+	if err != nil {
+		return err
+	}
+	_, err = qtx.EnsureCategory(ctx, EnsureCategoryParams{
+		UserID: c.UserID,
+		Label:  category,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	catRow, err := qtx.GetCategoryByLabel(ctx, GetCategoryByLabelParams{
+		UserID: c.UserID,
+		Label:  category,
+	})
+	if err != nil {
+		return err
+	}
+	err = qtx.AddArticleCategory(ctx, AddArticleCategoryParams{
+		CategoryID: catRow.ID,
+		ArticleID:  uuidToPgtype(id),
+	})
+	if err != nil {
+		return err
+	}
+	catAny := any(category)
+	_, err = qtx.AddArticleCategoryArray(ctx, AddArticleCategoryArrayParams{
+		ID:          uuidToPgtype(id),
+		ArrayAppend: catAny,
+	})
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *ContentRepository) RemoveCategory(ctx context.Context, id uuid.UUID, category string) error {
+	qtx, tx, err := beginTx(ctx, r.pool, r.q)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	c, err := qtx.GetContentByID(ctx, uuidToPgtype(id))
+	if err != nil {
+		return err
+	}
+	catRow, err := qtx.GetCategoryByLabel(ctx, GetCategoryByLabelParams{
+		UserID: c.UserID,
+		Label:  category,
+	})
+	if err != nil {
+		return err
+	}
+	err = qtx.RemoveArticleCategory(ctx, RemoveArticleCategoryParams{
+		CategoryID: catRow.ID,
+		ArticleID:  uuidToPgtype(id),
+	})
+	if err != nil {
+		return err
+	}
+	catAny := any(category)
+	_, err = qtx.RemoveArticleCategoryArray(ctx, RemoveArticleCategoryArrayParams{
+		ID:          uuidToPgtype(id),
+		ArrayRemove: catAny,
+	})
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *ContentRepository) SetCategories(ctx context.Context, id uuid.UUID, categories []string) error {
+	qtx, tx, err := beginTx(ctx, r.pool, r.q)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	c, err := qtx.GetContentByID(ctx, uuidToPgtype(id))
+	if err != nil {
+		return err
+	}
+
+	// Remove all existing categories
+	existing, err := qtx.ListArticleCategories(ctx, uuidToPgtype(id))
+	if err != nil {
+		return err
+	}
+	for _, cat := range existing {
+		catRow, err := qtx.GetCategoryByLabel(ctx, GetCategoryByLabelParams{
+			UserID: c.UserID,
+			Label:  cat,
+		})
+		if err != nil {
+			return err
+		}
+		err = qtx.RemoveArticleCategory(ctx, RemoveArticleCategoryParams{
+			CategoryID: catRow.ID,
+			ArticleID:  uuidToPgtype(id),
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Clear the denormalized array
+	_, err = qtx.db.Exec(ctx,
+		"UPDATE generated_content SET categories = '{}', updated_at = now() WHERE id = $1",
+		uuidToPgtype(id))
+	if err != nil {
+		return err
+	}
+
+	// Add all new categories
+	for _, cat := range categories {
+		_, err = qtx.EnsureCategory(ctx, EnsureCategoryParams{
+			UserID: c.UserID,
+			Label:  cat,
+		})
+		if err != nil {
+			return err
+		}
+		catRow, err := qtx.GetCategoryByLabel(ctx, GetCategoryByLabelParams{
+			UserID: c.UserID,
+			Label:  cat,
+		})
+		if err != nil {
+			return err
+		}
+		err = qtx.AddArticleCategory(ctx, AddArticleCategoryParams{
+			CategoryID: catRow.ID,
+			ArticleID:  uuidToPgtype(id),
+		})
+		if err != nil {
+			return err
+		}
+		catAny := any(cat)
+		_, err = qtx.AddArticleCategoryArray(ctx, AddArticleCategoryArrayParams{
+			ID:          uuidToPgtype(id),
+			ArrayAppend: catAny,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *ContentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
@@ -115,17 +264,27 @@ func (r *ContentRepository) ListWithoutCategory(ctx context.Context, userID uuid
 }
 
 func (r *ContentRepository) ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	rows, err := r.q.ListUserCategories(ctx, uuidToPgtype(userID))
+	return r.q.ListUserCategories(ctx, uuidToPgtype(userID))
+}
+
+func (r *ContentRepository) GetDigestStats(ctx context.Context, userID uuid.UUID) (*ports.DigestStats, error) {
+	row, err := r.q.GetDigestStats(ctx, uuidToPgtype(userID))
 	if err != nil {
 		return nil, err
 	}
-	out := make([]string, len(rows))
-	for i, v := range rows {
-		if v != nil {
-			out[i] = *v
+	var lastDiscovery *time.Time
+	if row.LastDiscovery != nil {
+		t, ok := row.LastDiscovery.(time.Time)
+		if ok {
+			lastDiscovery = &t
 		}
 	}
-	return out, nil
+	return &ports.DigestStats{
+		TotalCount:        int(row.TotalCount),
+		InNewsletterCount: int(row.InNewsletterCount),
+		LastDiscovery:     lastDiscovery,
+		DraftNewsletters:  int(row.DraftNewsletters),
+	}, nil
 }
 
 func (r *ContentRepository) AddTag(ctx context.Context, id uuid.UUID, tag string) error {
@@ -246,6 +405,10 @@ func contentFromModel(c GeneratedContent) *domain.GeneratedContent {
 	if tags == nil {
 		tags = []string{}
 	}
+	cats := c.Categories
+	if cats == nil {
+		cats = []string{}
+	}
 	return &domain.GeneratedContent{
 		ID:           c.ID.Bytes,
 		UserID:       c.UserID.Bytes,
@@ -256,7 +419,7 @@ func contentFromModel(c GeneratedContent) *domain.GeneratedContent {
 		BodyMarkdown: c.BodyMarkdown,
 		Metadata:     c.Metadata,
 		Origin:       domain.ContentOrigin(c.Origin),
-		Category:     c.Category,
+		Categories:   cats,
 		Tags:         tags,
 		DeletedAt:    deletedAt,
 		CreatedAt:    c.CreatedAt.Time,

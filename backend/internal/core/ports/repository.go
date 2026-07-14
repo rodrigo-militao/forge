@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -26,14 +27,21 @@ type ContentWriter interface {
 	UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
-	UpdateCategory(ctx context.Context, id uuid.UUID, category *string) error
+}
+
+// ContentCategorizer manages categories on content items (ADR 0045).
+type ContentCategorizer interface {
+	AddCategory(ctx context.Context, id uuid.UUID, category string) error
+	RemoveCategory(ctx context.Context, id uuid.UUID, category string) error
+	SetCategories(ctx context.Context, id uuid.UUID, categories []string) error
+	ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error)
 }
 
 // ContentDigestReader contains Digest-specific read queries.
 type ContentDigestReader interface {
 	ExistsByURL(ctx context.Context, userID uuid.UUID, url string) (bool, error)
 	ListWithoutCategory(ctx context.Context, userID uuid.UUID, limit int) ([]domain.GeneratedContent, error)
-	ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error)
+	GetDigestStats(ctx context.Context, userID uuid.UUID) (*DigestStats, error)
 }
 
 // ContentTagger manages tags on content items.
@@ -43,11 +51,20 @@ type ContentTagger interface {
 	ListUserTags(ctx context.Context, userID uuid.UUID) ([]string, error)
 }
 
+// DigestStats holds aggregate statistics for the Digest page.
+type DigestStats struct {
+	TotalCount        int        `json:"total_count"`
+	InNewsletterCount int        `json:"in_newsletter_count"`
+	LastDiscovery     *time.Time `json:"last_discovery"`
+	DraftNewsletters  int        `json:"draft_newsletters"`
+}
+
 // ContentRepository combines all content persistence roles for consumers
 // that need full access (e.g. ContentHandler).
 type ContentRepository interface {
 	ContentReader
 	ContentWriter
+	ContentCategorizer
 	ContentDigestReader
 	ContentTagger
 }

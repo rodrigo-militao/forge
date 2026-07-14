@@ -41,7 +41,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error ?? friendlyError(res.status));
   }
-  if (res.status === 204) return undefined as Promise<T>;
+  if (res.status === 204) return undefined as unknown as Promise<T>;
   return res.json();
 }
 
@@ -99,7 +99,7 @@ export interface ContentItem {
   body_markdown: string | null;
   metadata: Record<string, unknown>;
   origin: "ai_generated" | "manual";
-  category: string | null;
+  categories: string[];
   tags: string[];
   deleted_at: string | null;
   created_at: string;
@@ -125,6 +125,13 @@ export interface NewsletterEdition {
   updated_at: string;
 }
 
+export interface DigestStats {
+  total_count: number;
+  in_newsletter_count: number;
+  last_discovery: string | null;
+  draft_newsletters: number;
+}
+
 export const api = {
   auth: {
     register: (data: { email: string; password: string; name: string }) =>
@@ -142,8 +149,13 @@ export const api = {
     list: () => request<ContentItem[]>("/content"),
     delete: (id: string) => request<{ status: string }>("/content/" + id, { method: "DELETE" }),
     save: (id: string, data: { title?: string; body_markdown?: string }) => request<{ status: string }>(`/content/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-    updateCategory: (id: string, category: string | null) =>
-      request<{ status: string }>(`/content/${id}/category`, { method: "PUT", body: JSON.stringify({ category }) }),
+    updateCategories: (id: string, categories: string[]) =>
+      request<{ status: string }>(`/content/${id}/categories`, { method: "PUT", body: JSON.stringify({ categories }) }),
+    addCategory: (id: string, category: string) =>
+      request<{ status: string }>(`/content/${id}/categories`, { method: "POST", body: JSON.stringify({ category }) }),
+    removeCategory: (id: string, category: string) =>
+      request<{ status: string }>("/content/" + id + "/categories/" + encodeURIComponent(category), { method: "DELETE" }),
+    listCategories: () => request<string[]>("/content/categories"),
     addTag: (id: string, tag: string) =>
       request<{ status: string }>(`/content/${id}/tags`, { method: "POST", body: JSON.stringify({ tag }) }),
     removeTag: (id: string, tag: string) =>
@@ -154,6 +166,7 @@ export const api = {
   },
   digest: {
     run: () => request<{ edition_id: string; item_count: number }>("/digest/run", { method: "POST" }),
+    stats: () => request<DigestStats>("/digest/stats"),
     articleNewsletterIDs: () => request<string[]>("/digest/article-newsletter-ids"),
     interests: {
       list: () => request<DigestInterest[]>("/digest/interests"),

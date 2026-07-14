@@ -41,7 +41,7 @@ export function LibraryPage() {
   });
 
   const categories = [
-    ...new Set((content ?? []).map((c) => c.category).filter(Boolean) as string[]),
+    ...new Set((content ?? []).flatMap((c) => c.categories).filter(Boolean)),
   ];
 
   useEffect(() => {
@@ -281,7 +281,9 @@ export function LibraryPage() {
               <div className="flex items-center gap-2">
                 <h3 className="truncate font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
                 {item.product === "digest" && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">Digest</span>}
-                {item.category && <span className="shrink-0 rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-primary)]">{item.category}</span>}
+                {item.categories && item.categories.length > 0 && item.categories.map((cat) => (
+                  <span key={cat} className="shrink-0 rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-primary)]">{cat}</span>
+                ))}
                 {item.status === "published" && <span className="shrink-0 rounded bg-[var(--color-accent-primary)]/20 px-1.5 py-0.5 text-xs text-[var(--color-accent-primary)]">{t("library.published")}</span>}
                 {item.status === "discarded" && <span className="shrink-0 rounded bg-[var(--color-accent-danger)]/20 px-1.5 py-0.5 text-xs text-[var(--color-accent-danger)]">{t("library.discarded")}</span>}
               </div>

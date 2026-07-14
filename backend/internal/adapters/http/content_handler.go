@@ -86,26 +86,79 @@ func (h *ContentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
-func (h *ContentHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
+func (h *ContentHandler) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 	c, ok := h.saveOrDelete(w, r)
 	if !ok {
 		return
 	}
 	var req struct {
-		Category *string `json:"category"`
+		Categories []string `json:"categories"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	if req.Category != nil && strings.TrimSpace(*req.Category) == "" {
-		req.Category = nil
-	}
-	if err := h.svc.UpdateCategory(r.Context(), c.ID, req.Category); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update category")
+	if err := h.svc.SetCategories(r.Context(), c.ID, req.Categories); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update categories")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func (h *ContentHandler) AddCategory(w http.ResponseWriter, r *http.Request) {
+	c, ok := h.saveOrDelete(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Category string `json:"category"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	req.Category = strings.TrimSpace(req.Category)
+	if req.Category == "" {
+		writeError(w, http.StatusBadRequest, "category cannot be empty")
+		return
+	}
+	if err := h.svc.AddCategory(r.Context(), c.ID, req.Category); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to add category")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "category added"})
+}
+
+func (h *ContentHandler) RemoveCategory(w http.ResponseWriter, r *http.Request) {
+	c, ok := h.saveOrDelete(w, r)
+	if !ok {
+		return
+	}
+	catParam := chi.URLParam(r, "category")
+	cat, err := url.QueryUnescape(catParam)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid category")
+		return
+	}
+	if err := h.svc.RemoveCategory(r.Context(), c.ID, cat); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to remove category")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "category removed"})
+}
+
+func (h *ContentHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
+	userID, _ := UserIDFromContext(r.Context())
+	categories, err := h.svc.ListCategories(r.Context(), userID)
+	if err != nil {
+		slog.Error("categories: list failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to list categories")
+		return
+	}
+	if categories == nil {
+		categories = []string{}
+	}
+	writeJSON(w, http.StatusOK, categories)
 }
 
 func (h *ContentHandler) AddTag(w http.ResponseWriter, r *http.Request) {

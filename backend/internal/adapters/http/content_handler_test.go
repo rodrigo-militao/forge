@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
+	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
 // mockContentRepo implements ports.ContentRepository for testing.
@@ -43,14 +44,39 @@ func (m *mockContentRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	}
 	return domain.ErrNotFound
 }
-func (m *mockContentRepo) UpdateCategory(ctx context.Context, id uuid.UUID, category *string) error {
+func (m *mockContentRepo) AddCategory(ctx context.Context, id uuid.UUID, category string) error {
 	for i, c := range m.items {
 		if c.ID == id {
-			m.items[i].Category = category
+			m.items[i].Categories = append(m.items[i].Categories, category)
 			return nil
 		}
 	}
 	return domain.ErrNotFound
+}
+func (m *mockContentRepo) RemoveCategory(ctx context.Context, id uuid.UUID, category string) error {
+	for i, c := range m.items {
+		if c.ID == id {
+			for j, cat := range m.items[i].Categories {
+				if cat == category {
+					m.items[i].Categories = append(m.items[i].Categories[:j], m.items[i].Categories[j+1:]...)
+					return nil
+				}
+			}
+		}
+	}
+	return domain.ErrNotFound
+}
+func (m *mockContentRepo) SetCategories(ctx context.Context, id uuid.UUID, categories []string) error {
+	for i, c := range m.items {
+		if c.ID == id {
+			m.items[i].Categories = categories
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+func (m *mockContentRepo) GetDigestStats(ctx context.Context, userID uuid.UUID) (*ports.DigestStats, error) {
+	return &ports.DigestStats{}, nil
 }
 func (m *mockContentRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
 	for i, c := range m.items {
@@ -150,7 +176,7 @@ func TestContentHandler_Delete_NotFound(t *testing.T) {
 	}
 }
 
-func TestContentHandler_UpdateCategory(t *testing.T) {
+func TestContentHandler_UpdateCategories(t *testing.T) {
 	uid := uuid.New()
 	cid := uuid.New()
 	content := &mockContentRepo{
@@ -160,21 +186,20 @@ func TestContentHandler_UpdateCategory(t *testing.T) {
 	}
 	h := &ContentHandler{svc: application.NewContentService(content)}
 
-	body := `{"category":"AI"}`
-	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/category", strings.NewReader(body))
+	body := `{"categories":["AI","Web"]}`
+	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/categories", strings.NewReader(body))
 	r = addChiURLParam(r, "id", cid.String())
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
 	w := httptest.NewRecorder()
-	h.UpdateCategory(w, r)
+	h.UpdateCategories(w, r)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	// verify category was set
 	for _, c := range content.items {
 		if c.ID == cid {
-			if c.Category == nil || *c.Category != "AI" {
-				t.Errorf("expected category AI, got %v", c.Category)
+			if len(c.Categories) != 2 || c.Categories[0] != "AI" || c.Categories[1] != "Web" {
+				t.Errorf("expected categories [AI Web], got %v", c.Categories)
 			}
 		}
 	}

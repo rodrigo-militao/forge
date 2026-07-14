@@ -21,7 +21,7 @@ export function filterLibraryContent(params: FilterParams): ContentItem[] {
       if (!include) return false;
     }
 
-    if (categoryFilter && c.category !== categoryFilter) return false;
+    if (categoryFilter && !(c.categories || []).includes(categoryFilter)) return false;
     if (tagFilter && !(c.tags || []).includes(tagFilter)) return false;
 
     return true;

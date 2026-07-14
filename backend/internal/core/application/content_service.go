@@ -48,11 +48,20 @@ func (s *ContentService) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return s.content.SoftDelete(ctx, id)
 }
 
-func (s *ContentService) UpdateCategory(ctx context.Context, id uuid.UUID, category *string) error {
-	if category != nil && *category == "" {
-		category = nil
-	}
-	return s.content.UpdateCategory(ctx, id, category)
+func (s *ContentService) AddCategory(ctx context.Context, id uuid.UUID, category string) error {
+	return s.content.AddCategory(ctx, id, category)
+}
+
+func (s *ContentService) RemoveCategory(ctx context.Context, id uuid.UUID, category string) error {
+	return s.content.RemoveCategory(ctx, id, category)
+}
+
+func (s *ContentService) SetCategories(ctx context.Context, id uuid.UUID, categories []string) error {
+	return s.content.SetCategories(ctx, id, categories)
+}
+
+func (s *ContentService) ListCategories(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	return s.content.ListUserCategories(ctx, userID)
 }
 
 func (s *ContentService) AddTag(ctx context.Context, id uuid.UUID, tag string) error {

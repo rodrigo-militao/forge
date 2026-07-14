@@ -39,7 +39,6 @@ export function ContentEditor({
   titlePlaceholder = "Title",
   onTransform,
   isSynced = false,
-  isSaving = false,
   saveError = null,
   children,
 }: ContentEditorProps) {

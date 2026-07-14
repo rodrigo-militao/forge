@@ -12,7 +12,7 @@ function item(overrides: Partial<ContentItem> = {}): ContentItem {
     status: "draft",
     source_type: "manual",
     tags: [],
-    category: null,
+    categories: [],
     deleted_at: null,
     ...overrides,
   };
@@ -42,9 +42,9 @@ test("library filter: showDeleted=false shows non-deleted compose/newsletter onl
 
 test("library filter: showDeleted=false respects category filter", () => {
   const items: ContentItem[] = [
-    item({ id: "1", product: "compose", category: "tech" }),
-    item({ id: "2", product: "compose", category: "design" }),
-    item({ id: "3", product: "compose", category: "tech" }),
+    item({ id: "1", product: "compose", categories: ["tech"] }),
+    item({ id: "2", product: "compose", categories: ["design"] }),
+    item({ id: "3", product: "compose", categories: ["tech"] }),
   ];
 
   const result = filterLibraryContent({
@@ -80,9 +80,9 @@ test("library filter: showDeleted=false respects tag filter", () => {
 
 test("library filter: showDeleted=false respects category + tag together", () => {
   const items: ContentItem[] = [
-    item({ id: "1", category: "tech", tags: ["golang"] }),
-    item({ id: "2", category: "design", tags: ["golang"] }),
-    item({ id: "3", category: "tech", tags: ["react"] }),
+    item({ id: "1", categories: ["tech"], tags: ["golang"] }),
+    item({ id: "2", categories: ["design"], tags: ["golang"] }),
+    item({ id: "3", categories: ["tech"], tags: ["react"] }),
   ];
 
   const result = filterLibraryContent({
@@ -119,9 +119,9 @@ test("library filter: showDeleted=true includes deleted items", () => {
 
 test("library filter: showDeleted=true respects category filter", () => {
   const items: ContentItem[] = [
-    item({ id: "1", product: "compose", category: "tech", deleted_at: null }),
-    item({ id: "2", product: "compose", category: "design", deleted_at: "2024-01-01" }),
-    item({ id: "3", product: "newsletter", category: "tech", deleted_at: "2024-01-01" }),
+    item({ id: "1", product: "compose", categories: ["tech"], deleted_at: null }),
+    item({ id: "2", product: "compose", categories: ["design"], deleted_at: "2024-01-01" }),
+    item({ id: "3", product: "newsletter", categories: ["tech"], deleted_at: "2024-01-01" }),
   ];
 
   const result = filterLibraryContent({
@@ -181,9 +181,9 @@ test("library filter: items with null tags handle tag filter gracefully", () => 
   assert.strictEqual(result.length, 0);
 });
 
-test("library filter: items with null category are included when no filter", () => {
+test("library filter: items with empty categories are included when no filter", () => {
   const items: ContentItem[] = [
-    item({ id: "1", category: null }),
+    item({ id: "1", categories: [] }),
   ];
 
   const result = filterLibraryContent({
@@ -198,8 +198,8 @@ test("library filter: items with null category are included when no filter", () 
 
 test("library filter: empty string categoryFilter does not filter", () => {
   const items: ContentItem[] = [
-    item({ id: "1", category: "tech" }),
-    item({ id: "2", category: null }),
+    item({ id: "1", categories: ["tech"] }),
+    item({ id: "2", categories: [] }),
   ];
 
   const result = filterLibraryContent({
