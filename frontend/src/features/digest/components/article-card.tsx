@@ -85,7 +85,7 @@ export function ArticleCard({
             </a>
             {isUsed && (
               <span className="shrink-0 rounded bg-[var(--color-accent-success)]/20 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent-success)]">
-                Used
+                {t("digest.detailUsed")}
               </span>
             )}
           </div>
