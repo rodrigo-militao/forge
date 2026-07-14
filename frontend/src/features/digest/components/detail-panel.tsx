@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Check } from "lucide-react";
 import type { ContentItem } from "../../../api/client";
 
 function extractDomain(url: string): string {
@@ -149,15 +149,14 @@ export function DetailPanel({
         <div className="flex flex-row gap-2">
           <button
             onClick={() => onToggleSelect(item.id)}
-            className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition-all active:scale-[0.97] ${
+            className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all active:scale-[0.97] ${
               isSelected
-                ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/10 text-[var(--color-accent-primary)]"
+                ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)]/15 text-[var(--color-accent-primary)]"
                 : "border-[var(--color-accent-primary)] text-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary)]/10"
             }`}
           >
-            {isSelected
-              ? t("digest.detailMarkAsSelected") + " ✓"
-              : t("digest.detailMarkAsSelected")}
+            {isSelected && <Check size={12} />}
+            <span>{t("digest.detailMarkAsSelected")}</span>
           </button>
           <button
             onClick={(e) => onAddToNewsletter(item.id, e)}

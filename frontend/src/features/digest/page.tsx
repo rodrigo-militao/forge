@@ -395,13 +395,15 @@ export function DigestPage() {
         <FilterTabs active={activeTab} onChange={setActiveTab} counts={tabCounts} />
       </div>
 
+      {/* Stats bar */}
+      <div className="mt-4 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
+        <StatsBar stats={stats} selectedCount={selectedIDs.size} />
+      </div>
+
       {/* Main content area: list + detail panel */}
-      <div className="mt-5 flex flex-1 gap-0">
-        {/* Card list with stats bar inside */}
+      <div className="mt-4 flex flex-1 gap-0">
+        {/* Card list */}
         <div className="min-w-0 flex-1 overflow-y-auto pr-4">
-          <div className="mb-4 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
-            <StatsBar stats={stats} selectedCount={selectedIDs.size} />
-          </div>
           {sortedItems.length === 0 && !running && (
             /* ── Empty / no-results state ── */
             <div className="flex flex-col items-center py-12 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
