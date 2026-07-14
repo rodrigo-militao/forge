@@ -81,7 +81,7 @@ export function ArticleCard({
               onClick={(e) => e.stopPropagation()}
               className="truncate font-[var(--font-display)] text-sm font-semibold text-[var(--color-bg-surface)] transition-colors hover:text-[var(--color-accent-primary)]"
             >
-              {item.title || "(no title)"}
+              {item.title || t("digest.noTitle")}
             </a>
             {isUsed && (
               <span className="shrink-0 rounded bg-[var(--color-accent-success)]/20 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent-success)]">

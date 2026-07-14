@@ -63,6 +63,7 @@
     "batchAdded": "{{count}} artículos añadidos a la newsletter",
     "waitingForReview": "{{count}} pendiente de revisión",
     "waitingForReview_plural": "{{count}} pendientes de revisión",
+    "noTitle": "(sin título)",
     "discoverArticles": "Descubrir",
     "sortNewest": "Más recientes",
     "sortOldest": "Más antiguos",
