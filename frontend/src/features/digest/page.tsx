@@ -37,7 +37,7 @@ export function DigestPage() {
   const queryClient = useQueryClient();
   const [running, setRunning] = useState(false);
   const [selectedIDs, setSelectedIDs] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<FilterTab>("todos");
+  const [activeTab, setActiveTab] = useState<FilterTab>("novos");
   const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [selectedArticle, setSelectedArticle] = useState<ContentItem | null>(null);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
@@ -463,12 +463,26 @@ export function DigestPage() {
             /* ── Empty / no-results state ── */
             <div className="flex flex-col items-center py-12 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
               {digestItems.length > 0 ? (
-                /* Filters active but no matches */
+                /* Filters / tab active but no matches */
                 <>
                   <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5">
                     <EyeOff size={24} className="text-[var(--color-text-muted)]" />
                   </div>
-                  <p className="text-sm text-[var(--color-text-muted)]">{activeTab === "enviados" ? t("digest.enviadosEmpty") : t("digest.noResults")}</p>
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    {activeTab === "novos" ? t("digest.novosEmpty") :
+                     activeTab === "selecionados" ? t("digest.selecionadosEmpty") :
+                     activeTab === "enviados" ? t("digest.enviadosEmpty") :
+                     t("digest.noResults")}
+                  </p>
+                  {(activeTab === "novos" || activeTab === "selecionados") && (
+                    <button
+                      onClick={handleRun}
+                      className="mt-4 flex cursor-pointer items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.97]"
+                    >
+                      <Sparkles size={16} />
+                      {t("digest.discoverArticles")}
+                    </button>
+                  )}
                 </>
               ) : (
                 /* Truly empty — no content at all */

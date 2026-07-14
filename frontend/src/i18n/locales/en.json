@@ -68,6 +68,8 @@
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "clear": "Clear",
+    "novosEmpty": "All articles reviewed!",
+    "selecionadosEmpty": "Select articles to review them later.",
     "enviadosEmpty": "No articles sent to newsletter yet.",
     "discoverArticles": "Discover",
     "sortNewest": "Newest first",

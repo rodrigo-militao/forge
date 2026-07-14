@@ -68,6 +68,8 @@
     "selectAll": "Seleccionar todos",
     "deselectAll": "Deseleccionar todos",
     "clear": "Limpiar",
+    "novosEmpty": "¡Todos los artículos revisados!",
+    "selecionadosEmpty": "Selecciona artículos para revisar después.",
     "enviadosEmpty": "Ningún artículo enviado a newsletter aún.",
     "discoverArticles": "Descubrir",
     "sortNewest": "Más recientes",
