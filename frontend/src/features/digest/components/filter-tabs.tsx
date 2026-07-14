@@ -19,7 +19,7 @@ export function FilterTabs({ active, onChange, counts }: FilterTabsProps) {
         <button
           key={tab}
           onClick={() => onChange(tab)}
-          className={`cursor-pointer rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
             active === tab
               ? "bg-[var(--color-accent-primary)] text-white"
               : "bg-white/10 text-[var(--color-text-muted)] hover:bg-white/[0.15] hover:text-[var(--color-bg-surface)]"

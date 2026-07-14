@@ -17,7 +17,7 @@ interface ArticleCardProps {
   isUsed: boolean;
   onToggleSelect: (id: string) => void;
   onDelete: (id: string) => void;
-  onAddToNewsletter: (id: string) => void;
+  onAddToNewsletter: (id: string, e: React.MouseEvent) => void;
   onClick: (id: string) => void;
 }
 
@@ -51,7 +51,7 @@ export function ArticleCard({
       onClick={() => onClick(item.id)}
       className={`cursor-pointer rounded-lg border bg-white/5 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.08] hover:border-white/10 ${
         isSelected
-          ? "ring-1 ring-[var(--color-accent-primary)]"
+          ? "border-[var(--color-accent-primary)] ring-1 ring-[var(--color-accent-primary)]/30"
           : "border-[var(--color-border)]/20"
       } ${isUsed ? "opacity-60" : ""}`}
     >
@@ -136,7 +136,7 @@ export function ArticleCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onAddToNewsletter(item.id);
+              onAddToNewsletter(item.id, e);
             }}
             title={t("digest.addToNewsletterLabel")}
             className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"

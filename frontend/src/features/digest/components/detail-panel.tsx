@@ -22,7 +22,7 @@ interface DetailPanelProps {
   isUsed: boolean;
   onClose: () => void;
   onToggleSelect: (id: string) => void;
-  onAddToNewsletter: (id: string) => void;
+  onAddToNewsletter: (id: string, e: React.MouseEvent) => void;
 }
 
 export function DetailPanel({
@@ -54,7 +54,7 @@ export function DetailPanel({
             {isUsed ? t("digest.detailUsed") : t("digest.detailNew")}
           </span>
           <button
-            onClick={onClose}
+            onClick={onClose} aria-label="Close detail panel"
             className="cursor-pointer rounded-md p-1 text-[var(--color-text-muted)] transition-all hover:bg-white/10 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
           >
             <X size={16} />
@@ -66,7 +66,7 @@ export function DetailPanel({
           href={sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-[var(--font-display)] text-xl font-bold leading-tight text-[var(--color-bg-surface)] transition-colors hover:text-[var(--color-accent-primary)]"
+          className="font-[var(--font-display)] text-xl font-bold leading-tight text-[var(--color-bg-surface)] transition-colors hover:text-[var(--color-accent-primary)] break-words"
         >
           {item.title || "(no title)"}
         </a>
@@ -142,21 +142,6 @@ export function DetailPanel({
           </section>
         )}
 
-        {(item.categories?.length || item.tags?.length) && item.body_markdown && (
-          <div className="mt-5 border-t border-[var(--color-border)]/10" />
-        )}
-
-        {/* Full content — truncated */}
-        {item.body_markdown && (
-          <section className="mt-5">
-            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Content
-            </h3>
-            <div className="text-sm leading-relaxed text-[var(--color-text-muted)]/80 line-clamp-6">
-              {item.body_markdown}
-            </div>
-          </section>
-        )}
       </div>
 
       {/* Fixed footer */}
@@ -175,7 +160,7 @@ export function DetailPanel({
               : t("digest.detailMarkAsSelected")}
           </button>
           <button
-            onClick={() => onAddToNewsletter(item.id)}
+            onClick={(e) => onAddToNewsletter(item.id, e)}
             className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-[var(--color-accent-primary)]/90 active:scale-[0.97]"
           >
             <Plus size={14} />

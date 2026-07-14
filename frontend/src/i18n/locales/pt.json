@@ -63,7 +63,7 @@
     "batchAdded": "{{count}} artigos adicionados à newsletter",
     "waitingForReview": "{{count}} aguardando revisão",
     "waitingForReview_plural": "{{count}} aguardando revisão",
-    "discoverArticles": "Descobrir Artigos",
+    "discoverArticles": "Descobrir",
     "sortNewest": "Mais recentes",
     "sortOldest": "Mais antigos",
     "sortTitle": "Título A-Z",

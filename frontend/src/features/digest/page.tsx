@@ -47,12 +47,17 @@ export function DigestPage() {
   const [processingStep, setProcessingStep] = useState(0);
 
   // Newsletter selector state
-  const [newsletterOpen, setNewsletterOpen] = useState<string | null>(null);
+  const [newsletterAnchor, setNewsletterAnchor] = useState<{
+    articleId: string;
+    top: number;
+    right: number;
+  } | null>(null);
+  const newsletterOpen = newsletterAnchor?.articleId ?? null;
   const [draftNewsletters, setDraftNewsletters] = useState<NewsletterEdition[]>([]);
   const [creatingNewsletter, setCreatingNewsletter] = useState(false);
   const selectorRef = useRef<HTMLDivElement>(null);
 
-  const { data: content, isLoading } = useQuery({
+  const { data: content, isLoading, isError } = useQuery({
     queryKey: ["content"],
     queryFn: api.content.list,
   });
@@ -159,11 +164,20 @@ export function DigestPage() {
     }
   }, [showSortDropdown]);
 
+  // Close detail panel on Escape
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelectedArticle(null);
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
+
   // Close newsletter selector on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (selectorRef.current && !selectorRef.current.contains(e.target as Node)) {
-        setNewsletterOpen(null);
+        setNewsletterAnchor(null);
       }
     }
     if (newsletterOpen) {
@@ -197,14 +211,19 @@ export function DigestPage() {
     if (item) setSelectedArticle(item);
   }, [digestItems]);
 
-  const openNewsletterSelector = useCallback(async (target: string) => {
+  const openNewsletterSelector = useCallback(async (target: string, e?: React.MouseEvent) => {
+    const btnRect = (e?.currentTarget as HTMLElement)?.getBoundingClientRect();
     try {
       const editions = await api.newsletters.list({ status: "draft" });
       setDraftNewsletters(editions);
     } catch {
       setDraftNewsletters([]);
     }
-    setNewsletterOpen(target);
+    setNewsletterAnchor(btnRect ? {
+      articleId: target,
+      top: btnRect.bottom + 6,
+      right: window.innerWidth - btnRect.right,
+    } : null);
   }, []);
 
   const addToNewsletter = useCallback(
@@ -213,7 +232,7 @@ export function DigestPage() {
         await api.newsletters.addArticle(newsletterID, articleID);
         queryClient.invalidateQueries({ queryKey: ["article-newsletter-ids"] });
         toast.success(t("editor.saved"));
-        setNewsletterOpen(null);
+        setNewsletterAnchor(null);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : t("digest.failed"));
       }
@@ -230,7 +249,7 @@ export function DigestPage() {
         queryClient.invalidateQueries({ queryKey: ["article-newsletter-ids"] });
         queryClient.invalidateQueries({ queryKey: ["editions"] });
         toast.success(t("digest.newsletterCreated"));
-        setNewsletterOpen(null);
+        setNewsletterAnchor(null);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : t("digest.failed"));
       }
@@ -266,6 +285,17 @@ export function DigestPage() {
 
   /* ───── loading skeleton ───── */
 
+  if (isError) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center max-w-md">
+          <p className="text-lg text-red-400">Failed to load content</p>
+          <p className="mt-2 text-sm text-[var(--color-text-muted)]">Try refreshing the page.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-3xl">
@@ -294,11 +324,6 @@ export function DigestPage() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Stats bar */}
-      <div className="opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
-        <StatsBar stats={stats} selectedCount={selectedIDs.size} />
-      </div>
-
       {/* Header */}
       <div className="mt-6 flex items-center justify-between">
         <div>
@@ -315,12 +340,12 @@ export function DigestPage() {
             <button
               onClick={() => setShowSortDropdown(!showSortDropdown)}
               className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 p-2 text-[var(--color-text-muted)] transition-all hover:bg-white/5 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
-              title="Sort"
+              title="Sort" aria-label="Sort articles"
             >
               <ArrowUpDown size={16} />
             </button>
             {showSortDropdown && (
-              <div className="absolute right-0 top-10 z-50 w-40 animate-[scaleIn_150ms_ease-out] rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-surface-elevated)] p-1.5 shadow-xl">
+              <div className="absolute right-0 top-10 z-50 w-40 animate-[scaleIn_150ms_ease-out] rounded-lg border border-[var(--color-border)]/60 bg-[var(--color-bg-base)] p-1.5 shadow-2xl ring-1 ring-black/30">
                 {(["newest", "oldest", "title"] as const).map((key) => (
                   <button
                     key={key}
@@ -340,7 +365,7 @@ export function DigestPage() {
           <button
             onClick={() => { queryClient.invalidateQueries({ queryKey: ["content"] }); queryClient.invalidateQueries({ queryKey: ["digest", "stats"] }); }}
             className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 p-2 text-[var(--color-text-muted)] transition-all hover:bg-white/5 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
-            title="Refresh"
+            title="Refresh" aria-label="Refresh articles"
           >
             <RefreshCw size={16} />
           </button>
@@ -352,36 +377,16 @@ export function DigestPage() {
             <Sparkles size={16} className={running ? "animate-[spin_2s_linear_infinite]" : ""} />
             {running ? t("digest.running") : t("digest.discoverArticles")}
           </button>
-          {selectedIDs.size > 0 && (
-            <div className="relative">
-              <button
-                onClick={() => openNewsletterSelector("batch")}
-                className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-all hover:bg-[var(--color-accent-primary)]/10 active:scale-[0.97]"
-              >
-                <Mail size={16} />
-                {t("digest.addToNewsletter", { count: selectedIDs.size })}
-              </button>
-              {newsletterOpen === "batch" && (
-                <NewsletterSelector
-                  ref={selectorRef}
-                  newsletters={draftNewsletters}
-                  creating={creatingNewsletter}
-                  onSelect={(id) => {
-                    const ids = Array.from(selectedIDs);
-                    Promise.all(ids.map((aid) => api.newsletters.addArticle(id, aid)))
-                      .then(() => {
-                        queryClient.invalidateQueries({ queryKey: ["article-newsletter-ids"] });
-                        toast.success(t("digest.batchAdded", { count: ids.length }));
-                        setNewsletterOpen(null);
-                        setSelectedIDs(new Set());
-                      })
-                      .catch((err) => toast.error(err instanceof Error ? err.message : t("digest.failed")));
-                  }}
-                  onCreateNew={() => createAndAddToNewsletter(Array.from(selectedIDs)[0])}
-                />
-              )}
-            </div>
-          )}
+          <div className="relative">
+            <button
+              onClick={(e) => openNewsletterSelector("batch", e)}
+              disabled={selectedIDs.size === 0}
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-all hover:bg-[var(--color-accent-primary)]/10 active:scale-[0.97] disabled:opacity-30 disabled:cursor-default disabled:active:scale-100 disabled:hover:bg-transparent"
+            >
+              <Mail size={16} />
+              {t("digest.addToNewsletter", { count: selectedIDs.size })}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -392,8 +397,11 @@ export function DigestPage() {
 
       {/* Main content area: list + detail panel */}
       <div className="mt-5 flex flex-1 gap-0">
-        {/* Card list */}
+        {/* Card list with stats bar inside */}
         <div className="min-w-0 flex-1 overflow-y-auto pr-4">
+          <div className="mb-4 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
+            <StatsBar stats={stats} selectedCount={selectedIDs.size} />
+          </div>
           {sortedItems.length === 0 && !running && (
             /* ── Empty / no-results state ── */
             <div className="flex flex-col items-center py-12 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
@@ -483,18 +491,6 @@ export function DigestPage() {
                     onAddToNewsletter={openNewsletterSelector}
                     onClick={handleCardClick}
                   />
-                  {/* Newsletter selector per-card */}
-                  {newsletterOpen === item.id && (
-                    <div className="relative">
-                      <NewsletterSelector
-                        ref={selectorRef}
-                        newsletters={draftNewsletters}
-                        creating={creatingNewsletter}
-                        onSelect={(id) => addToNewsletter(id, item.id)}
-                        onCreateNew={() => createAndAddToNewsletter(item.id)}
-                      />
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -510,13 +506,25 @@ export function DigestPage() {
             isUsed={usedSet.has(selectedArticle.id)}
             onClose={() => setSelectedArticle(null)}
             onToggleSelect={toggleSelected}
-            onAddToNewsletter={(id) => {
-              openNewsletterSelector(id);
+            onAddToNewsletter={(id, e) => {
+              openNewsletterSelector(id, e);
             }}
           />
           </div>
         )}
       </div>
+
+      {newsletterAnchor && (
+        <NewsletterSelector
+          ref={selectorRef}
+          top={newsletterAnchor.top}
+          right={newsletterAnchor.right}
+          newsletters={draftNewsletters}
+          creating={creatingNewsletter}
+          onSelect={(id) => addToNewsletter(id, newsletterAnchor.articleId)}
+          onCreateNew={() => createAndAddToNewsletter(newsletterAnchor.articleId)}
+        />
+      )}
     </div>
   );
 }
@@ -524,16 +532,19 @@ export function DigestPage() {
 /* ───── Newsletter selector dropdown ───── */
 
 const NewsletterSelector = forwardRef<HTMLDivElement, {
+  top?: number;
+  right?: number;
   newsletters: NewsletterEdition[];
   creating: boolean;
   onSelect: (id: string) => void;
   onCreateNew: () => void;
-}>(({ newsletters, creating, onSelect, onCreateNew }, ref) => {
+}>(({ top, right, newsletters, creating, onSelect, onCreateNew }, ref) => {
   const { t } = useTranslation();
   return (
   <div
     ref={ref}
-    className="absolute right-0 top-10 z-50 w-56 animate-[scaleIn_150ms_ease-out_forwards] origin-top-right rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-surface-elevated)] p-2 shadow-xl"
+    className="fixed z-50 w-56 animate-[scaleIn_150ms_ease-out_forwards] origin-top-right rounded-lg border border-[var(--color-border)]/60 bg-[var(--color-bg-base)] p-2 shadow-2xl ring-1 ring-black/30"
+    style={{ top, right }}
   >
     <p className="px-2 py-1 text-xs font-medium text-[var(--color-text-muted)]">
       {t("digest.addToNewsletterLabel")}

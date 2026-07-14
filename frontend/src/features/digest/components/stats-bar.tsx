@@ -7,7 +7,7 @@ interface StatsBarProps {
   selectedCount: number;
 }
 
-function formatTimeAgo(dateStr: string | null, t: (key: string, opts?: object) => string): string {
+function formatTimeAgo(dateStr: string | null, t: (key: string, opts: Record<string, unknown>) => string): string {
   if (!dateStr) return "";
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const diffMin = Math.floor(diffMs / 60000);
