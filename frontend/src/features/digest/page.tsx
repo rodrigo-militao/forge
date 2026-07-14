@@ -366,10 +366,11 @@ export function DigestPage() {
           <div ref={sortRef} className="relative">
             <button
               onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 p-2 text-[var(--color-text-muted)] transition-all hover:bg-white/5 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
+              className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-border)]/20 px-2.5 py-1.5 text-xs text-[var(--color-text-muted)] transition-all hover:bg-white/5 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
               title="Sort" aria-label="Sort articles"
             >
-              <ArrowUpDown size={16} />
+              <ArrowUpDown size={14} />
+              {t("digest.sortLabel")}
             </button>
             {showSortDropdown && (
               <div className="absolute right-0 top-10 z-50 w-40 animate-[scaleIn_150ms_ease-out] rounded-lg border border-[var(--color-border)]/60 bg-[var(--color-bg-base)] p-1.5 shadow-2xl ring-1 ring-black/30">
@@ -405,8 +406,46 @@ export function DigestPage() {
 
       {/* Main content area: list + detail panel */}
       <div className="mt-4 flex flex-1 gap-0">
-        {/* Card list */}
+        {/* Card list with select all */}
         <div className="min-w-0 flex-1 overflow-y-auto pr-4">
+          {/* Select all */}
+          <div className="mb-2 flex items-center gap-2">
+            <button
+              onClick={() => {
+                const allVisibleIDs = new Set(sortedItems.map((c) => c.id));
+                const allSelected = [...allVisibleIDs].every((id) => selectedIDs.has(id));
+                if (allSelected) {
+                  setSelectedIDs(new Set([...selectedIDs].filter((id) => !allVisibleIDs.has(id))));
+                } else {
+                  const next = new Set(selectedIDs);
+                  allVisibleIDs.forEach((id) => next.add(id));
+                  setSelectedIDs(next);
+                }
+              }}
+              className="flex cursor-pointer items-center gap-1.5 text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-bg-surface)]"
+            >
+              <div className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
+                [...sortedItems].every((c) => selectedIDs.has(c.id)) && sortedItems.length > 0
+                  ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white"
+                  : "border-white/20 hover:border-[var(--color-accent-primary)]"
+              }`}>
+                {[...sortedItems].every((c) => selectedIDs.has(c.id)) && sortedItems.length > 0 && (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                )}
+              </div>
+              {sortedItems.length > 0 && [...sortedItems].every((c) => selectedIDs.has(c.id))
+                ? t("digest.deselectAll")
+                : t("digest.selectAll")}
+            </button>
+            {selectedIDs.size > 0 && (
+              <button
+                onClick={() => setSelectedIDs(new Set())}
+                className="cursor-pointer text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-bg-surface)]"
+              >
+                Clear ({selectedIDs.size})
+              </button>
+            )}
+          </div>
           {sortedItems.length === 0 && !running && (
             /* ── Empty / no-results state ── */
             <div className="flex flex-col items-center py-12 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
@@ -416,7 +455,7 @@ export function DigestPage() {
                   <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5">
                     <EyeOff size={24} className="text-[var(--color-text-muted)]" />
                   </div>
-                  <p className="text-sm text-[var(--color-text-muted)]">{t("digest.noResults")}</p>
+                  <p className="text-sm text-[var(--color-text-muted)]">{activeTab === "enviados" ? t("digest.enviadosEmpty") : t("digest.noResults")}</p>
                 </>
               ) : (
                 /* Truly empty — no content at all */

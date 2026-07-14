@@ -37,8 +37,10 @@ export function StatsBar({ stats, selectedCount: _selectedCount }: StatsBarProps
     },
     {
       icon: Clock,
-      label: t("digest.statsLastDiscovery"),
-      value: stats?.last_discovery ? formatTimeAgo(stats.last_discovery, t) : t("digest.statsNever"),
+      label: stats?.last_discovery
+        ? `${t("digest.statsLastDiscovery")} · ${formatTimeAgo(stats.last_discovery, t)}`
+        : `${t("digest.statsLastDiscovery")} · ${t("digest.statsNever")}`,
+      value: "—",
     },
   ];
 
