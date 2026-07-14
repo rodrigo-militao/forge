@@ -353,6 +353,11 @@ export function DigestPage() {
         </div>
       </div>
 
+      {/* Stats bar */}
+      <div className="mt-4 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
+        <StatsBar stats={stats} selectedCount={selectedIDs.size} />
+      </div>
+
       {/* Toolbar: filters + sort + batch newsletter */}
       <div className="mt-3 flex items-center justify-between">
         <FilterTabs active={activeTab} onChange={setActiveTab} counts={tabCounts} />
@@ -396,11 +401,6 @@ export function DigestPage() {
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Stats bar */}
-      <div className="mt-4 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
-        <StatsBar stats={stats} selectedCount={selectedIDs.size} />
       </div>
 
       {/* Main content area: list + detail panel */}
