@@ -78,7 +78,6 @@ export function ArticleCard({
               href={sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
               className="truncate font-[var(--font-display)] text-sm font-semibold text-[var(--color-bg-surface)] transition-colors hover:text-[var(--color-accent-primary)]"
             >
               {item.title || t("digest.noTitle")}

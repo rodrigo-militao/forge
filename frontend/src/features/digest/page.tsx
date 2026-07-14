@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowUpDown, EyeOff, Mail, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowUpDown, EyeOff, Mail, Plus, Sparkles } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api, type ContentItem, type NewsletterEdition } from "../../api/client";
@@ -196,6 +196,25 @@ export function DigestPage() {
       setRunning(false);
     }
   }, [t]);
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const key = e.key.toLowerCase();
+      if (key === "d" && !running) {
+        e.preventDefault();
+        handleRun();
+      }
+      if (key === "s") {
+        e.preventDefault();
+        setShowSortDropdown((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [running, handleRun]);
+
+
 
   const toggleSelected = useCallback((id: string) => {
     setSelectedIDs((prev) => {
@@ -343,13 +362,7 @@ export function DigestPage() {
             <Sparkles size={16} className={running ? "animate-[spin_2s_linear_infinite]" : ""} />
             {running ? t("digest.running") : t("digest.discoverArticles")}
           </button>
-          <button
-            onClick={() => { queryClient.invalidateQueries({ queryKey: ["content"] }); queryClient.invalidateQueries({ queryKey: ["digest", "stats"] }); }}
-            className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 p-2 text-[var(--color-text-muted)] transition-all hover:bg-white/5 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
-            title="Refresh" aria-label="Refresh articles"
-          >
-            <RefreshCw size={16} />
-          </button>
+
         </div>
       </div>
 
