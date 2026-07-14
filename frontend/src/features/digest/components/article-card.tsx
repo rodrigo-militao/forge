@@ -49,10 +49,10 @@ export function ArticleCard({
   return (
     <div
       onClick={() => onClick(item.id)}
-      className={`cursor-pointer rounded-lg border bg-white/5 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.08] hover:border-white/10 ${
+      className={`cursor-pointer rounded-lg bg-white/5 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.08] ${
         isSelected
-          ? "border-[var(--color-accent-primary)] ring-1 ring-[var(--color-accent-primary)]/30"
-          : "border-[var(--color-border)]/20"
+          ? "border border-[var(--color-accent-primary)] ring-1 ring-[var(--color-accent-primary)]/30"
+          : "border border-transparent"
       } ${isUsed ? "opacity-60" : ""}`}
     >
       <div className="flex items-start gap-3">
