@@ -12,11 +12,7 @@ import { DetailPanel } from "./components/detail-panel";
 
 /* ───── processing step labels ───── */
 
-const PROCESSING_STEPS = [
-  { key: "connected", duration: 3000 },
-  { key: "discovering", duration: 8000 },
-  { key: "categorizing", duration: 8000 },
-] as const;
+const PROCESSING_STEPS = 1; // number of steps (just "discovering")
 
 /* ───── sort helpers ───── */
 
@@ -190,23 +186,10 @@ export function DigestPage() {
     }
   }, [dataUpdatedAt, running]);
 
-  // Processing step progression
+  // Processing step — always "discovering" until content arrives
   useEffect(() => {
     if (!running) return;
     setProcessingStep(0);
-        let stepIndex = 0;
-    const intervals: ReturnType<typeof setTimeout>[] = [];
-    let accum = 0;
-    for (const step of PROCESSING_STEPS) {
-      accum += step.duration;
-      intervals.push(setTimeout(() => {
-        stepIndex++;
-        if (stepIndex < PROCESSING_STEPS.length) {
-          setProcessingStep(stepIndex);
-        }
-      }, accum));
-    }
-    return () => intervals.forEach(clearTimeout);
   }, [running]);
 
   // Close sort dropdown on outside click
@@ -361,10 +344,7 @@ export function DigestPage() {
   );
 
   // Processing step label for running state
-  const stepLabel =
-    processingStep < PROCESSING_STEPS.length
-      ? t(`digest.${PROCESSING_STEPS[processingStep].key}`)
-      : t("digest.complete");
+  const stepLabel = t("digest.discovering");
 
   /* ───── loading skeleton ───── */
 
@@ -443,7 +423,7 @@ export function DigestPage() {
             className="flex cursor-pointer items-center gap-1 text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-bg-surface)]"
           >
             <ChevronRight size={12} className={`transition-transform ${showJobs ? "rotate-90" : ""}`} />
-            {t("digest.jobsTitle")} ({jobs.length})
+            {t("digest.jobsTitle")} · {t(`digest.job${capitalize(jobs[0].status)}`)} · {formatTimeAgo(jobs[0].created_at, t)}
           </button>
           {showJobs && (
             <div className="mt-2 space-y-1 rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02] p-2">
@@ -636,6 +616,12 @@ export function DigestPage() {
                 <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-accent-primary)] animate-[dotSweep_1.2s_ease-in-out_infinite] [animation-delay:400ms]" />
               </div>
               <span className="text-sm text-[var(--color-accent-primary)]">{stepLabel}</span>
+              <button
+                onClick={() => setRunning(false)}
+                className="mt-3 cursor-pointer text-xs text-[var(--color-text-muted)] underline-offset-2 transition-colors hover:text-[var(--color-bg-surface)] hover:underline"
+              >
+                {t("digest.cancel")}
+              </button>
             </div>
           )}
 
