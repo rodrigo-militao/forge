@@ -7,7 +7,7 @@ interface StatsBarProps {
   selectedCount: number;
 }
 
-function formatTimeAgo(dateStr: string | null, t: (key: string, opts: Record<string, unknown>) => string): string {
+function formatTimeAgo(dateStr: string | null, t: (key: string, opts?: Record<string, unknown>) => string): string {
   if (!dateStr) return "";
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const diffMin = Math.floor(diffMs / 60000);
@@ -18,7 +18,7 @@ function formatTimeAgo(dateStr: string | null, t: (key: string, opts: Record<str
   return t("digest.daysAgo", { n: Math.floor(diffH / 24) });
 }
 
-export function StatsBar({ stats, selectedCount }: StatsBarProps) {
+export function StatsBar({ stats, selectedCount: _selectedCount }: StatsBarProps) {
   const { t } = useTranslation();
 
   const blocks = [

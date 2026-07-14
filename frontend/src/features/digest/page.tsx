@@ -566,7 +566,7 @@ const NewsletterSelector = forwardRef<HTMLDivElement, {
         className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-[var(--color-bg-surface)] transition-colors hover:bg-white/10"
       >
         <Mail size={14} className="shrink-0 text-[var(--color-accent-primary)]" />
-        <span className="truncate">{nl.title || {t("digest.noTitle")}}</span>
+        <span className="truncate">{nl.title || t("digest.noTitle")}</span>
       </button>
     ))}
     <div className="mt-1 border-t border-[var(--color-border)]/10 pt-1">

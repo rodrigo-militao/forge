@@ -68,7 +68,7 @@ export function DetailPanel({
           rel="noopener noreferrer"
           className="font-[var(--font-display)] text-xl font-bold leading-tight text-[var(--color-bg-surface)] transition-colors hover:text-[var(--color-accent-primary)] break-words"
         >
-          {item.title || {t("digest.noTitle")}}
+          {item.title || t("digest.noTitle")}
         </a>
 
         {/* Source + Read time */}
