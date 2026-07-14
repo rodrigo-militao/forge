@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mail, Trash2, X, Check } from "lucide-react";
 import type { ContentItem } from "../../../api/client";
@@ -32,6 +32,26 @@ export function ArticleCard({
 }: ArticleCardProps) {
   const { t } = useTranslation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const deleteRef = React.useRef<HTMLDivElement>(null);
+
+  // Close delete confirm on outside click or Escape
+  React.useEffect(() => {
+    if (!showDeleteConfirm) return;
+    function handleClick(e: MouseEvent) {
+      if (deleteRef.current && !deleteRef.current.contains(e.target as Node)) {
+        setShowDeleteConfirm(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowDeleteConfirm(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [showDeleteConfirm]);
 
   const sourceUrl = (item.metadata?.source_url as string) ?? "";
   const domain = sourceUrl ? extractDomain(sourceUrl) : "";
@@ -155,7 +175,8 @@ export function ArticleCard({
             </button>
             {showDeleteConfirm && (
               <div
-                className="absolute right-0 top-8 z-50 w-40 animate-[scaleIn_150ms_ease-out] rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-bg-base)] p-2 shadow-xl"
+                ref={deleteRef}
+                className="absolute right-0 top-8 z-50 w-48 animate-[scaleIn_150ms_ease-out] rounded-lg border border-[var(--color-border)]/60 bg-[var(--color-bg-base)] p-2 shadow-2xl ring-1 ring-black/30"
                 onClick={(e) => e.stopPropagation()}
               >
                 <p className="mb-2 text-xs text-[var(--color-text-muted)]">
