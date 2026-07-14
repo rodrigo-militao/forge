@@ -335,7 +335,29 @@ export function DigestPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Sort dropdown */}
+          <button
+            onClick={handleRun}
+            disabled={running}
+            className="flex cursor-pointer items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-50"
+          >
+            <Sparkles size={16} className={running ? "animate-[spin_2s_linear_infinite]" : ""} />
+            {running ? t("digest.running") : t("digest.discoverArticles")}
+          </button>
+          <button
+            onClick={() => { queryClient.invalidateQueries({ queryKey: ["content"] }); queryClient.invalidateQueries({ queryKey: ["digest", "stats"] }); }}
+            className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 p-2 text-[var(--color-text-muted)] transition-all hover:bg-white/5 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
+            title="Refresh" aria-label="Refresh articles"
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Toolbar: filters + sort + batch newsletter */}
+      <div className="mt-3 flex items-center justify-between">
+        <FilterTabs active={activeTab} onChange={setActiveTab} counts={tabCounts} />
+        <div className="flex items-center gap-2">
+          {/* Sort */}
           <div ref={sortRef} className="relative">
             <button
               onClick={() => setShowSortDropdown(!showSortDropdown)}
@@ -362,21 +384,7 @@ export function DigestPage() {
               </div>
             )}
           </div>
-          <button
-            onClick={() => { queryClient.invalidateQueries({ queryKey: ["content"] }); queryClient.invalidateQueries({ queryKey: ["digest", "stats"] }); }}
-            className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 p-2 text-[var(--color-text-muted)] transition-all hover:bg-white/5 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
-            title="Refresh" aria-label="Refresh articles"
-          >
-            <RefreshCw size={16} />
-          </button>
-          <button
-            onClick={handleRun}
-            disabled={running}
-            className="flex cursor-pointer items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-50"
-          >
-            <Sparkles size={16} className={running ? "animate-[spin_2s_linear_infinite]" : ""} />
-            {running ? t("digest.running") : t("digest.discoverArticles")}
-          </button>
+          {/* Batch newsletter */}
           <div className="relative">
             <button
               onClick={(e) => openNewsletterSelector("batch", e)}
@@ -388,11 +396,6 @@ export function DigestPage() {
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Filter tabs */}
-      <div className="mt-3">
-        <FilterTabs active={activeTab} onChange={setActiveTab} counts={tabCounts} />
       </div>
 
       {/* Stats bar */}
