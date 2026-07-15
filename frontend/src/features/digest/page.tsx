@@ -38,12 +38,12 @@ function jobTypeDisplayName(type: string, t: (key: string) => string): string {
 
 function StatusDot({ status }: { status: DigestJob["status"] }) {
   const colors: Record<string, string> = {
-    pending: "bg-yellow-500",
-    processing: "bg-blue-500 animate-pulse",
-    done: "bg-green-500",
-    failed: "bg-red-500",
+    pending: "bg-[var(--color-text-muted)]",
+    processing: "bg-[var(--color-accent-primary)] animate-pulse",
+    done: "bg-[var(--color-accent-success)]",
+    failed: "bg-[var(--color-accent-danger)]",
   };
-  return <span className={`h-2 w-2 rounded-full ${colors[status] ?? "bg-gray-500"}`} />;
+  return <span className={`h-2 w-2 rounded-full ${colors[status] ?? "bg-[var(--color-text-muted)]"}`} />;
 }
 
 /* ───── component ───── */
@@ -280,7 +280,7 @@ export function DigestPage() {
   const openNewsletterSelector = useCallback(async (target: string, e?: React.MouseEvent) => {
     const btnRect = (e?.currentTarget as HTMLElement)?.getBoundingClientRect();
     try {
-      const editions = await api.newsletters.list({ status: "draft" });
+      const editions = await api.newsletters.list({ status: "building" });
       setDraftNewsletters(editions);
     } catch {
       setDraftNewsletters([]);
@@ -352,7 +352,7 @@ export function DigestPage() {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center max-w-md">
-          <p className="text-lg text-red-400">Failed to load content</p>
+          <p className="text-lg text-[var(--color-accent-danger)]">Failed to load content</p>
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">Try refreshing the page.</p>
         </div>
       </div>
@@ -432,7 +432,7 @@ export function DigestPage() {
                   <StatusDot status={job.status} />
                   <span className="font-medium text-[var(--color-bg-surface)]">{jobTypeDisplayName(job.type, t)}</span>
                   <span className="text-[var(--color-text-muted)]">{t(`digest.job${capitalize(job.status)}`)}</span>
-                  {job.error && <span className="text-red-400" title={job.error}>!</span>}
+                  {job.error && <span className="text-[var(--color-accent-danger)]" title={job.error}>!</span>}
                   <span className="ml-auto text-[var(--color-text-muted)]">
                     {formatTimeAgo(job.created_at, t)}
                   </span>

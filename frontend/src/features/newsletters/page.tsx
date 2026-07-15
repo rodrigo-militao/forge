@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
+import { Eye, ChevronLeft, Copy } from "lucide-react";
 import { api, type ArticleRef, type NewsletterEdition } from "../../api/client";
 import { ContentEditor } from "../../components/editor/ContentEditor";
 import { useAutosave } from "../../hooks/useAutosave";
+import { NewsletterCard } from "./components/newsletter-card";
+import { NewsletterDetailPanel } from "./components/detail-panel";
+
+const STATUS_OPTIONS = ["building", "ready", "published", "archived"] as const;
 
 export function NewslettersPage() {
   const { t } = useTranslation();
@@ -18,6 +23,10 @@ export function NewslettersPage() {
   const [removingArticle, setRemovingArticle] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [showEditor, setShowEditor] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewItem, setPreviewItem] = useState<NewsletterEdition | null>(null);
+  const articlesReqRef = useRef(0);
 
   const { data: editions, isLoading } = useQuery({
     queryKey: ["editions", { status: statusFilter || undefined, category: categoryFilter || undefined }],
@@ -34,7 +43,7 @@ export function NewslettersPage() {
 
   // Set edit fields when selecting a newsletter
   useEffect(() => {
-    if (selectedItem) {
+    if (selectedItem && !showEditor) {
       setEditTitle(selectedItem.title);
       setEditBody(selectedItem.body_html);
     }
@@ -59,6 +68,9 @@ export function NewslettersPage() {
     try {
       const edition = await api.newsletters.create({ title: "New newsletter" });
       setSelectedItem(edition);
+      setShowEditor(true);
+      setShowPreview(false);
+      setPreviewItem(null);
       setEditTitle(edition.title);
       setEditBody(edition.body_html);
       queryClient.invalidateQueries({ queryKey: ["editions"] });
@@ -69,15 +81,63 @@ export function NewslettersPage() {
 
   const handleSelect = useCallback(async (item: NewsletterEdition) => {
     setSelectedItem(item);
+    setShowEditor(false);
+    setShowPreview(false);
+    setPreviewItem(null);
     setEditTitle(item.title);
     setEditBody(item.body_html);
+    const reqId = ++articlesReqRef.current;
     setArticles([]);
     try {
       const arts = await api.newsletters.articles(item.id);
+      if (reqId !== articlesReqRef.current) return; // stale response
       setArticles(arts);
     } catch {
       // silently ignore
     }
+  }, []);
+
+  const handleEditFromDetail = useCallback((item?: NewsletterEdition) => {
+    const target = item ?? selectedItem;
+    if (!target) return;
+    setSelectedItem(target);
+    setShowEditor(true);
+    setShowPreview(false);
+    setPreviewItem(null);
+    setEditTitle(target.title);
+    setEditBody(target.body_html);
+  }, [selectedItem]);
+
+  const handlePreviewFromDetail = useCallback((item?: NewsletterEdition) => {
+    const target = item ?? selectedItem;
+    if (!target) return;
+    setPreviewItem(target);
+    setShowPreview(true);
+    setShowEditor(false);
+  }, [selectedItem]);
+
+  const handleDuplicate = useCallback(async (item: NewsletterEdition) => {
+    try {
+      const dup = await api.newsletters.duplicate(item.id);
+      toast.success("Release duplicated");
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+      setSelectedItem(dup);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to duplicate");
+    }
+  }, [queryClient]);
+
+  const handleBackFromEditor = useCallback(() => {
+    setShowEditor(false);
+  }, []);
+
+  const handleBackFromPreview = useCallback(() => {
+    setShowPreview(false);
+    setPreviewItem(null);
+  }, []);
+
+  const handleCloseDetailPanel = useCallback(() => {
+    setSelectedItem(null);
   }, []);
 
   const handleStatusChange = useCallback(async (status: string) => {
@@ -98,6 +158,18 @@ export function NewslettersPage() {
       await api.newsletters.updateCategory(selectedItem.id, category);
       setSelectedItem((prev) => prev ? { ...prev, category } : null);
       queryClient.invalidateQueries({ queryKey: ["editions"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
+  }, [selectedItem, queryClient]);
+
+  const handleDestinationChange = useCallback(async (destination: string | null) => {
+    if (!selectedItem) return;
+    try {
+      await api.newsletters.updateDestination(selectedItem.id, destination);
+      setSelectedItem((prev) => prev ? { ...prev, destination } : null);
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+      queryClient.invalidateQueries({ queryKey: ["editions", "destinations"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -172,14 +244,13 @@ export function NewslettersPage() {
     }
   }, [selectedItem, generating, t]);
 
-  // Wait for intro generation via SSE (timeout safety net)
+  // Wait for intro generation via SSE
   useEffect(() => {
     if (!generating) return;
     const timeout = setTimeout(() => setGenerating(false), 90000);
     return () => clearTimeout(timeout);
   }, [generating]);
 
-  // Detect when intro is ready — watches editions query data directly
   useEffect(() => {
     if (!generating || !selectedItem || !editions) return;
     const updated = editions.find((e) => e.id === selectedItem.id);
@@ -192,7 +263,20 @@ export function NewslettersPage() {
     }
   }, [editions, selectedItem, generating, t]);
 
-  // Loading state — skeleton with staggered shimmer
+  // Escape key closes panels
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (showPreview) { setShowPreview(false); setPreviewItem(null); return; }
+        if (showEditor) { setShowEditor(false); return; }
+        if (selectedItem) { setSelectedItem(null); }
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [showPreview, showEditor, selectedItem]);
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="mx-auto max-w-4xl p-6">
@@ -201,12 +285,12 @@ export function NewslettersPage() {
           <div className="skeleton !mb-0 !h-9 w-36 rounded-lg" />
         </div>
         <div className="mb-4 flex gap-2">
-          <div className="skeleton !mb-0 !h-7 w-16 rounded-full" />
-          <div className="skeleton !mb-0 !h-7 w-20 rounded-full" />
-          <div className="skeleton !mb-0 !h-7 w-18 rounded-full" />
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="skeleton !mb-0 !h-7 w-20 rounded-full" />
+          ))}
         </div>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="skeleton skeleton-card !mb-3 !h-20 rounded-lg"
+          <div key={i} className="skeleton skeleton-card !mb-3 !h-24 rounded-lg"
             style={{ animationDelay: `${i * 80}ms` }}
           />
         ))}
@@ -214,20 +298,44 @@ export function NewslettersPage() {
     );
   }
 
-  // Editor view — uses shared ContentEditor
-  if (selectedItem) {
+  // Preview mode — read-only rendered body
+  if (showPreview && previewItem) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 animate-[fadeIn_400ms_ease-out_forwards]">
         <button
-          onClick={() => setSelectedItem(null)}
+          onClick={handleBackFromPreview}
           className="group cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] transition-colors hover:text-[var(--color-accent-primary)]/80"
         >
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            className="transition-transform duration-[var(--duration-fast)] group-hover:animate-[arrowSlide_400ms_ease-out]"
-          >
-            <path d="M19 12H5m7-7-7 7 7 7"/>
-          </svg>
+          <ChevronLeft size={16} />
+          Back to newsletters
+        </button>
+        <div className="rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02] p-6">
+          <h1 className="mb-2 font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
+            {previewItem.title || "(no title)"}
+          </h1>
+          {previewItem.destination && (
+            <p className="mb-4 text-xs text-[var(--color-text-muted)]">
+              Destination: {previewItem.destination}
+            </p>
+          )}
+          <div
+            className="prose prose-invert max-w-none text-sm leading-relaxed text-[var(--color-bg-surface)]/90 [&_h1]:text-xl [&_h2]:text-lg [&_h3]:text-base [&_a]:text-[var(--color-accent-primary)] [&_a]:underline"
+            dangerouslySetInnerHTML={{ __html: previewItem.body_html }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Editor view
+  if (showEditor && selectedItem) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 animate-[fadeIn_400ms_ease-out_forwards]">
+        <button
+          onClick={handleBackFromEditor}
+          className="group cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] transition-colors hover:text-[var(--color-accent-primary)]/80"
+        >
+          <ChevronLeft size={16} />
           Back to newsletters
         </button>
         <ContentEditor
@@ -248,7 +356,7 @@ export function NewslettersPage() {
           titlePlaceholder={t("newsletters.titlePlaceholder")}
           onTransform={handleTransform}
         >
-          {/* Newsletter-specific: AI Intro button */}
+          {/* Newsletter-specific extras */}
           <div className="flex gap-2">
             <button
               onClick={handleGenerateIntro}
@@ -268,7 +376,6 @@ export function NewslettersPage() {
             </button>
           </div>
 
-          {/* Newsletter-specific: linked articles */}
           {articles.length > 0 && (
             <div className="space-y-3">
               <label className="text-sm font-medium text-[var(--color-bg-surface)]">Articles</label>
@@ -297,7 +404,6 @@ export function NewslettersPage() {
             </div>
           )}
 
-          {/* Newsletter-specific: category */}
           <div>
             <input
               type="text"
@@ -313,12 +419,12 @@ export function NewslettersPage() {
     );
   }
 
-  // --- List view ---
+  // --- Dashboard (split view: list + detail panel) ---
   const items = editions ?? [];
   const categories = [...new Set(items.map((e) => e.category).filter(Boolean))] as string[];
 
   return (
-    <div className="mx-auto max-w-4xl p-6 animate-[fadeIn_400ms_ease-out_forwards]">
+    <div className="p-6 animate-[fadeIn_400ms_ease-out_forwards]">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
           {t("newsletters.title")}
@@ -340,19 +446,21 @@ export function NewslettersPage() {
       {items.length > 0 && (
         <div className="mb-6 flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-[var(--color-text-muted)]">Status</span>
-          {(["draft", "published", "discarded"] as const).map((s) => (
+          {STATUS_OPTIONS.map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(statusFilter === s ? "" : s)}
               className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-95 ${
                 statusFilter === s
-                  ? s === "discarded"
-                    ? "bg-[var(--color-accent-danger)]/20 text-[var(--color-accent-danger)]"
-                    : "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
+                  ? s === "archived"
+                    ? "bg-[var(--color-text-muted)]/20 text-[var(--color-text-muted)]"
+                    : s === "ready"
+                      ? "bg-[var(--color-accent-success)]/20 text-[var(--color-accent-success)]"
+                      : "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
                   : "bg-white/[0.04] text-[var(--color-text-muted)] hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
               }`}
             >
-              {s === "published" ? "Published" : s.charAt(0).toUpperCase() + s.slice(1)}
+              {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
           {categories.length > 0 && (
@@ -369,17 +477,17 @@ export function NewslettersPage() {
               >
                 All
               </button>
-              {categories.map((cat) => (
+              {categories.map((c) => (
                 <button
-                  key={cat}
-                  onClick={() => setCategoryFilter(categoryFilter === cat ? "" : cat)}
+                  key={c}
+                  onClick={() => setCategoryFilter(categoryFilter === c ? "" : c)}
                   className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-95 ${
-                    categoryFilter === cat
+                    categoryFilter === c
                       ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
                       : "bg-white/[0.04] text-[var(--color-text-muted)] hover:bg-white/10"
                   }`}
                 >
-                  {cat}
+                  {c}
                 </button>
               ))}
             </>
@@ -387,70 +495,61 @@ export function NewslettersPage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {items.length === 0 && (
-        <div className="flex flex-col items-center py-16 opacity-0 animate-[fadeIn_500ms_ease-out_forwards]">
-          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-accent-primary)]/10">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="2" />
-              <path d="M2 8l10 6 10-6" />
-            </svg>
-          </div>
-          <h2 className="font-[var(--font-display)] text-xl text-[var(--color-bg-surface)]">
-            {t("newsletters.title")}
-          </h2>
-          <p className="mt-2 max-w-sm text-center text-sm text-[var(--color-text-muted)]">
-            {t("newsletters.emptyDesc")}
-          </p>
-          <button
-            onClick={handleCreate}
-            className="mt-6 cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-5 py-2.5 text-sm font-medium text-white transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-accent-primary)]/90 hover:scale-[1.03] active:scale-[0.97]"
-          >
-            {t("newsletters.createNew")}
-          </button>
-        </div>
-      )}
-
-      {/* Newsletter cards */}
-      {items.length > 0 && (
-        <div className="space-y-2">
-          {items.map((item, idx) => (
-            <button
-              key={item.id}
-              onClick={() => handleSelect(item)}
-              style={{ animationDelay: `${idx * 50}ms` }}
-              className="group w-full cursor-pointer rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02] p-4 text-left opacity-0 animate-[slideUp_400ms_ease-out_forwards] transition-all duration-[var(--duration-base)] hover:-translate-y-0.5 hover:border-[var(--color-accent-primary)]/20 hover:bg-white/[0.06] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)] active:translate-y-0"
-            >
-              <div className="flex items-center gap-2">
-                <h3 className="truncate font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
-                <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${
-                  item.status === "published"
-                    ? "bg-[var(--color-accent-success)]/20 text-[var(--color-accent-success)]"
-                    : item.status === "discarded"
-                      ? "bg-[var(--color-accent-danger)]/20 text-[var(--color-accent-danger)]"
-                      : "bg-white/10 text-[var(--color-text-muted)]"
-                }`}>
-                  {item.status === "published" ? "Published" : item.status === "discarded" ? "Discarded" : "Draft"}
-                </span>
-                {item.category && (
-                  <span className="shrink-0 rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-primary)]">
-                    {item.category}
-                  </span>
-                )}
+      {/* Dashboard list + optional detail panel */}
+      <div className="flex gap-0">
+        <div className={selectedItem ? "flex-1 min-w-0" : "w-full max-w-2xl"}>
+          <div className="space-y-2">
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                style={{ animationDelay: `${idx * 40}ms` }}
+                className="opacity-0 animate-[fadeIn_300ms_ease-out_forwards]"
+              >
+                <NewsletterCard
+                  item={item}
+                  isSelected={selectedItem?.id === item.id}
+                  onClick={handleSelect}
+                  onEdit={handleEditFromDetail}
+                  onPreview={handlePreviewFromDetail}
+                  onDuplicate={handleDuplicate}
+                />
               </div>
-              {item.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {item.tags.map((tag) => (
-                    <span key={tag} className="rounded bg-white/10 px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </button>
-          ))}
+            ))}
+          </div>
+
+          {items.length === 0 && (
+            <div className="mt-16 flex flex-col items-center gap-4 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.04]">
+                <Copy size={28} className="text-[var(--color-text-muted)]" />
+              </div>
+              <p className="text-sm text-[var(--color-text-muted)]">
+                {statusFilter || categoryFilter
+                  ? "No releases match the current filter."
+                  : "No releases yet. Create your first newsletter release."}
+              </p>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Detail panel */}
+        {selectedItem && (
+          <NewsletterDetailPanel
+            item={selectedItem}
+            articles={articles}
+            removingArticle={removingArticle}
+            generating={generating}
+            onClose={handleCloseDetailPanel}
+            onEdit={() => handleEditFromDetail()}
+            onPreview={() => handlePreviewFromDetail()}
+            onDuplicate={handleDuplicate}
+            onStatusChange={handleStatusChange}
+            onCategoryChange={handleCategoryChange}
+            onRemoveArticle={handleRemoveArticle}
+            onGenerateIntro={handleGenerateIntro}
+            onDestinationChange={handleDestinationChange}
+          />
+        )}
+      </div>
     </div>
   );
 }

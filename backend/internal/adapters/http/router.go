@@ -105,10 +105,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Route("/api/editions", func(r chi.Router) {
 			r.Get("/", editionH.List)
 			r.Post("/", editionH.Create)
+			r.Get("/destinations", editionH.ListDestinations)
 			r.Get("/{id}", editionH.GetByID)
 			r.Put("/{id}/body", editionH.UpdateBody)
 			r.Put("/{id}/status", editionH.UpdateStatus)
 			r.Put("/{id}/category", editionH.UpdateCategory)
+			r.Put("/{id}/destination", editionH.UpdateDestination)
+			r.Post("/{id}/duplicate", editionH.Duplicate)
 			r.Post("/{id}/tags/{tag}", editionH.AddTag)
 			r.Delete("/{id}/tags/{tag}", editionH.RemoveTag)
 			r.Post("/{id}/generate-intro", editionH.GenerateIntro)

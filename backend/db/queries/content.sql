@@ -160,5 +160,5 @@ FROM (
 CROSS JOIN (
   SELECT COUNT(*) AS draft_count
   FROM newsletter_editions
-  WHERE user_id = $1 AND status = 'draft'
+  WHERE user_id = $1 AND status = 'building'
 ) ne;

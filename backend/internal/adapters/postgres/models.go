@@ -83,6 +83,7 @@ type NewsletterEdition struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 	Category     *string
+	Destination  *string
 }
 
 type NewsletterEditionTag struct {

@@ -119,8 +119,10 @@ export interface NewsletterEdition {
   title: string;
   body_html: string;
   category: string | null;
-  status: "draft" | "published" | "discarded";
+  status: "building" | "ready" | "published" | "archived";
+  destination: string | null;
   tags: string[];
+  article_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -239,5 +241,11 @@ export const api = {
       request<{ status: string }>(`/editions/${newsletterID}/articles`, { method: "POST", body: JSON.stringify({ content_id: contentID }) }),
     removeArticle: (newsletterID: string, contentID: string) =>
       request<{ status: string }>(`/editions/${newsletterID}/articles/${contentID}`, { method: "DELETE" }),
+    duplicate: (id: string) =>
+      request<NewsletterEdition>(`/editions/${id}/duplicate`, { method: "POST" }),
+    updateDestination: (id: string, destination: string | null) =>
+      request<{ status: string }>(`/editions/${id}/destination`, { method: "PUT", body: JSON.stringify({ destination }) }),
+    listDestinations: () =>
+      request<string[]>("/editions/destinations"),
   },
 };
