@@ -1,14 +1,22 @@
 {
   "nav": {
-    "digest": "Digest",
-    "compose": "Compose",
+    "discover": "Discover",
+    "content": "Content",
+    "articles": "Articles",
+    "ideas": "Ideas",
+    "newsletters": "Newsletters",
     "library": "Library",
     "settings": "Settings",
-    "newsletters": "Newsletters",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
     "back": "Back",
     "backToList": "Back to list"
+  },
+  "create": {
+    "title": "Create",
+    "article": "Article",
+    "newsletter": "Newsletter",
+    "idea": "Idea"
   },
   "auth": {
     "login": "Log in",
@@ -21,7 +29,7 @@
     "hasAccount": "Already have an account?"
   },
   "digest": {
-    "title": "Digest",
+    "title": "Discover",
     "run": "Run discovery",
     "running": "Running…",
     "noContent": "No curated content yet. Run a discovery to get started.",
@@ -103,7 +111,7 @@
     "detailNew": "New"
   },
   "compose": {
-    "title": "Compose",
+    "title": "Articles",
     "generateTopic": "Generate topic",
     "writeArticle": "Write article",
     "noTopics": "No topics yet. Generate one to start writing.",
@@ -120,7 +128,8 @@
     "empty": "No content yet.",
     "showDeleted": "Show deleted",
     "tagFilter": "Filter by tag…",
-    "showUsedInEdition": "Show already sent to Assemble"
+    "showUsedInEdition": "Show already sent to Assemble",
+    "sourceBadge": "Discover"
   },
   "editor": {
     "tags": "Tags",
@@ -142,10 +151,10 @@
     "preferences": "Preferences",
     "language": "Language",
     "sources": "Content sources",
-    "digest": "Digest settings",
+    "discover": "Discover settings",
     "compose": "Compose settings",
     "interests": "Interests",
-    "interestsHint": "Topics or keywords to include in the daily Digest curation",
+    "interestsHint": "Topics or keywords to include in the daily Discover curation",
     "addInterest": "Add interest",
     "deleteInterest": "Remove",
     "interestPlaceholder": "e.g. Go generics, distributed systems",
@@ -168,16 +177,40 @@
     "monthlyUsage": "Monthly generations",
     "maxSourcesReached": "Active sources limit reached. Deactivate another source first.",
     "maxInterestsReached": "Active interests limit reached. Deactivate another interest first.",
-    "restrictSearch": "Digest crawls only my configured sources",
+    "restrictSearch": "Discover crawls only my configured sources",
     "sourceQueryPlaceholder": "e.g. golang best practices",
     "save": "Save",
     "cancel": "Cancel",
-    "sourcesHint": "RSS feeds and web searches that feed content into your Digest",
+    "sourcesHint": "RSS feeds and web searches that feed content into your Discover",
     "noSources": "No sources yet. Add one to start curating.",
     "theme": "Theme",
     "themeDark": "Dark",
     "themeLight": "Light",
     "themeUpdated": "Theme updated"
+  },
+  "ideas": {
+    "title": "Ideas",
+    "empty": "No ideas yet.",
+    "emptyDesc": "Capture ideas for future articles.",
+    "contextPlaceholder": "What's the context or motivation for this idea?",
+    "notesPlaceholder": "Additional notes…",
+    "referencesPlaceholder": "Links or references…",
+    "priority": "Priority",
+    "status": "Status",
+    "statusOpen": "Open",
+    "statusInProgress": "In progress",
+    "statusUsed": "Used",
+    "statusArchived": "Archived",
+    "priorityLow": "Low",
+    "priorityMedium": "Medium",
+    "priorityHigh": "High",
+    "createNew": "New idea",
+    "created": "Idea created",
+    "updated": "Idea updated",
+    "deleted": "Idea deleted",
+    "deleteConfirm": "Delete this idea?",
+    "promoteToArticle": "Promote to Article",
+    "promoted": "Idea promoted to article"
   },
   "newsletters": {
     "title": "Newsletters",

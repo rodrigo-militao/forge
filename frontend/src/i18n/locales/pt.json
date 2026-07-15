@@ -1,14 +1,22 @@
 {
   "nav": {
-    "digest": "Digest",
-    "compose": "Compor",
+    "discover": "Discover",
+    "content": "Conteúdo",
+    "articles": "Artigos",
+    "ideas": "Ideias",
+    "newsletters": "Newsletters",
     "library": "Biblioteca",
     "settings": "Configurações",
-    "newsletters": "Newsletters",
     "collapse": "Recolher sidebar",
     "expand": "Expandir sidebar",
     "back": "Voltar",
     "backToList": "Voltar à lista"
+  },
+  "create": {
+    "title": "Criar",
+    "article": "Artigo",
+    "newsletter": "Newsletter",
+    "idea": "Ideia"
   },
   "auth": {
     "login": "Entrar",
@@ -21,7 +29,7 @@
     "hasAccount": "Já tem conta?"
   },
   "digest": {
-    "title": "Digest",
+    "title": "Discover",
     "run": "Rodar descoberta",
     "running": "Executando…",
     "noContent": "Nenhum conteúdo curado ainda. Execute uma descoberta para começar.",
@@ -103,7 +111,7 @@
     "detailNew": "Novo"
   },
   "compose": {
-    "title": "Compor",
+    "title": "Artigos",
     "generateTopic": "Gerar tópico",
     "writeArticle": "Escrever artigo",
     "noTopics": "Nenhum tópico ainda. Gere um para começar a escrever.",
@@ -134,17 +142,18 @@
     "discarded": "Descartado",
     "empty": "Nenhum conteúdo ainda.",
     "showDeleted": "Mostrar excluídos",
-    "tagFilter": "Filtrar por tag…"
+    "tagFilter": "Filtrar por tag…",
+    "sourceBadge": "Discover"
   },
   "settings": {
     "title": "Configurações",
     "preferences": "Preferências",
     "language": "Idioma",
     "sources": "Fontes de conteúdo",
-    "digest": "Configurações do Digest",
+    "discover": "Configurações do Discover",
     "compose": "Configurações do Compose",
     "interests": "Interesses",
-    "interestsHint": "Tópicos ou palavras-chave para incluir na curadoria diária do Digest",
+    "interestsHint": "Tópicos ou palavras-chave para incluir na curadoria diária do Discover",
     "addInterest": "Adicionar interesse",
     "deleteInterest": "Remover",
     "interestPlaceholder": "ex.: Go generics, sistemas distribuídos",
@@ -164,7 +173,7 @@
     "sourceQueryPlaceholder": "ex.: golang melhores práticas",
     "save": "Salvar",
     "cancel": "Cancelar",
-    "sourcesHint": "Feeds RSS e pesquisas web que alimentam conteúdo ao seu Digest",
+    "sourcesHint": "Feeds RSS e pesquisas web que alimentam conteúdo ao seu Discover",
     "noSources": "Nenhuma fonte configurada. Adicione um feed RSS ou busca web para começar.",
     "planLimits": "Limites do plano",
     "activeSources": "Fontes ativas",
@@ -172,11 +181,35 @@
     "monthlyUsage": "Gerações mensais",
     "maxSourcesReached": "Limite de fontes ativas atingido. Desative outra fonte primeiro.",
     "maxInterestsReached": "Limite de interesses ativos atingido. Desative outro interesse primeiro.",
-    "restrictSearch": "Digest busca apenas nas minhas fontes configuradas",
+    "restrictSearch": "Discover busca apenas nas minhas fontes configuradas",
     "theme": "Tema",
     "themeDark": "Escuro",
     "themeLight": "Claro",
     "themeUpdated": "Tema atualizado"
+  },
+  "ideas": {
+    "title": "Ideias",
+    "empty": "Nenhuma ideia ainda.",
+    "emptyDesc": "Capture ideias para artigos futuros.",
+    "contextPlaceholder": "Qual o contexto ou motivação para esta ideia?",
+    "notesPlaceholder": "Notas adicionais…",
+    "referencesPlaceholder": "Links ou referências…",
+    "priority": "Prioridade",
+    "status": "Status",
+    "statusOpen": "Aberta",
+    "statusInProgress": "Em progresso",
+    "statusUsed": "Utilizada",
+    "statusArchived": "Arquivada",
+    "priorityLow": "Baixa",
+    "priorityMedium": "Média",
+    "priorityHigh": "Alta",
+    "createNew": "Nova ideia",
+    "created": "Ideia criada",
+    "updated": "Ideia atualizada",
+    "deleted": "Ideia excluída",
+    "deleteConfirm": "Excluir esta ideia?",
+    "promoteToArticle": "Promover a Artigo",
+    "promoted": "Ideia promovida a artigo"
   },
   "newsletters": {
     "title": "Newsletters",

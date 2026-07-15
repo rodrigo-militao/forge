@@ -267,7 +267,7 @@ export function SettingsPage() {
           ))}
           {interests?.length === 0 && (
             <p className="text-xs text-[var(--color-text-muted)]">
-              No interests yet. Add some to focus your Digest curation.
+              No interests yet. Add some to focus your Discover curation.
             </p>
           )}
         </ul>
