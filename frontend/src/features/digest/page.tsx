@@ -13,8 +13,6 @@ import { DetailPanel } from "./components/detail-panel";
 
 /* ───── processing step labels ───── */
 
-const PROCESSING_STEPS = 1; // number of steps (just "discovering")
-
 /* ───── sort helpers ───── */
 
 type SortKey = "newest" | "oldest" | "title";
@@ -61,9 +59,6 @@ export function DigestPage() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
   const runningSinceRef = useRef(0);
-
-  // Processing step delight
-  const [processingStep, setProcessingStep] = useState(0);
 
   // Newsletter selector state
   const [newsletterAnchor, setNewsletterAnchor] = useState<{

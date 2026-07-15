@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
-import { Lightbulb, Plus, Trash2, ArrowUpRight, Tag, X, ChevronDown, Archive, ArrowRight } from "lucide-react";
+import { Lightbulb, Plus, ArrowUpRight, Tag, X, Archive, ArrowRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api, type Idea } from "../../api/client";
@@ -36,11 +36,6 @@ export function IdeasPage() {
   const { data: ideas = [] } = useQuery({
     queryKey: ["ideas"],
     queryFn: api.ideas.list,
-  });
-
-  const { data: availableTags = [] } = useQuery({
-    queryKey: ["tags"],
-    queryFn: api.content.listTags,
   });
 
   const resetForm = () => {

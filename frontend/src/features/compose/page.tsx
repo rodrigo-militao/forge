@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PenLine, Plus, Sparkles, WandSparkles, X, FileText, ChevronRight } from "lucide-react";
+import { PenLine, Sparkles, WandSparkles, X, FileText, ChevronRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api, type ContentItem } from "../../api/client";
 import { useJobPolling } from "../../hooks/useJobPolling";
 import { TiptapEditor } from "../../components/editor/TiptapEditor";
+import type { Editor } from "@tiptap/react";
 
 type Mode = "ai" | "blank";
 type AiStep = "topic" | "outline" | "draft";
@@ -27,7 +28,6 @@ export function ComposePage() {
   const [aiStep, setAiStep] = useState<AiStep>("topic");
 
   const { data: content } = useQuery({ queryKey: ["content"], queryFn: api.content.list });
-  const { data: availableTags } = useQuery({ queryKey: ["tags"], queryFn: api.content.listTags });
   const items = content?.filter((c) => c.product === "compose") ?? [];
 
   useJobPolling(generating, items.length, { interval: 3000, timeout: 60000, filter: (c) => c.product === "compose", onComplete: () => { setGenerating(false); toast.success("Draft ready in Library"); }, onTimeout: () => { setGenerating(false); } });
@@ -66,7 +66,8 @@ export function ComposePage() {
     }
   }, [selectedItem, editTitle, editBody, editOutline, queryClient]);
 
-  const handleTransform = useCallback(async (text: string, action: "expand" | "rewrite") => {
+  const handleTransform = useCallback(async (action: "expand" | "rewrite", editor: Editor) => {
+    const text = editor.getText();
     try {
       const result = await api.compose.transform(text, action);
       toast.success(`${action} queued (${result.item_count} items)`);
