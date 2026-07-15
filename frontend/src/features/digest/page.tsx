@@ -160,7 +160,6 @@ export function DigestPage() {
     if (content === undefined) return;
     setRunning(true);
     runningSinceRef.current = Date.now();
-    setProcessingStep(1);
   }, [running, stats?.active_job_status, content]);
 
   // Safety timeout: stop running after 60s if SSE never fires
@@ -168,7 +167,6 @@ export function DigestPage() {
     if (!running) return;
     const timer = setTimeout(() => {
       setRunning(false);
-      setProcessingStep(3);
     }, 60000);
     return () => clearTimeout(timer);
   }, [running]);
@@ -179,15 +177,8 @@ export function DigestPage() {
     if (dataUpdatedAt > runningSinceRef.current) {
       runningSinceRef.current = 0;
       setRunning(false);
-      setProcessingStep(3);
     }
   }, [dataUpdatedAt, running]);
-
-  // Processing step — always "discovering" until content arrives
-  useEffect(() => {
-    if (!running) return;
-    setProcessingStep(0);
-  }, [running]);
 
   // Close sort dropdown on outside click
   useEffect(() => {
@@ -226,7 +217,6 @@ export function DigestPage() {
 
   const handleRun = useCallback(async () => {
     setRunning(true);
-    setProcessingStep(0);
     runningSinceRef.current = Date.now();
     try {
       await api.digest.run();
