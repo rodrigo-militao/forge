@@ -83,6 +83,14 @@ func (r *ContentRepository) UpdateBody(ctx context.Context, id uuid.UUID, title,
 	return err
 }
 
+func (r *ContentRepository) UpdateOutline(ctx context.Context, id uuid.UUID, outline *string) error {
+	_, err := r.q.UpdateContentOutline(ctx, UpdateContentOutlineParams{
+		ID:      uuidToPgtype(id),
+		Outline: outline,
+	})
+	return err
+}
+
 func (r *ContentRepository) AddCategory(ctx context.Context, id uuid.UUID, category string) error {
 	qtx, tx, err := beginTx(ctx, r.pool, r.q)
 	if err != nil {
@@ -417,6 +425,7 @@ func contentFromModel(c GeneratedContent) *domain.GeneratedContent {
 		SourceType:   c.SourceType,
 		Title:        c.Title,
 		BodyMarkdown: c.BodyMarkdown,
+		Outline:      c.Outline,
 		Metadata:     c.Metadata,
 		Origin:       domain.ContentOrigin(c.Origin),
 		Categories:   cats,

@@ -32,7 +32,7 @@ const addArticleCategoryArray = `-- name: AddArticleCategoryArray :one
 UPDATE generated_content
 SET categories = array_append(categories, $2), updated_at = now()
 WHERE id = $1 AND NOT ($2 = ANY(categories))
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline
 `
 
 type AddArticleCategoryArrayParams struct {
@@ -59,6 +59,7 @@ func (q *Queries) AddArticleCategoryArray(ctx context.Context, arg AddArticleCat
 		&i.Category,
 		&i.Tags,
 		&i.Categories,
+		&i.Outline,
 	)
 	return i, err
 }
@@ -67,7 +68,7 @@ const addContentTagArray = `-- name: AddContentTagArray :one
 UPDATE generated_content
 SET tags = array_append(tags, $2), updated_at = now()
 WHERE id = $1 AND NOT ($2 = ANY(tags))
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline
 `
 
 type AddContentTagArrayParams struct {
@@ -94,6 +95,7 @@ func (q *Queries) AddContentTagArray(ctx context.Context, arg AddContentTagArray
 		&i.Category,
 		&i.Tags,
 		&i.Categories,
+		&i.Outline,
 	)
 	return i, err
 }
@@ -153,7 +155,7 @@ const createContent = `-- name: CreateContent :one
 
 INSERT INTO generated_content (user_id, product, status, source_type, title, body_markdown, metadata, origin)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline
 `
 
 type CreateContentParams struct {
@@ -196,6 +198,7 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (G
 		&i.Category,
 		&i.Tags,
 		&i.Categories,
+		&i.Outline,
 	)
 	return i, err
 }
@@ -275,7 +278,7 @@ func (q *Queries) GetCategoryByLabel(ctx context.Context, arg GetCategoryByLabel
 }
 
 const getContentByID = `-- name: GetContentByID :one
-SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories FROM generated_content WHERE id = $1
+SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline FROM generated_content WHERE id = $1
 `
 
 func (q *Queries) GetContentByID(ctx context.Context, id pgtype.UUID) (GeneratedContent, error) {
@@ -297,6 +300,7 @@ func (q *Queries) GetContentByID(ctx context.Context, id pgtype.UUID) (Generated
 		&i.Category,
 		&i.Tags,
 		&i.Categories,
+		&i.Outline,
 	)
 	return i, err
 }
@@ -319,7 +323,7 @@ FROM (
 CROSS JOIN (
   SELECT COUNT(*) AS draft_count
   FROM newsletter_editions
-  WHERE user_id = $1 AND status = 'draft'
+  WHERE user_id = $1 AND status = 'building'
 ) ne
 `
 
@@ -421,7 +425,7 @@ func (q *Queries) ListArticleCategories(ctx context.Context, articleID pgtype.UU
 }
 
 const listContentByUser = `-- name: ListContentByUser :many
-SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories FROM generated_content
+SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline FROM generated_content
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -451,6 +455,7 @@ func (q *Queries) ListContentByUser(ctx context.Context, userID pgtype.UUID) ([]
 			&i.Category,
 			&i.Tags,
 			&i.Categories,
+			&i.Outline,
 		); err != nil {
 			return nil, err
 		}
@@ -463,7 +468,7 @@ func (q *Queries) ListContentByUser(ctx context.Context, userID pgtype.UUID) ([]
 }
 
 const listContentWithoutCategory = `-- name: ListContentWithoutCategory :many
-SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories FROM generated_content
+SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline FROM generated_content
 WHERE user_id = $1 AND product = 'digest' AND categories = '{}' AND deleted_at IS NULL
 ORDER BY created_at DESC
 LIMIT $2
@@ -499,6 +504,7 @@ func (q *Queries) ListContentWithoutCategory(ctx context.Context, arg ListConten
 			&i.Category,
 			&i.Tags,
 			&i.Categories,
+			&i.Outline,
 		); err != nil {
 			return nil, err
 		}
@@ -581,7 +587,7 @@ const removeArticleCategoryArray = `-- name: RemoveArticleCategoryArray :one
 UPDATE generated_content
 SET categories = array_remove(categories, $2), updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline
 `
 
 type RemoveArticleCategoryArrayParams struct {
@@ -608,6 +614,7 @@ func (q *Queries) RemoveArticleCategoryArray(ctx context.Context, arg RemoveArti
 		&i.Category,
 		&i.Tags,
 		&i.Categories,
+		&i.Outline,
 	)
 	return i, err
 }
@@ -616,7 +623,7 @@ const removeContentTagArray = `-- name: RemoveContentTagArray :one
 UPDATE generated_content
 SET tags = array_remove(tags, $2), updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline
 `
 
 type RemoveContentTagArrayParams struct {
@@ -643,6 +650,7 @@ func (q *Queries) RemoveContentTagArray(ctx context.Context, arg RemoveContentTa
 		&i.Category,
 		&i.Tags,
 		&i.Categories,
+		&i.Outline,
 	)
 	return i, err
 }
@@ -681,7 +689,7 @@ const softDeleteContent = `-- name: SoftDeleteContent :one
 UPDATE generated_content
 SET deleted_at = now(), updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline
 `
 
 func (q *Queries) SoftDeleteContent(ctx context.Context, id pgtype.UUID) (GeneratedContent, error) {
@@ -703,6 +711,7 @@ func (q *Queries) SoftDeleteContent(ctx context.Context, id pgtype.UUID) (Genera
 		&i.Category,
 		&i.Tags,
 		&i.Categories,
+		&i.Outline,
 	)
 	return i, err
 }
@@ -711,7 +720,7 @@ const updateContentBody = `-- name: UpdateContentBody :one
 UPDATE generated_content
 SET title = COALESCE($2, title), body_markdown = COALESCE($3, body_markdown), updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline
 `
 
 type UpdateContentBodyParams struct {
@@ -739,6 +748,43 @@ func (q *Queries) UpdateContentBody(ctx context.Context, arg UpdateContentBodyPa
 		&i.Category,
 		&i.Tags,
 		&i.Categories,
+		&i.Outline,
+	)
+	return i, err
+}
+
+const updateContentOutline = `-- name: UpdateContentOutline :one
+UPDATE generated_content
+SET outline = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline
+`
+
+type UpdateContentOutlineParams struct {
+	ID      pgtype.UUID
+	Outline *string
+}
+
+func (q *Queries) UpdateContentOutline(ctx context.Context, arg UpdateContentOutlineParams) (GeneratedContent, error) {
+	row := q.db.QueryRow(ctx, updateContentOutline, arg.ID, arg.Outline)
+	var i GeneratedContent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Product,
+		&i.Status,
+		&i.SourceType,
+		&i.Title,
+		&i.BodyMarkdown,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Origin,
+		&i.DeletedAt,
+		&i.Category,
+		&i.Tags,
+		&i.Categories,
+		&i.Outline,
 	)
 	return i, err
 }
@@ -747,7 +793,7 @@ const updateContentStatus = `-- name: UpdateContentStatus :one
 UPDATE generated_content
 SET status = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories
+RETURNING id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline
 `
 
 type UpdateContentStatusParams struct {
@@ -774,6 +820,7 @@ func (q *Queries) UpdateContentStatus(ctx context.Context, arg UpdateContentStat
 		&i.Category,
 		&i.Tags,
 		&i.Categories,
+		&i.Outline,
 	)
 	return i, err
 }

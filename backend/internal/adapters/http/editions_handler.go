@@ -15,7 +15,7 @@ import (
 	"github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
-// EditionHandler serves the /api/editions endpoints (ADR 0042).
+// EditionHandler serves the /api/editions endpoints (ADR 0042, ADR 0046).
 type EditionHandler struct {
 	editions domain.EditionRepository
 	jobs     ports.JobRepository
@@ -95,9 +95,17 @@ func (h *EditionHandler) List(w http.ResponseWriter, r *http.Request) {
 	if editions == nil {
 		editions = []domain.Edition{}
 	}
+
+	// Load article counts in batch
+	ids := make([]uuid.UUID, len(editions))
+	for i, e := range editions {
+		ids[i] = e.ID
+	}
+	counts, _ := h.editions.ListArticleCounts(r.Context(), ids)
+
 	result := make([]editionResponse, len(editions))
 	for i, e := range editions {
-		result[i] = editionToResponse(e)
+		result[i] = editionToResponse(e, counts[e.ID])
 	}
 	writeJSON(w, http.StatusOK, result)
 }
@@ -107,8 +115,9 @@ func (h *EditionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID, _ := UserIDFromContext(r.Context())
 
 	var req struct {
-		Title    string  `json:"title"`
-		Category *string `json:"category"`
+		Title       string  `json:"title"`
+		Category    *string `json:"category"`
+		Destination *string `json:"destination"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body")
@@ -116,8 +125,10 @@ func (h *EditionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	edition := &domain.Edition{
-		UserID: userID,
-		Title:  req.Title,
+		UserID:      userID,
+		Title:       req.Title,
+		Status:      domain.EditionBuilding,
+		Destination: req.Destination,
 	}
 	if req.Category != nil && *req.Category != "" {
 		edition.Category = req.Category
@@ -128,7 +139,7 @@ func (h *EditionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create edition")
 		return
 	}
-	writeJSON(w, http.StatusCreated, editionToResponse(*edition))
+	writeJSON(w, http.StatusCreated, editionToResponse(*edition, 0))
 }
 
 // GET /api/editions/{id}
@@ -137,7 +148,8 @@ func (h *EditionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if edition == nil {
 		return
 	}
-	writeJSON(w, http.StatusOK, editionToResponse(*edition))
+	counts, _ := h.editions.ListArticleCounts(r.Context(), []uuid.UUID{edition.ID})
+	writeJSON(w, http.StatusOK, editionToResponse(*edition, counts[edition.ID]))
 }
 
 // PUT /api/editions/{id}/body
@@ -180,10 +192,8 @@ func (h *EditionHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s := domain.EditionStatus(req.Status)
-	switch s {
-	case domain.EditionDraft, domain.EditionPublished, domain.EditionDiscarded:
-	default:
-		writeError(w, http.StatusBadRequest, "invalid status")
+	if err := edition.Status.ValidateTransition(s); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -296,8 +306,8 @@ func (h *EditionHandler) GenerateIntro(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusAccepted, map[string]any{
-		"job_id":  job.ID.String(),
-		"status":  "enqueued",
+		"job_id": job.ID.String(),
+		"status": "enqueued",
 	})
 }
 
@@ -365,6 +375,65 @@ func (h *EditionHandler) RemoveArticle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "article removed"})
 }
 
+// POST /api/editions/{id}/duplicate
+func (h *EditionHandler) Duplicate(w http.ResponseWriter, r *http.Request) {
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
+		return
+	}
+
+	dup, err := h.editions.Duplicate(r.Context(), edition.ID)
+	if err != nil {
+		slog.Error("editions: duplicate failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to duplicate")
+		return
+	}
+	writeJSON(w, http.StatusCreated, editionToResponse(*dup, 0))
+}
+
+// PUT /api/editions/{id}/destination
+func (h *EditionHandler) UpdateDestination(w http.ResponseWriter, r *http.Request) {
+	edition := h.editionFromRequest(w, r)
+	if edition == nil {
+		return
+	}
+
+	var req struct {
+		Destination *string `json:"destination"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+
+	dest := req.Destination
+	if dest != nil && *dest == "" {
+		dest = nil
+	}
+	if err := h.editions.UpdateDestination(r.Context(), edition.ID, dest); err != nil {
+		slog.Error("editions: update destination failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to update destination")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+// GET /api/editions/destinations
+func (h *EditionHandler) ListDestinations(w http.ResponseWriter, r *http.Request) {
+	userID, _ := UserIDFromContext(r.Context())
+
+	dests, err := h.editions.ListUsedDestinations(r.Context(), userID)
+	if err != nil {
+		slog.Error("editions: list destinations failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to list destinations")
+		return
+	}
+	if dests == nil {
+		dests = []string{}
+	}
+	writeJSON(w, http.StatusOK, dests)
+}
+
 // writeNotFoundOrErr writes 404 if err is ErrNotFound, else 500.
 func writeNotFoundOrErr(w http.ResponseWriter, err error) bool {
 	if errors.Is(err, coredomain.ErrNotFound) {
@@ -377,31 +446,35 @@ func writeNotFoundOrErr(w http.ResponseWriter, err error) bool {
 
 // Response DTO
 type editionResponse struct {
-	ID          uuid.UUID `json:"id"`
-	UserID      uuid.UUID `json:"user_id"`
-	Title       string    `json:"title"`
-	BodyHTML    string    `json:"body_html"`
-	Category    *string   `json:"category"`
-	Status      string    `json:"status"`
-	Tags        []string  `json:"tags"`
-	CreatedAt   string    `json:"created_at"`
-	UpdatedAt   string    `json:"updated_at"`
+	ID            uuid.UUID `json:"id"`
+	UserID        uuid.UUID `json:"user_id"`
+	Title         string    `json:"title"`
+	BodyHTML      string    `json:"body_html"`
+	Category      *string   `json:"category"`
+	Status        string    `json:"status"`
+	Destination   *string   `json:"destination"`
+	Tags          []string  `json:"tags"`
+	ArticleCount  int       `json:"article_count"`
+	CreatedAt     string    `json:"created_at"`
+	UpdatedAt     string    `json:"updated_at"`
 }
 
-func editionToResponse(e domain.Edition) editionResponse {
+func editionToResponse(e domain.Edition, articleCount int) editionResponse {
 	tags := e.Tags
 	if tags == nil {
 		tags = []string{}
 	}
 	return editionResponse{
-		ID:        e.ID,
-		UserID:    e.UserID,
-		Title:     e.Title,
-		BodyHTML:  e.Introduction,
-		Category:  e.Category,
-		Status:    string(e.Status),
-		Tags:      tags,
-		CreatedAt: e.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: e.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:           e.ID,
+		UserID:       e.UserID,
+		Title:        e.Title,
+		BodyHTML:     e.Introduction,
+		Category:     e.Category,
+		Status:       string(e.Status),
+		Destination:  e.Destination,
+		Tags:         tags,
+		ArticleCount: articleCount,
+		CreatedAt:    e.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:    e.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }

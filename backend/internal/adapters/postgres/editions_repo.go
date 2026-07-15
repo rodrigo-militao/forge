@@ -35,6 +35,7 @@ func (r *EditionRepository) Create(ctx context.Context, edition *digest.Edition)
 		Title:        edition.Title,
 		Introduction: edition.Introduction,
 		Category:     edition.Category,
+		Destination:  edition.Destination,
 	})
 	if err != nil {
 		return err
@@ -85,6 +86,7 @@ func (r *EditionRepository) GetByID(ctx context.Context, id uuid.UUID) (*digest.
 		Title:        row.Title,
 		Introduction: row.Introduction,
 		Category:     row.Category,
+		Destination:  row.Destination,
 		Status:       digest.EditionStatus(row.Status),
 		Tags:         r.loadTags(ctx, row.ID),
 		CreatedAt:    row.CreatedAt.Time,
@@ -117,6 +119,7 @@ func (r *EditionRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([
 			Title:        row.Title,
 			Introduction: row.Introduction,
 			Category:     row.Category,
+			Destination:  row.Destination,
 			Status:       digest.EditionStatus(row.Status),
 			Tags:         tags,
 			CreatedAt:    row.CreatedAt.Time,
@@ -155,6 +158,7 @@ func (r *EditionRepository) ListByUserFiltered(ctx context.Context, userID uuid.
 			Title:        row.Title,
 			Introduction: row.Introduction,
 			Category:     row.Category,
+			Destination:  row.Destination,
 			Status:       digest.EditionStatus(row.Status),
 			Tags:         tags,
 			CreatedAt:    row.CreatedAt.Time,
@@ -281,4 +285,81 @@ func (r *EditionRepository) ListArticleIDsInAnyNewsletter(ctx context.Context, u
 		ids = append(ids, row.Bytes)
 	}
 	return ids, nil
+}
+
+func (r *EditionRepository) Duplicate(ctx context.Context, editionID uuid.UUID) (*digest.Edition, error) {
+	original, err := r.GetByID(ctx, editionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Copy only metadata: title, destination, tags. No body, no articles.
+	row, err := r.q.DuplicateEdition(ctx, DuplicateEditionParams{
+		UserID:      uuidToPgtype(original.UserID),
+		Title:       original.Title,
+		Destination: original.Destination,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Copy tags from original to duplicate.
+	for _, tag := range original.Tags {
+		err = r.AddTag(ctx, row.ID.Bytes, tag)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &digest.Edition{
+		ID:          row.ID.Bytes,
+		UserID:      row.UserID.Bytes,
+		Title:       row.Title,
+		Status:      digest.EditionBuilding,
+		Destination: row.Destination,
+		Tags:        append([]string{}, original.Tags...),
+		CreatedAt:   row.CreatedAt.Time,
+		UpdatedAt:   row.UpdatedAt.Time,
+	}, nil
+}
+
+func (r *EditionRepository) ListArticleCounts(ctx context.Context, editionIDs []uuid.UUID) (map[uuid.UUID]int, error) {
+	if len(editionIDs) == 0 {
+		return nil, nil
+	}
+	ids := make([]pgtype.UUID, len(editionIDs))
+	for i, id := range editionIDs {
+		ids[i] = uuidToPgtype(id)
+	}
+	rows, err := r.q.ListArticleCountsByEditionIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[uuid.UUID]int, len(editionIDs))
+	for _, row := range rows {
+		result[row.NewsletterID.Bytes] = int(row.ArticleCount)
+	}
+	return result, nil
+}
+
+func (r *EditionRepository) UpdateDestination(ctx context.Context, id uuid.UUID, destination *string) error {
+	_, err := r.q.UpdateEditionDestination(ctx, UpdateEditionDestinationParams{
+		ID:          uuidToPgtype(id),
+		Destination: destination,
+	})
+	return err
+}
+
+func (r *EditionRepository) ListUsedDestinations(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	rows, err := r.q.ListUsedDestinationsByUser(ctx, uuidToPgtype(userID))
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row != nil {
+			result = append(result, *row)
+		}
+	}
+	return result, nil
 }

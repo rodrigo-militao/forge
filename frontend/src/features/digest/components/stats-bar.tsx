@@ -33,8 +33,8 @@ export function StatsBar({ stats }: StatsBarProps) {
         {discovered} {t("digest.statsDiscovered").toLowerCase()} · {newsletters} {t("digest.statsNewsletters").toLowerCase()} · {t("digest.statsLastDiscovery").toLowerCase()} {lastAgo}
       </p>
       {isActive && (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-400">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent-primary)]/15 px-2.5 py-0.5 text-xs font-medium text-[var(--color-accent-primary)]">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent-primary)]" />
           {t("digest.activeJob")}
         </span>
       )}

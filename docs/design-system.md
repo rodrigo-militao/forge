@@ -40,7 +40,27 @@ Se o nome mudar no futuro, **apenas este cabeçalho e o logo mudam** — os toke
 - **Laranja queimado = a única cor de ação primária.** Um botão principal por tela. Não usar laranja para decoração.
 - **Verde musgo = só para confirmar que algo foi aprovado/concluído.** Nunca usar como cor de botão de ação (isso é papel do laranja).
 - Estados neutros (rascunho, pendente) usam tons de cinza (`color-text-secondary`/`color-border`), nunca cor de destaque.
-- Fundo é sempre `color-bg-base` — não introduzir modo claro no MVP (simplifica o design system; se precisar de light mode depois, é extensão, não redesenho).
+- Fundo é sempre `color-bg-base` no tema escuro (default). Tema claro agora existe como extensão (ver "2.1 Tema claro" abaixo) — não é redesenho, é reaproveitamento dos mesmos tokens.
+
+---
+
+## 2.1 Tema claro
+
+O par Carvão/Branco quente já nasceu pronto pra isso: no tema claro, os dois papéis se invertem — o que era fundo vira texto, o que era texto vira fundo. Cores de acento (laranja queimado, verde musgo, vermelho terroso) permanecem as mesmas nos dois temas, mantendo a identidade visual reconhecível.
+
+| Token | Tema escuro (default) | Tema claro |
+|---|---|---|
+| `color-bg-base` | `#1D1F24` (Carvão) | `#F7F6F3` (Branco quente) |
+| `color-surface-elevated` | `#262931` | `#FFFFFF` |
+| `color-text-primary` | `#F7F6F3` (Branco quente) | `#1D1F24` (Carvão) |
+| `color-border` | `#33363E` | `#E4E2DC` |
+| `color-text-secondary` | `#A6A9B0` | `#6B6D72` |
+| `color-text-muted` | `#6E7178` | `#9A9CA2` |
+| `color-accent-primary` | `#C96B2C` | `#C96B2C` (inalterado) |
+| `color-accent-success` | `#567A61` | `#567A61` (inalterado) |
+| `color-accent-danger` | `#B84A3E` | `#B84A3E` (inalterado) |
+
+Preferência de tema é um campo por usuário (`theme_preference`: `dark` / `light`, default `dark`), persistido no backend junto com `locale` (ADR 0009) — não é uma preferência só de navegador/localStorage, viaja com a conta.
 
 ---
 
@@ -107,16 +127,23 @@ Mensagens de erro são diretas e não se desculpam ("Não foi possível gerar o 
 
 ---
 
-## 7. Nomenclatura de módulos (do mockup)
+## 7. Nomenclatura de módulos (atualizada pela ADR 0051)
 
-O mockup já validou uma convenção que funciona e deve ser mantida:
+Navegação atual (substitui a versão anterior deste documento):
 
-- **Digest** → módulo de Newsletter Assistant (curadoria semanal)
-- **Compose** → módulo de Content Editor (geração de artigo)
-- **Library** → histórico de conteúdo gerado/aprovado (ambos os módulos)
-- **Settings** → configuração de fontes, tópicos, vozes
+```
+Discover              (ADR 0047 — era "Digest")
+Content
+  ├── Articles        (ADR 0051 — era "Compose"; internal/compose no código permanece)
+  ├── Newsletters     (ADR 0042/0046, sem mudança de comportamento)
+  └── Ideas           (ADR 0049, novo)
+Library               (visão geral de todo conteúdo, todos os tipos)
+Settings
+```
 
-Isso substitui os nomes de trabalho "Newsletter Assistant" e "Content Editor" usados no `plan.md` e nas ADRs — a partir de agora, ao implementar UI, usar **Digest** e **Compose** como nome de produto visível ao usuário. Os nomes técnicos internos (`internal/newsletter`, `internal/editor` no código-fonte) podem continuar como estão — é só a camada visível ao usuário que muda.
+Botão global **"+ Create"** (sempre visível), com seletor Article/Newsletter/Idea — ver ADR 0051.
+
+Nomes técnicos internos (`internal/discover`... na prática ainda `internal/digest`; `internal/compose`) permanecem como estão no código-fonte — só a camada visível ao usuário muda (ADR 0047, ADR 0051).
 
 ---
 

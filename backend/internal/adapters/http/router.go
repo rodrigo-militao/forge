@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/rodrigo-militao/forge/internal/adapters/events"
+	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
@@ -16,16 +17,18 @@ import (
 // RouterConfig wires the HTTP router. Passed as a struct to avoid
 // the 10-positional-parameter trap.
 type RouterConfig struct {
-	Users     ports.UserRepository
-	Usages    ports.UsageCounterRepository
-	Content   ports.ContentRepository
-	Jobs      ports.JobRepository
-	Interests digest.DigestInterestRepository
-	Sources   digest.SourceRepository
-	Editions  digest.EditionRepository
-	Hub       *events.Hub
-	Plans     *application.Plans
+	Users      ports.UserRepository
+	Usages     ports.UsageCounterRepository
+	Content    ports.ContentRepository
+	Jobs       ports.JobRepository
+	Interests  digest.DigestInterestRepository
+	Sources    digest.SourceRepository
+	Editions   digest.EditionRepository
+	Hub        *events.Hub
+	Plans      *application.Plans
 	ContentSvc *application.ContentService
+	Ideas      ports.IdeaRepository
+	SourceTrack *postgres.SourceTracking
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {
@@ -43,10 +46,11 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	}))
 
 	authH := NewAuthHandler(cfg.Users, cfg.Usages)
-	contentH := NewContentHandler(cfg.ContentSvc)
+	contentH := NewContentHandler(cfg.ContentSvc, cfg.SourceTrack)
 	digestH := NewDigestHandler(cfg.Content, cfg.Editions, cfg.Jobs)
 	interestsH := NewInterestsHandler(cfg.Interests, cfg.Plans)
 	sourcesH := NewSourcesHandler(cfg.Sources, cfg.Plans)
+	ideasH := NewIdeasHandler(cfg.Ideas)
 
 	r.Route("/api/auth", func(r chi.Router) {
 		r.Post("/register", authH.Register)
@@ -69,9 +73,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Delete("/api/content/{id}/categories/{category}", contentH.RemoveCategory)
 		r.Get("/api/content/categories", contentH.ListCategories)
 		r.Put("/api/content/{id}/status", contentH.UpdateStatus)
+		r.Put("/api/content/{id}/outline", contentH.UpdateOutline)
 		r.Post("/api/content/{id}/tags", contentH.AddTag)
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
+		r.Post("/api/content/{id}/link-source", contentH.LinkSource)
 		r.Get("/api/content/tags", contentH.ListTags)
+
+		r.Mount("/api/ideas", ideasH.Routes())
 
 		r.Post("/api/digest/run", EnqueueDigestJob(cfg.Jobs, cfg.Usages, cfg.Plans))
 		r.Get("/api/digest/stats", digestH.GetStats)
@@ -97,6 +105,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		})
 
 		r.Post("/api/compose/generate-topic", enqueueJob(cfg.Jobs, cfg.Usages, "generate_topic", false, cfg.Plans))
+		r.Post("/api/compose/generate-outline", enqueueJob(cfg.Jobs, cfg.Usages, "compose_generate_outline", true, cfg.Plans))
 		r.Post("/api/compose/generate-draft", enqueueJob(cfg.Jobs, cfg.Usages, "compose_generate_draft", true, cfg.Plans))
 		r.Post("/api/compose/transform", enqueueJob(cfg.Jobs, cfg.Usages, "compose_transform", true, cfg.Plans))
 		r.Post("/api/compose/write", enqueueJob(cfg.Jobs, cfg.Usages, "compose_write", true, cfg.Plans))
@@ -105,10 +114,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Route("/api/editions", func(r chi.Router) {
 			r.Get("/", editionH.List)
 			r.Post("/", editionH.Create)
+			r.Get("/destinations", editionH.ListDestinations)
 			r.Get("/{id}", editionH.GetByID)
 			r.Put("/{id}/body", editionH.UpdateBody)
 			r.Put("/{id}/status", editionH.UpdateStatus)
 			r.Put("/{id}/category", editionH.UpdateCategory)
+			r.Put("/{id}/destination", editionH.UpdateDestination)
+			r.Post("/{id}/duplicate", editionH.Duplicate)
 			r.Post("/{id}/tags/{tag}", editionH.AddTag)
 			r.Delete("/{id}/tags/{tag}", editionH.RemoveTag)
 			r.Post("/{id}/generate-intro", editionH.GenerateIntro)

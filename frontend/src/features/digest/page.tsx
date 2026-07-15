@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, ChevronRight, EyeOff, Mail, Plus, Sparkles } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import toast from "react-hot-toast";
 import { api, type ContentItem, type NewsletterEdition, type DigestSource, type DigestInterest, type DigestJob } from "../../api/client";
 import { useAuth } from "../auth/store";
@@ -11,8 +12,6 @@ import { ArticleCard } from "./components/article-card";
 import { DetailPanel } from "./components/detail-panel";
 
 /* ───── processing step labels ───── */
-
-const PROCESSING_STEPS = 1; // number of steps (just "discovering")
 
 /* ───── sort helpers ───── */
 
@@ -38,12 +37,12 @@ function jobTypeDisplayName(type: string, t: (key: string) => string): string {
 
 function StatusDot({ status }: { status: DigestJob["status"] }) {
   const colors: Record<string, string> = {
-    pending: "bg-yellow-500",
-    processing: "bg-blue-500 animate-pulse",
-    done: "bg-green-500",
-    failed: "bg-red-500",
+    pending: "bg-[var(--color-text-muted)]",
+    processing: "bg-[var(--color-accent-primary)] animate-pulse",
+    done: "bg-[var(--color-accent-success)]",
+    failed: "bg-[var(--color-accent-danger)]",
   };
-  return <span className={`h-2 w-2 rounded-full ${colors[status] ?? "bg-gray-500"}`} />;
+  return <span className={`h-2 w-2 rounded-full ${colors[status] ?? "bg-[var(--color-text-muted)]"}`} />;
 }
 
 /* ───── component ───── */
@@ -51,6 +50,7 @@ function StatusDot({ status }: { status: DigestJob["status"] }) {
 export function DigestPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [running, setRunning] = useState(false);
   const [selectedIDs, setSelectedIDs] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<FilterTab>("novos");
@@ -59,9 +59,6 @@ export function DigestPage() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
   const runningSinceRef = useRef(0);
-
-  // Processing step delight
-  const [processingStep, setProcessingStep] = useState(0);
 
   // Newsletter selector state
   const [newsletterAnchor, setNewsletterAnchor] = useState<{
@@ -163,7 +160,6 @@ export function DigestPage() {
     if (content === undefined) return;
     setRunning(true);
     runningSinceRef.current = Date.now();
-    setProcessingStep(1);
   }, [running, stats?.active_job_status, content]);
 
   // Safety timeout: stop running after 60s if SSE never fires
@@ -171,7 +167,6 @@ export function DigestPage() {
     if (!running) return;
     const timer = setTimeout(() => {
       setRunning(false);
-      setProcessingStep(3);
     }, 60000);
     return () => clearTimeout(timer);
   }, [running]);
@@ -182,15 +177,8 @@ export function DigestPage() {
     if (dataUpdatedAt > runningSinceRef.current) {
       runningSinceRef.current = 0;
       setRunning(false);
-      setProcessingStep(3);
     }
   }, [dataUpdatedAt, running]);
-
-  // Processing step — always "discovering" until content arrives
-  useEffect(() => {
-    if (!running) return;
-    setProcessingStep(0);
-  }, [running]);
 
   // Close sort dropdown on outside click
   useEffect(() => {
@@ -229,7 +217,6 @@ export function DigestPage() {
 
   const handleRun = useCallback(async () => {
     setRunning(true);
-    setProcessingStep(0);
     runningSinceRef.current = Date.now();
     try {
       await api.digest.run();
@@ -280,7 +267,7 @@ export function DigestPage() {
   const openNewsletterSelector = useCallback(async (target: string, e?: React.MouseEvent) => {
     const btnRect = (e?.currentTarget as HTMLElement)?.getBoundingClientRect();
     try {
-      const editions = await api.newsletters.list({ status: "draft" });
+      const editions = await api.newsletters.list({ status: "building" });
       setDraftNewsletters(editions);
     } catch {
       setDraftNewsletters([]);
@@ -343,6 +330,28 @@ export function DigestPage() {
     [queryClient, t, selectedArticle],
   );
 
+  const handleCreateArticle = useCallback(
+    (item: ContentItem) => {
+      const params = new URLSearchParams();
+      if (item.title) params.set("title", item.title);
+      const sourceUrl = item.metadata?.source_url as string | undefined;
+      if (sourceUrl) params.set("source_url", sourceUrl);
+      navigate({ to: `/content/articles?${params.toString()}` });
+    },
+    [navigate],
+  );
+
+  const handleCreateIdea = useCallback(
+    (item: ContentItem) => {
+      const params = new URLSearchParams();
+      if (item.title) params.set("title", item.title);
+      const sourceUrl = item.metadata?.source_url as string | undefined;
+      if (sourceUrl) params.set("source_url", sourceUrl);
+      navigate({ to: `/content/ideas?${params.toString()}` });
+    },
+    [navigate],
+  );
+
   // Processing step label for running state
   const stepLabel = t("digest.discovering");
 
@@ -352,7 +361,7 @@ export function DigestPage() {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center max-w-md">
-          <p className="text-lg text-red-400">Failed to load content</p>
+          <p className="text-lg text-[var(--color-accent-danger)]">Failed to load content</p>
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">Try refreshing the page.</p>
         </div>
       </div>
@@ -432,7 +441,7 @@ export function DigestPage() {
                   <StatusDot status={job.status} />
                   <span className="font-medium text-[var(--color-bg-surface)]">{jobTypeDisplayName(job.type, t)}</span>
                   <span className="text-[var(--color-text-muted)]">{t(`digest.job${capitalize(job.status)}`)}</span>
-                  {job.error && <span className="text-red-400" title={job.error}>!</span>}
+                  {job.error && <span className="text-[var(--color-accent-danger)]" title={job.error}>!</span>}
                   <span className="ml-auto text-[var(--color-text-muted)]">
                     {formatTimeAgo(job.created_at, t)}
                   </span>
@@ -648,6 +657,8 @@ export function DigestPage() {
                     onDelete={handleDelete}
                     onAddToNewsletter={openNewsletterSelector}
                     onClick={handleCardClick}
+                    onCreateArticle={handleCreateArticle}
+                    onCreateIdea={handleCreateIdea}
                   />
                 </div>
               );

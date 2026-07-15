@@ -280,7 +280,7 @@ export function LibraryPage() {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="truncate font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
-                {item.product === "digest" && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">Digest</span>}
+                {item.product === "digest" && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">{t("library.sourceBadge")}</span>}
                 {item.categories && item.categories.length > 0 && item.categories.map((cat) => (
                   <span key={cat} className="shrink-0 rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-primary)]">{cat}</span>
                 ))}

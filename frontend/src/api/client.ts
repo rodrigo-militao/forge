@@ -89,6 +89,20 @@ export interface DigestInterest {
   created_at: string;
 }
 
+export interface Idea {
+  id: string;
+  user_id: string;
+  title: string;
+  context: string | null;
+  notes: string | null;
+  references: string | null;
+  priority: "low" | "medium" | "high";
+  status: "open" | "in_progress" | "used" | "archived";
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ContentItem {
   id: string;
   user_id: string;
@@ -97,6 +111,7 @@ export interface ContentItem {
   source_type: string | null;
   title: string | null;
   body_markdown: string | null;
+  outline: string | null;
   metadata: Record<string, unknown>;
   origin: "ai_generated" | "manual";
   categories: string[];
@@ -119,8 +134,10 @@ export interface NewsletterEdition {
   title: string;
   body_html: string;
   category: string | null;
-  status: "draft" | "published" | "discarded";
+  status: "building" | "ready" | "published" | "archived";
+  destination: string | null;
   tags: string[];
+  article_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -174,6 +191,8 @@ export const api = {
     listTags: () => request<string[]>("/content/tags"),
     updateStatus: (id: string, status: string) =>
       request<{ status: string }>(`/content/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+    updateOutline: (id: string, outline: string) =>
+      request<{ status: string }>(`/content/${id}/outline`, { method: "PUT", body: JSON.stringify({ outline }) }),
   },
   digest: {
     run: () => request<{ job_id: string; status: string }>("/digest/run", { method: "POST" }),
@@ -203,6 +222,8 @@ export const api = {
   compose: {
     generateTopic: () =>
       request<{ edition_id: string; item_count: number }>("/compose/generate-topic", { method: "POST" }),
+    generateOutline: (theme: string) =>
+      request<{ edition_id: string; item_count: number }>("/compose/generate-outline", { method: "POST", body: JSON.stringify({ theme }) }),
     generateDraft: (theme: string) =>
       request<{ edition_id: string; item_count: number }>("/compose/generate-draft", { method: "POST", body: JSON.stringify({ theme }) }),
     transform: (text: string, action: "expand" | "rewrite") =>
@@ -239,5 +260,27 @@ export const api = {
       request<{ status: string }>(`/editions/${newsletterID}/articles`, { method: "POST", body: JSON.stringify({ content_id: contentID }) }),
     removeArticle: (newsletterID: string, contentID: string) =>
       request<{ status: string }>(`/editions/${newsletterID}/articles/${contentID}`, { method: "DELETE" }),
+    duplicate: (id: string) =>
+      request<NewsletterEdition>(`/editions/${id}/duplicate`, { method: "POST" }),
+    updateDestination: (id: string, destination: string | null) =>
+      request<{ status: string }>(`/editions/${id}/destination`, { method: "PUT", body: JSON.stringify({ destination }) }),
+    listDestinations: () =>
+      request<string[]>("/editions/destinations"),
+  },
+  ideas: {
+    list: () => request<Idea[]>("/ideas"),
+    get: (id: string) => request<Idea>(`/ideas/${id}`),
+    create: (data: { title: string; context?: string; notes?: string; references?: string; priority?: string }) =>
+      request<Idea>("/ideas", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: { title?: string; context?: string; notes?: string; references?: string; priority?: string; status?: string }) =>
+      request<Idea>(`/ideas/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    archive: (id: string) =>
+      request<{ status: string }>(`/ideas/${id}`, { method: "DELETE" }),
+    addTag: (id: string, label: string) =>
+      request<{ status: string }>(`/ideas/${id}/tags`, { method: "POST", body: JSON.stringify({ label }) }),
+    removeTag: (id: string, tag: string) =>
+      request<{ status: string }>(`/ideas/${id}/tags/${encodeURIComponent(tag)}`, { method: "DELETE" }),
+    promote: (id: string) =>
+      request<{ idea_id: string; title: string; context: string | null; notes: string | null }>(`/ideas/${id}/promote`, { method: "POST" }),
   },
 };

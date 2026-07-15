@@ -55,6 +55,30 @@ type GeneratedContent struct {
 	Category     *string
 	Tags         []string
 	Categories   []string
+	Outline      *string
+}
+
+type Idea struct {
+	ID         pgtype.UUID
+	UserID     pgtype.UUID
+	Title      string
+	Context    *string
+	Notes      *string
+	References *string
+	Priority   string
+	Status     string
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+}
+
+type IdeaTag struct {
+	TagID  pgtype.UUID
+	IdeaID pgtype.UUID
+}
+
+type IdeaArticle struct {
+	IdeaID    pgtype.UUID
+	ContentID pgtype.UUID
 }
 
 type Job struct {
@@ -83,6 +107,7 @@ type NewsletterEdition struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 	Category     *string
+	Destination  *string
 }
 
 type NewsletterEditionTag struct {

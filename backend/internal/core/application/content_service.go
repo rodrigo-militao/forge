@@ -9,15 +9,21 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
+// SourceLinker sets source_digest_article_id on content or ideas.
+type SourceLinker interface {
+	SetContentSource(ctx context.Context, contentID, sourceID uuid.UUID) error
+}
+
 // ContentService wraps ContentRepository with ownership verification and
 // delegates CRUD operations. Plan limit enforcement is handled by Plans.
 type ContentService struct {
 	content ports.ContentRepository
+	source  SourceLinker
 }
 
 // NewContentService creates a content service.
-func NewContentService(content ports.ContentRepository) *ContentService {
-	return &ContentService{content: content}
+func NewContentService(content ports.ContentRepository, source SourceLinker) *ContentService {
+	return &ContentService{content: content, source: source}
 }
 
 // GetOwnedContent fetches content and verifies the requesting user owns it.
@@ -38,6 +44,14 @@ func (s *ContentService) ListByUser(ctx context.Context, userID uuid.UUID) ([]do
 
 func (s *ContentService) UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error {
 	return s.content.UpdateBody(ctx, id, title, bodyMarkdown)
+}
+
+func (s *ContentService) UpdateOutline(ctx context.Context, id uuid.UUID, outline *string) error {
+	return s.content.UpdateOutline(ctx, id, outline)
+}
+
+func (s *ContentService) LinkSource(ctx context.Context, contentID, sourceID uuid.UUID) error {
+	return s.source.SetContentSource(ctx, contentID, sourceID)
 }
 
 func (s *ContentService) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {

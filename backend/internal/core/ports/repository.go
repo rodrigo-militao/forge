@@ -25,6 +25,7 @@ type ContentReader interface {
 type ContentWriter interface {
 	Create(ctx context.Context, content *domain.GeneratedContent) error
 	UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error
+	UpdateOutline(ctx context.Context, id uuid.UUID, outline *string) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 }
@@ -67,6 +68,18 @@ type ContentRepository interface {
 	ContentCategorizer
 	ContentDigestReader
 	ContentTagger
+}
+
+// IdeaRepository manages the ideas entity.
+type IdeaRepository interface {
+	Create(ctx context.Context, idea *domain.Idea) error
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Idea, error)
+	ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.Idea, error)
+	Update(ctx context.Context, idea *domain.Idea) error
+	Archive(ctx context.Context, id uuid.UUID) error
+	AddTag(ctx context.Context, ideaID uuid.UUID, tagLabel string, userID uuid.UUID) error
+	RemoveTag(ctx context.Context, ideaID uuid.UUID, tagLabel string, userID uuid.UUID) error
+	LinkArticle(ctx context.Context, ideaID uuid.UUID, contentID uuid.UUID) error
 }
 
 // JobRepository persists the async job queue (ADR 0028).

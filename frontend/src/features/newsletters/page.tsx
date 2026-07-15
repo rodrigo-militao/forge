@@ -1,14 +1,40 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
+import { ChevronLeft, ChevronDown, ChevronRight, Plus, Eye, ArrowRight, Check } from "lucide-react";
+import type { DragEndEvent } from "@dnd-kit/core";
 import { api, type ArticleRef, type NewsletterEdition } from "../../api/client";
 import { ContentEditor } from "../../components/editor/ContentEditor";
 import { useAutosave } from "../../hooks/useAutosave";
+import { NewsletterCard } from "./components/newsletter-card";
+import { NewsletterDetailPanel } from "./components/detail-panel";
+import { KanbanBoard, KanbanColumn } from "./components/kanban-board";
+
+const STATUS_ORDER = ["building", "ready"] as const;
+
+type StepState = "done" | "active" | "pending";
+
+function editorPipelineSteps(item: NewsletterEdition): { label: string; state: StepState }[] {
+  const hasArticles = item.article_count > 0;
+  const hasBody = item.body_html.length > 0;
+  const isReady = item.status === "ready";
+  const isPublished = item.status === "published";
+
+  return [
+    { label: "Discover", state: "done" as StepState },
+    { label: "Select", state: hasArticles ? "done" : "active" as StepState },
+    { label: "Compose", state: hasBody ? "done" : (hasArticles ? "active" : "pending") as StepState },
+    { label: "Review", state: isReady || isPublished ? "done" : (hasBody ? "active" : "pending") as StepState },
+    { label: "Ready", state: isReady || isPublished ? "done" : "pending" as StepState },
+  ];
+}
 
 export function NewslettersPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedItem, setSelectedItem] = useState<NewsletterEdition | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
@@ -16,15 +42,15 @@ export function NewslettersPage() {
   const [bodyVersion, setBodyVersion] = useState(0);
   const [articles, setArticles] = useState<ArticleRef[]>([]);
   const [removingArticle, setRemovingArticle] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [showEditor, setShowEditor] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewItem, setPreviewItem] = useState<NewsletterEdition | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const articlesReqRef = useRef(0);
 
   const { data: editions, isLoading } = useQuery({
-    queryKey: ["editions", { status: statusFilter || undefined, category: categoryFilter || undefined }],
-    queryFn: () => api.newsletters.list({
-      status: statusFilter || undefined,
-      category: categoryFilter || undefined,
-    }),
+    queryKey: ["editions"],
+    queryFn: () => api.newsletters.list(),
   });
 
   const { data: availableTags } = useQuery({
@@ -34,7 +60,7 @@ export function NewslettersPage() {
 
   // Set edit fields when selecting a newsletter
   useEffect(() => {
-    if (selectedItem) {
+    if (selectedItem && !showEditor) {
       setEditTitle(selectedItem.title);
       setEditBody(selectedItem.body_html);
     }
@@ -57,27 +83,117 @@ export function NewslettersPage() {
 
   const handleCreate = useCallback(async () => {
     try {
-      const edition = await api.newsletters.create({ title: "New newsletter" });
+      const edition = await api.newsletters.create({ title: t("newsletters.newNewsletter") });
       setSelectedItem(edition);
+      setShowEditor(true);
+      setShowPreview(false);
+      setPreviewItem(null);
       setEditTitle(edition.title);
       setEditBody(edition.body_html);
       queryClient.invalidateQueries({ queryKey: ["editions"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
   }, [queryClient]);
 
   const handleSelect = useCallback(async (item: NewsletterEdition) => {
     setSelectedItem(item);
+    setShowEditor(false);
+    setShowPreview(false);
+    setPreviewItem(null);
     setEditTitle(item.title);
     setEditBody(item.body_html);
+    const reqId = ++articlesReqRef.current;
     setArticles([]);
     try {
       const arts = await api.newsletters.articles(item.id);
+      if (reqId !== articlesReqRef.current) return;
       setArticles(arts);
     } catch {
       // silently ignore
     }
+  }, []);
+
+  const handleEditFromDetail = useCallback((item?: NewsletterEdition) => {
+    const target = item ?? selectedItem;
+    if (!target) return;
+    setSelectedItem(target);
+    setShowEditor(true);
+    setShowPreview(false);
+    setPreviewItem(null);
+    setEditTitle(target.title);
+    setEditBody(target.body_html);
+  }, [selectedItem]);
+
+  const handlePreviewFromDetail = useCallback((item?: NewsletterEdition) => {
+    const target = item ?? selectedItem;
+    if (!target) return;
+    setPreviewItem(target);
+    setShowPreview(true);
+    setShowEditor(false);
+  }, [selectedItem]);
+
+  const handleNextStep = useCallback(async (item: NewsletterEdition) => {
+    if (item.status === "building") {
+      // Needs more work → open editor
+      if (item.article_count === 0 || !item.body_html || item.body_html.length === 0) {
+        handleEditFromDetail(item);
+      } else {
+        // Has articles + body → send for review
+        try {
+          await api.newsletters.updateStatus(item.id, "ready");
+          queryClient.invalidateQueries({ queryKey: ["editions"] });
+          toast.success(t("newsletters.movedToReview"));
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
+        }
+      }
+    } else if (item.status === "ready") {
+      // Preview and publish → open preview
+      handlePreviewFromDetail(item);
+    }
+  }, [queryClient, handleEditFromDetail, handlePreviewFromDetail]);
+
+  const handleDuplicate = useCallback(async (item: NewsletterEdition) => {
+    try {
+      const dup = await api.newsletters.duplicate(item.id);
+      toast.success(t("newsletters.newsletterDuplicated"));
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+      setSelectedItem(dup);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("newsletters.failedToDuplicate"));
+    }
+  }, [queryClient]);
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const editionId = active.data.current?.editionId as string;
+    const currentStatus = active.data.current?.status as string;
+    const targetStatus = (over.id as string).replace("column-", "");
+
+    if (!editionId || !targetStatus || targetStatus === currentStatus) return;
+
+    try {
+      await api.newsletters.updateStatus(editionId, targetStatus);
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("newsletters.failedToMove"));
+    }
+  }, [queryClient]);
+
+  const handleBackFromEditor = useCallback(() => {
+    setShowEditor(false);
+  }, []);
+
+  const handleBackFromPreview = useCallback(() => {
+    setShowPreview(false);
+    setPreviewItem(null);
+  }, []);
+
+  const handleCloseDetailPanel = useCallback(() => {
+    setSelectedItem(null);
   }, []);
 
   const handleStatusChange = useCallback(async (status: string) => {
@@ -88,7 +204,7 @@ export function NewslettersPage() {
       queryClient.invalidateQueries({ queryKey: ["editions"] });
       toast.success(t("editor.statusUpdated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
   }, [selectedItem, queryClient, t]);
 
@@ -99,7 +215,19 @@ export function NewslettersPage() {
       setSelectedItem((prev) => prev ? { ...prev, category } : null);
       queryClient.invalidateQueries({ queryKey: ["editions"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
+    }
+  }, [selectedItem, queryClient]);
+
+  const handleDestinationChange = useCallback(async (destination: string | null) => {
+    if (!selectedItem) return;
+    try {
+      await api.newsletters.updateDestination(selectedItem.id, destination);
+      setSelectedItem((prev) => prev ? { ...prev, destination } : null);
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+      queryClient.invalidateQueries({ queryKey: ["editions", "destinations"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
   }, [selectedItem, queryClient]);
 
@@ -115,7 +243,7 @@ export function NewslettersPage() {
       queryClient.invalidateQueries({ queryKey: ["editions"] });
       queryClient.invalidateQueries({ queryKey: ["tags"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
   }, [selectedItem, queryClient]);
 
@@ -130,7 +258,7 @@ export function NewslettersPage() {
       queryClient.invalidateQueries({ queryKey: ["editions"] });
       queryClient.invalidateQueries({ queryKey: ["tags"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
   }, [selectedItem, queryClient]);
 
@@ -147,18 +275,40 @@ export function NewslettersPage() {
       }
     }, []);
 
+  const handleAddArticle = useCallback(async (contentID: string) => {
+    if (!selectedItem) return;
+    try {
+      await api.newsletters.addArticle(selectedItem.id, contentID);
+      const [freshEdition, arts] = await Promise.all([
+        api.newsletters.get(selectedItem.id),
+        api.newsletters.articles(selectedItem.id),
+      ]);
+      setSelectedItem(freshEdition);
+      setArticles(arts);
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+      queryClient.invalidateQueries({ queryKey: ["article-newsletter-ids"] });
+      toast.success(t("newsletters.articleAdded"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("newsletters.failedToAdd"));
+    }
+  }, [selectedItem, queryClient]);
+
   const handleRemoveArticle = useCallback(async (contentID: string) => {
     if (!selectedItem) return;
     setRemovingArticle(contentID);
     try {
       await api.newsletters.removeArticle(selectedItem.id, contentID);
       setArticles((prev) => prev.filter((a) => a.content_id !== contentID));
-      toast.success("Article removed from newsletter");
+      const freshEdition = await api.newsletters.get(selectedItem.id);
+      setSelectedItem(freshEdition);
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+      queryClient.invalidateQueries({ queryKey: ["article-newsletter-ids"] });
+      toast.success(t("newsletters.articleRemoved"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
     setRemovingArticle(null);
-  }, [selectedItem]);
+  }, [selectedItem, queryClient]);
 
   const handleGenerateIntro = useCallback(async () => {
     if (!selectedItem || generating) return;
@@ -167,19 +317,18 @@ export function NewslettersPage() {
       await api.newsletters.generateIntro(selectedItem.id);
       toast.success(t("newsletters.introQueued"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
       setGenerating(false);
     }
   }, [selectedItem, generating, t]);
 
-  // Wait for intro generation via SSE (timeout safety net)
+  // Wait for intro generation via SSE
   useEffect(() => {
     if (!generating) return;
     const timeout = setTimeout(() => setGenerating(false), 90000);
     return () => clearTimeout(timeout);
   }, [generating]);
 
-  // Detect when intro is ready — watches editions query data directly
   useEffect(() => {
     if (!generating || !selectedItem || !editions) return;
     const updated = editions.find((e) => e.id === selectedItem.id);
@@ -192,44 +341,189 @@ export function NewslettersPage() {
     }
   }, [editions, selectedItem, generating, t]);
 
-  // Loading state — skeleton with staggered shimmer
+  // Escape key closes panels
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (showPreview) { setShowPreview(false); setPreviewItem(null); return; }
+        if (showEditor) { setShowEditor(false); return; }
+        if (selectedItem) { setSelectedItem(null); }
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [showPreview, showEditor, selectedItem]);
+
+  // --- Data ---
+  const items = editions ?? [];
+  const activeItems = items.filter((i) => i.status === "building" || i.status === "ready");
+  const publishedItems = items.filter((i) => i.status === "published");
+  const archivedItems = items.filter((i) => i.status === "archived");
+  const archiveItems = [...publishedItems, ...archivedItems];
+  const groups = STATUS_ORDER.map((status) => ({
+    status,
+    items: activeItems.filter((i) => i.status === status),
+  }));
+  const needsReviewCount = activeItems.filter(
+    (i) => i.status === "building" && i.article_count > 0 && i.body_html.length > 0
+  ).length;
+
+  // --- Loading state: skeleton columns ---
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
-          <div className="skeleton skeleton-title !mb-0" />
-          <div className="skeleton !mb-0 !h-9 w-36 rounded-lg" />
+          <div className="skeleton skeleton-title !mb-0 !h-8 w-48" />
+          <div className="skeleton !mb-0 !h-9 w-32 rounded-lg" />
         </div>
-        <div className="mb-4 flex gap-2">
-          <div className="skeleton !mb-0 !h-7 w-16 rounded-full" />
-          <div className="skeleton !mb-0 !h-7 w-20 rounded-full" />
-          <div className="skeleton !mb-0 !h-7 w-18 rounded-full" />
+        <div className="flex gap-4">
+          {STATUS_ORDER.map((_, i) => (
+            <div key={i} className="w-[320px] shrink-0 rounded-xl border border-[var(--color-border)]/10 bg-white/[0.015] p-3">
+              <div className="skeleton !mb-0 !h-6 w-24 rounded-md" />
+              <div className="mt-3 space-y-3">
+                {[1, 2].map((j) => (
+                  <div key={j} className="skeleton !mb-0 !h-28 rounded-lg"
+                    style={{ animationDelay: `${(i * 2 + j) * 80}ms` }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="skeleton skeleton-card !mb-3 !h-20 rounded-lg"
-            style={{ animationDelay: `${i * 80}ms` }}
-          />
-        ))}
       </div>
     );
   }
 
-  // Editor view — uses shared ContentEditor
-  if (selectedItem) {
+  // --- Preview mode ---
+  if (showPreview && previewItem) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 animate-[fadeIn_400ms_ease-out_forwards]">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handleBackFromPreview}
+            className="group cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] transition-colors hover:text-[var(--color-accent-primary)]/80"
+          >
+            <ChevronLeft size={16} />
+            {t("newsletters.backToList")}
+          </button>
+          {previewItem.status === "ready" && (
+            <button
+              onClick={async () => {
+                try {
+                  await api.newsletters.updateStatus(previewItem.id, "published");
+                  queryClient.invalidateQueries({ queryKey: ["editions"] });
+                  toast.success(t("newsletters.markAsPublished"));
+                  handleBackFromPreview();
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
+                }
+              }}
+              className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all hover:bg-[var(--color-accent-primary)]/90 hover:scale-[1.03] active:scale-[0.97]"
+            >
+              <Eye size={16} />
+              {t("newsletters.markAsPublished")}
+            </button>
+          )}
+        </div>
+        <div className="rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02] p-6">
+          <h1 className="mb-2 font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
+            {previewItem.title || t("newsletters.noTitle")}
+          </h1>
+          {previewItem.destination && (
+            <p className="mb-4 text-xs text-[var(--color-text-muted)]">
+              Destination: {previewItem.destination}
+            </p>
+          )}
+          <div
+            className="prose prose-invert max-w-none text-sm leading-relaxed text-[var(--color-bg-surface)]/90 [&_h1]:text-xl [&_h2]:text-lg [&_h3]:text-base [&_a]:text-[var(--color-accent-primary)] [&_a]:underline"
+            dangerouslySetInnerHTML={{ __html: previewItem.body_html }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // --- Editor view ---
+  if (showEditor && selectedItem) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 animate-[fadeIn_400ms_ease-out_forwards]">
         <button
-          onClick={() => setSelectedItem(null)}
+          onClick={handleBackFromEditor}
           className="group cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] transition-colors hover:text-[var(--color-accent-primary)]/80"
         >
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            className="transition-transform duration-[var(--duration-fast)] group-hover:animate-[arrowSlide_400ms_ease-out]"
-          >
-            <path d="M19 12H5m7-7-7 7 7 7"/>
-          </svg>
-          Back to newsletters
+          <ChevronLeft size={16} />
+          {t("newsletters.backToList")}
         </button>
+
+        {/* Compact pipeline status bar */}
+        {(() => {
+          const steps = editorPipelineSteps(selectedItem);
+          const needsReview = selectedItem.status === "building" && selectedItem.article_count > 0 && selectedItem.body_html.length > 0;
+          const isReadyPublish = selectedItem.status === "ready";
+          const showCta = needsReview || isReadyPublish;
+          return (
+            <div className="flex items-center justify-between rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02] px-4 py-2.5">
+              <div className="flex items-center gap-2.5">
+                {steps.map((step, i) => (
+                  <div key={step.label} className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium transition-all duration-[var(--duration-base)] ${
+                          step.state === "done"
+                            ? "bg-[var(--color-accent-success)] text-white"
+                            : step.state === "active"
+                              ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)] ring-1 ring-[var(--color-accent-primary)]/30"
+                              : "bg-white/[0.04] text-[var(--color-text-muted)]"
+                        }`}
+                      >
+                        {step.state === "done" ? (
+                          <Check size={9} strokeWidth={3} />
+                        ) : (
+                          <span>{i + 1}</span>
+                        )}
+                      </div>
+                      <span
+                        className={`text-[11px] font-medium ${
+                          step.state === "done"
+                            ? "text-[var(--color-accent-success)]"
+                            : step.state === "active"
+                              ? "text-[var(--color-accent-primary)]"
+                              : "text-[var(--color-text-muted)]"
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                    </div>
+                    {i < steps.length - 1 && (
+                      <div
+                        className={`h-px w-3 ${
+                          steps[i + 1].state === "done" || (step.state === "done" && steps[i + 1].state === "active")
+                            ? "bg-[var(--color-accent-success)]/40"
+                            : "bg-white/[0.08]"
+                        }`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {showCta && (
+                <button
+                  onClick={() => handleNextStep(selectedItem)}
+                  className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-all duration-[var(--duration-fast)] hover:scale-[1.02] active:scale-[0.97] ${
+                    needsReview
+                      ? "border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/15 text-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary)]/25"
+                      : "bg-[var(--color-accent-primary)] text-white hover:bg-[var(--color-accent-primary)]/90"
+                  }`}
+                >
+                  {needsReview ? t("newsletters.sendForReview") : t("newsletters.previewAndPublish")}
+                  <ArrowRight size={12} />
+                </button>
+              )}
+            </div>
+          );
+        })()}
+
         <ContentEditor
           title={editTitle}
           onTitleChange={setEditTitle}
@@ -248,7 +542,6 @@ export function NewslettersPage() {
           titlePlaceholder={t("newsletters.titlePlaceholder")}
           onTransform={handleTransform}
         >
-          {/* Newsletter-specific: AI Intro button */}
           <div className="flex gap-2">
             <button
               onClick={handleGenerateIntro}
@@ -268,10 +561,9 @@ export function NewslettersPage() {
             </button>
           </div>
 
-          {/* Newsletter-specific: linked articles */}
           {articles.length > 0 && (
             <div className="space-y-3">
-              <label className="text-sm font-medium text-[var(--color-bg-surface)]">Articles</label>
+              <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("newsletters.articles")}</label>
               <div className="space-y-2">
                 {articles.map((a, idx) => (
                   <div
@@ -280,7 +572,7 @@ export function NewslettersPage() {
                     className="flex items-center justify-between rounded-lg bg-white/[0.04] px-3 py-2 opacity-0 animate-[fadeIn_300ms_ease-out_forwards] transition-all duration-[var(--duration-base)] hover:bg-white/[0.08]"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-[var(--color-bg-surface)]">{a.title || "(no title)"}</p>
+                      <p className="truncate text-sm text-[var(--color-bg-surface)]">{a.title || t("newsletters.noTitle")}</p>
                       {a.body_markdown && <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">{a.body_markdown}</p>}
                     </div>
                     <button
@@ -297,7 +589,6 @@ export function NewslettersPage() {
             </div>
           )}
 
-          {/* Newsletter-specific: category */}
           <div>
             <input
               type="text"
@@ -313,144 +604,167 @@ export function NewslettersPage() {
     );
   }
 
-  // --- List view ---
-  const items = editions ?? [];
-  const categories = [...new Set(items.map((e) => e.category).filter(Boolean))] as string[];
-
+  // --- Main view: kanban + archive ---
   return (
-    <div className="mx-auto max-w-4xl p-6 animate-[fadeIn_400ms_ease-out_forwards]">
+    <div className="flex h-full flex-col p-6 animate-[fadeIn_400ms_ease-out_forwards]">
+      {/* Top toolbar */}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
-          {t("newsletters.title")}
-          {items.length > 0 && (
-            <span className="ml-2 align-baseline font-[var(--font-body)] text-base font-normal text-[var(--color-text-muted)]">
-              {items.length}
-            </span>
-          )}
-        </h1>
+        <div>
+          <h1 className="font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
+            {t("newsletters.title")}
+          </h1>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            {t("newsletters.activeNewsletters", { count: activeItems.length })}
+            {publishedItems.length > 0 && ` · ${publishedItems.length} ${t("newsletters.published")}`}
+            {archivedItems.length > 0 && ` · ${archivedItems.length} ${t("newsletters.archived")}`}
+          </p>
+        </div>
         <button
           onClick={handleCreate}
-          className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-accent-primary)]/90 hover:scale-[1.03] active:scale-[0.97]"
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-accent-primary)]/90 hover:scale-[1.03] active:scale-[0.97]"
         >
-          {t("newsletters.createNew")}
+          <Plus size={16} />
+          {t("newsletters.newNewsletter")}
         </button>
       </div>
 
-      {/* Filter toolbar */}
-      {items.length > 0 && (
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-[var(--color-text-muted)]">Status</span>
-          {(["draft", "published", "discarded"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(statusFilter === s ? "" : s)}
-              className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-95 ${
-                statusFilter === s
-                  ? s === "discarded"
-                    ? "bg-[var(--color-accent-danger)]/20 text-[var(--color-accent-danger)]"
-                    : "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "bg-white/[0.04] text-[var(--color-text-muted)] hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
-              }`}
-            >
-              {s === "published" ? "Published" : s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-          {categories.length > 0 && (
-            <>
-              <span className="h-4 w-px bg-white/10" />
-              <span className="text-xs font-medium text-[var(--color-text-muted)]">Category</span>
-              <button
-                onClick={() => setCategoryFilter("")}
-                className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-95 ${
-                  !categoryFilter
-                    ? "bg-white/10 text-[var(--color-bg-surface)]"
-                    : "bg-white/[0.04] text-[var(--color-text-muted)] hover:bg-white/10"
-                }`}
+      {/* Active kanban columns */}
+      <div className="flex flex-1 gap-0 overflow-hidden" style={{ minHeight: 0 }}>
+        <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
+          <KanbanBoard onDragEnd={handleDragEnd}>
+            {groups.map((group) => (
+              <KanbanColumn
+                key={group.status}
+                status={group.status}
+                count={group.items.length}
+                subtitle={group.status === "building" && needsReviewCount > 0 ? t("newsletters.needReview", { count: needsReviewCount }) : undefined}
               >
-                All
-              </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategoryFilter(categoryFilter === cat ? "" : cat)}
-                  className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-95 ${
-                    categoryFilter === cat
-                      ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                      : "bg-white/[0.04] text-[var(--color-text-muted)] hover:bg-white/10"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </>
-          )}
-        </div>
-      )}
+                {group.items.map((item) => (
+                  <NewsletterCard
+                    key={item.id}
+                    item={item}
+                    isSelected={selectedItem?.id === item.id}
+                    onClick={handleSelect}
+                    onNextStep={handleNextStep}
+                  />
+                ))}
+              </KanbanColumn>
+            ))}
+          </KanbanBoard>
 
-      {/* Empty state */}
-      {items.length === 0 && (
-        <div className="flex flex-col items-center py-16 opacity-0 animate-[fadeIn_500ms_ease-out_forwards]">
-          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-accent-primary)]/10">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="2" />
-              <path d="M2 8l10 6 10-6" />
-            </svg>
-          </div>
-          <h2 className="font-[var(--font-display)] text-xl text-[var(--color-bg-surface)]">
-            {t("newsletters.title")}
-          </h2>
-          <p className="mt-2 max-w-sm text-center text-sm text-[var(--color-text-muted)]">
-            {t("newsletters.emptyDesc")}
-          </p>
-          <button
-            onClick={handleCreate}
-            className="mt-6 cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-5 py-2.5 text-sm font-medium text-white transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-accent-primary)]/90 hover:scale-[1.03] active:scale-[0.97]"
-          >
-            {t("newsletters.createNew")}
-          </button>
-        </div>
-      )}
-
-      {/* Newsletter cards */}
-      {items.length > 0 && (
-        <div className="space-y-2">
-          {items.map((item, idx) => (
-            <button
-              key={item.id}
-              onClick={() => handleSelect(item)}
-              style={{ animationDelay: `${idx * 50}ms` }}
-              className="group w-full cursor-pointer rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02] p-4 text-left opacity-0 animate-[slideUp_400ms_ease-out_forwards] transition-all duration-[var(--duration-base)] hover:-translate-y-0.5 hover:border-[var(--color-accent-primary)]/20 hover:bg-white/[0.06] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)] active:translate-y-0"
-            >
-              <div className="flex items-center gap-2">
-                <h3 className="truncate font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
-                <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${
-                  item.status === "published"
-                    ? "bg-[var(--color-accent-success)]/20 text-[var(--color-accent-success)]"
-                    : item.status === "discarded"
-                      ? "bg-[var(--color-accent-danger)]/20 text-[var(--color-accent-danger)]"
-                      : "bg-white/10 text-[var(--color-text-muted)]"
-                }`}>
-                  {item.status === "published" ? "Published" : item.status === "discarded" ? "Discarded" : "Draft"}
-                </span>
-                {item.category && (
-                  <span className="shrink-0 rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-primary)]">
-                    {item.category}
-                  </span>
-                )}
+          {/* Empty state when nothing exists at all */}
+          {items.length === 0 && (
+            <div className="mt-16 flex flex-col items-center gap-4 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.04]">
+                <Plus size={28} className="text-[var(--color-text-muted)]" />
               </div>
-              {item.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {item.tags.map((tag) => (
-                    <span key={tag} className="rounded bg-white/10 px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">
-                      {tag}
-                    </span>
+              <p className="text-sm text-[var(--color-text-muted)]">
+                {t("newsletters.noNewsletters")}
+              </p>
+            </div>
+          )}
+
+          {/* Archive section */}
+          {archiveItems.length > 0 && (
+            <div className="shrink-0 border-t border-[var(--color-border)]/10 pt-6 mt-3">
+              <button
+                onClick={() => setArchiveOpen(!archiveOpen)}
+                className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-bg-surface)]"
+              >
+                {archiveOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {t("newsletters.historyTitle", { published: publishedItems.length, archived: archivedItems.length })}
+              </button>
+
+              {archiveOpen && (
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {archiveItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="cursor-pointer rounded-lg border border-[var(--color-border)]/10 bg-white/[0.015] p-3.5 transition-all hover:border-[var(--color-border)]/30 hover:bg-white/[0.03]"
+                    >
+                      <div
+                        onClick={() => {
+                          setPreviewItem(item);
+                          setShowPreview(true);
+                        }}
+                        className="min-w-0"
+                      >
+                        <h4 className="truncate text-sm font-medium text-[var(--color-bg-surface)]">
+                          {item.title || t("newsletters.noTitle")}
+                        </h4>
+                        {item.destination && (
+                          <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">{item.destination}</p>
+                        )}
+                        <div className="mt-2 flex items-center gap-3 text-[10px] text-[var(--color-text-muted)]">
+                          <span>{t("newsletters.articles", { count: item.article_count })}</span>
+                          <span>{new Date(item.updated_at).toLocaleDateString()}</span>
+                          {item.status === "archived" && (
+                            <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-[var(--color-text-muted)]">{t("newsletters.archived")}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        {item.tags.length > 0 && (
+                          <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+                            {item.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-[var(--color-text-muted)]">
+                                {tag}
+                              </span>
+                            ))}
+                            {item.tags.length > 3 && (
+                              <span className="text-[10px] text-[var(--color-text-muted)]">
+                                +{item.tags.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {item.status === "archived" && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await api.newsletters.updateStatus(item.id, "building");
+                                queryClient.invalidateQueries({ queryKey: ["editions"] });
+                                toast.success(t("newsletters.reactivated"));
+                              } catch (err) {
+                                toast.error(err instanceof Error ? err.message : t("newsletters.failedToReactivate"));
+                              }
+                            }}
+                            className="shrink-0 cursor-pointer rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/15 px-2.5 py-1 text-[10px] font-medium text-[var(--color-accent-primary)] transition-all hover:bg-[var(--color-accent-primary)]/25 active:scale-[0.97]"
+                          >
+                            Reactivate
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
-            </button>
-          ))}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Detail panel */}
+        {selectedItem && (
+          <NewsletterDetailPanel
+            item={selectedItem}
+            articles={articles}
+            removingArticle={removingArticle}
+            generating={generating}
+            onClose={handleCloseDetailPanel}
+            onEdit={() => handleEditFromDetail()}
+            onPreview={() => handlePreviewFromDetail()}
+            onDuplicate={handleDuplicate}
+            onStatusChange={handleStatusChange}
+            onCategoryChange={handleCategoryChange}
+            onRemoveArticle={handleRemoveArticle}
+            onAddArticle={handleAddArticle}
+            onGenerateIntro={handleGenerateIntro}
+            onDestinationChange={handleDestinationChange}
+            onNavigateToDiscover={() => navigate({ to: "/discover" })}
+          />
+        )}
+      </div>
     </div>
   );
 }

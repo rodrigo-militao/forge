@@ -42,6 +42,7 @@ type GeneratedContent struct {
 	SourceType   *string         `json:"source_type"`
 	Title        *string         `json:"title"`
 	BodyMarkdown *string         `json:"body_markdown"`
+	Outline      *string         `json:"outline"`
 	Metadata     json.RawMessage `json:"metadata"`
 	Origin       ContentOrigin   `json:"origin"`
 	Categories   []string        `json:"categories"`

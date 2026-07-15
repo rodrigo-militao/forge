@@ -45,9 +45,9 @@ func (q *Queries) AddNewsletterEditionTag(ctx context.Context, arg AddNewsletter
 }
 
 const createEdition = `-- name: CreateEdition :one
-INSERT INTO newsletter_editions (user_id, title, introduction, category)
-VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, title, introduction, status, created_at, updated_at, category
+INSERT INTO newsletter_editions (user_id, title, introduction, category, destination)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category, destination
 `
 
 type CreateEditionParams struct {
@@ -55,6 +55,7 @@ type CreateEditionParams struct {
 	Title        string
 	Introduction string
 	Category     *string
+	Destination  *string
 }
 
 // Newsletter editions (ADR 0029)
@@ -64,6 +65,7 @@ func (q *Queries) CreateEdition(ctx context.Context, arg CreateEditionParams) (N
 		arg.Title,
 		arg.Introduction,
 		arg.Category,
+		arg.Destination,
 	)
 	var i NewsletterEdition
 	err := row.Scan(
@@ -75,12 +77,42 @@ func (q *Queries) CreateEdition(ctx context.Context, arg CreateEditionParams) (N
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Category,
+		&i.Destination,
+	)
+	return i, err
+}
+
+const duplicateEdition = `-- name: DuplicateEdition :one
+INSERT INTO newsletter_editions (user_id, title, destination)
+VALUES ($1, $2, $3)
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category, destination
+`
+
+type DuplicateEditionParams struct {
+	UserID      pgtype.UUID
+	Title       string
+	Destination *string
+}
+
+func (q *Queries) DuplicateEdition(ctx context.Context, arg DuplicateEditionParams) (NewsletterEdition, error) {
+	row := q.db.QueryRow(ctx, duplicateEdition, arg.UserID, arg.Title, arg.Destination)
+	var i NewsletterEdition
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Title,
+		&i.Introduction,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Category,
+		&i.Destination,
 	)
 	return i, err
 }
 
 const getEditionByID = `-- name: GetEditionByID :one
-SELECT id, user_id, title, introduction, status, created_at, updated_at, category FROM newsletter_editions WHERE id = $1
+SELECT id, user_id, title, introduction, status, created_at, updated_at, category, destination FROM newsletter_editions WHERE id = $1
 `
 
 func (q *Queries) GetEditionByID(ctx context.Context, id pgtype.UUID) (NewsletterEdition, error) {
@@ -95,8 +127,41 @@ func (q *Queries) GetEditionByID(ctx context.Context, id pgtype.UUID) (Newslette
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Category,
+		&i.Destination,
 	)
 	return i, err
+}
+
+const listArticleCountsByEditionIDs = `-- name: ListArticleCountsByEditionIDs :many
+SELECT na.newsletter_id, COUNT(*)::INT as article_count
+FROM newsletter_articles na
+WHERE na.newsletter_id = ANY($1::UUID[])
+GROUP BY na.newsletter_id
+`
+
+type ListArticleCountsByEditionIDsRow struct {
+	NewsletterID pgtype.UUID
+	ArticleCount int32
+}
+
+func (q *Queries) ListArticleCountsByEditionIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]ListArticleCountsByEditionIDsRow, error) {
+	rows, err := q.db.Query(ctx, listArticleCountsByEditionIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListArticleCountsByEditionIDsRow
+	for rows.Next() {
+		var i ListArticleCountsByEditionIDsRow
+		if err := rows.Scan(&i.NewsletterID, &i.ArticleCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listArticleIDsInAnyNewsletter = `-- name: ListArticleIDsInAnyNewsletter :many
@@ -129,7 +194,7 @@ func (q *Queries) ListArticleIDsInAnyNewsletter(ctx context.Context, userID pgty
 }
 
 const listEditionsByUser = `-- name: ListEditionsByUser :many
-SELECT id, user_id, title, introduction, status, created_at, updated_at, category FROM newsletter_editions
+SELECT id, user_id, title, introduction, status, created_at, updated_at, category, destination FROM newsletter_editions
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -152,6 +217,7 @@ func (q *Queries) ListEditionsByUser(ctx context.Context, userID pgtype.UUID) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Category,
+			&i.Destination,
 		); err != nil {
 			return nil, err
 		}
@@ -164,7 +230,7 @@ func (q *Queries) ListEditionsByUser(ctx context.Context, userID pgtype.UUID) ([
 }
 
 const listEditionsByUserFiltered = `-- name: ListEditionsByUserFiltered :many
-SELECT id, user_id, title, introduction, status, created_at, updated_at, category FROM newsletter_editions
+SELECT id, user_id, title, introduction, status, created_at, updated_at, category, destination FROM newsletter_editions
 WHERE user_id = $1
   AND ($2::TEXT IS NULL OR status = $2)
   AND ($3::TEXT IS NULL OR category = $3)
@@ -195,6 +261,7 @@ func (q *Queries) ListEditionsByUserFiltered(ctx context.Context, arg ListEditio
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Category,
+			&i.Destination,
 		); err != nil {
 			return nil, err
 		}
@@ -305,6 +372,32 @@ func (q *Queries) ListNewsletterEditionTagsByEditionIDs(ctx context.Context, dol
 	return items, nil
 }
 
+const listUsedDestinationsByUser = `-- name: ListUsedDestinationsByUser :many
+SELECT DISTINCT destination FROM newsletter_editions
+WHERE user_id = $1 AND destination IS NOT NULL AND destination <> ''
+ORDER BY destination
+`
+
+func (q *Queries) ListUsedDestinationsByUser(ctx context.Context, userID pgtype.UUID) ([]*string, error) {
+	rows, err := q.db.Query(ctx, listUsedDestinationsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*string
+	for rows.Next() {
+		var destination *string
+		if err := rows.Scan(&destination); err != nil {
+			return nil, err
+		}
+		items = append(items, destination)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeNewsletterArticle = `-- name: RemoveNewsletterArticle :exec
 DELETE FROM newsletter_articles
 WHERE newsletter_id = $1 AND digest_article_id = $2
@@ -339,7 +432,7 @@ const updateEditionBody = `-- name: UpdateEditionBody :one
 UPDATE newsletter_editions
 SET title = $2, introduction = $3, updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, title, introduction, status, created_at, updated_at, category
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category, destination
 `
 
 type UpdateEditionBodyParams struct {
@@ -360,6 +453,7 @@ func (q *Queries) UpdateEditionBody(ctx context.Context, arg UpdateEditionBodyPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Category,
+		&i.Destination,
 	)
 	return i, err
 }
@@ -368,7 +462,7 @@ const updateEditionCategory = `-- name: UpdateEditionCategory :one
 UPDATE newsletter_editions
 SET category = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, title, introduction, status, created_at, updated_at, category
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category, destination
 `
 
 type UpdateEditionCategoryParams struct {
@@ -388,6 +482,36 @@ func (q *Queries) UpdateEditionCategory(ctx context.Context, arg UpdateEditionCa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Category,
+		&i.Destination,
+	)
+	return i, err
+}
+
+const updateEditionDestination = `-- name: UpdateEditionDestination :one
+UPDATE newsletter_editions
+SET destination = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category, destination
+`
+
+type UpdateEditionDestinationParams struct {
+	ID          pgtype.UUID
+	Destination *string
+}
+
+func (q *Queries) UpdateEditionDestination(ctx context.Context, arg UpdateEditionDestinationParams) (NewsletterEdition, error) {
+	row := q.db.QueryRow(ctx, updateEditionDestination, arg.ID, arg.Destination)
+	var i NewsletterEdition
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Title,
+		&i.Introduction,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Category,
+		&i.Destination,
 	)
 	return i, err
 }
@@ -396,7 +520,7 @@ const updateEditionStatus = `-- name: UpdateEditionStatus :one
 UPDATE newsletter_editions
 SET status = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, title, introduction, status, created_at, updated_at, category
+RETURNING id, user_id, title, introduction, status, created_at, updated_at, category, destination
 `
 
 type UpdateEditionStatusParams struct {
@@ -416,6 +540,7 @@ func (q *Queries) UpdateEditionStatus(ctx context.Context, arg UpdateEditionStat
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Category,
+		&i.Destination,
 	)
 	return i, err
 }

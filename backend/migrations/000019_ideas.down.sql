@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS idea_articles;
+DROP TABLE IF EXISTS idea_tags;
+DROP TABLE IF EXISTS ideas;

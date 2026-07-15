@@ -1,7 +1,7 @@
 -- Newsletter editions (ADR 0029)
 -- name: CreateEdition :one
-INSERT INTO newsletter_editions (user_id, title, introduction, category)
-VALUES ($1, $2, $3, sqlc.narg('category'))
+INSERT INTO newsletter_editions (user_id, title, introduction, category, destination)
+VALUES ($1, $2, $3, sqlc.narg('category'), sqlc.narg('destination'))
 RETURNING *;
 
 -- name: GetEditionByID :one
@@ -82,3 +82,25 @@ SELECT net.edition_id, t.label FROM newsletter_edition_tags net
 JOIN tags t ON t.id = net.tag_id
 WHERE net.edition_id = ANY($1::UUID[])
 ORDER BY t.label;
+
+-- name: UpdateEditionDestination :one
+UPDATE newsletter_editions
+SET destination = $2, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ListArticleCountsByEditionIDs :many
+SELECT na.newsletter_id, COUNT(*)::INT as article_count
+FROM newsletter_articles na
+WHERE na.newsletter_id = ANY($1::UUID[])
+GROUP BY na.newsletter_id;
+
+-- name: DuplicateEdition :one
+INSERT INTO newsletter_editions (user_id, title, destination)
+VALUES ($1, $2, $3)
+RETURNING *;
+
+-- name: ListUsedDestinationsByUser :many
+SELECT DISTINCT destination FROM newsletter_editions
+WHERE user_id = $1 AND destination IS NOT NULL AND destination <> ''
+ORDER BY destination;
