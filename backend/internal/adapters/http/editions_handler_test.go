@@ -191,7 +191,7 @@ func TestEditionHandler_UpdateStatus_BuildingToReady(t *testing.T) {
 	}
 }
 
-func TestEditionHandler_UpdateStatus_InvalidTransition(t *testing.T) {
+func TestEditionHandler_UpdateStatus_AnyCrossStatus(t *testing.T) {
 	uid := uuid.New()
 	eid := uuid.New()
 	repo := &mockEditionRepo{
@@ -201,6 +201,7 @@ func TestEditionHandler_UpdateStatus_InvalidTransition(t *testing.T) {
 	}
 	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
 
+	// All cross-status transitions are valid (free kanban movement).
 	body := `{"status":"building"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/status", strings.NewReader(body))
 	r = addChiURLParam(r, "id", eid.String())
@@ -208,8 +209,8 @@ func TestEditionHandler_UpdateStatus_InvalidTransition(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.UpdateStatus(w, r)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

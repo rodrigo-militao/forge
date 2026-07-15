@@ -18,20 +18,9 @@ const (
 	EditionArchived   EditionStatus = "archived"
 )
 
-// AllowedTransitions maps each status to the set of statuses it can transition to.
-var allowedTransitions = map[EditionStatus]map[EditionStatus]bool{
-	EditionBuilding:  {EditionReady: true, EditionArchived: true},
-	EditionReady:     {EditionPublished: true, EditionArchived: true},
-	EditionPublished: {},
-	EditionArchived:  {EditionBuilding: true},
-}
-
-// CanTransitionTo returns true if the edition can transition from the current status to the target.
+// CanTransitionTo returns true for any cross-status transition (free kanban movement).
 func (s EditionStatus) CanTransitionTo(target EditionStatus) bool {
-	if s == target {
-		return false
-	}
-	return allowedTransitions[s][target]
+	return s != target
 }
 
 // ValidateTransition returns an error if the transition is not allowed.

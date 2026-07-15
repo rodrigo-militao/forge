@@ -4,41 +4,20 @@ import (
 	"testing"
 )
 
-func TestEditionStatus_ValidTransitions(t *testing.T) {
+func TestEditionStatus_CanTransitionTo_AllCrossStatuses(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		from EditionStatus
-		to   EditionStatus
-		want bool
-	}{
-		// building → ready (manual "mark as ready")
-		{EditionBuilding, EditionReady, true},
-		// building → archived (manual discard)
-		{EditionBuilding, EditionArchived, true},
-		// ready → published (manual publish)
-		{EditionReady, EditionPublished, true},
-		// ready → archived (manual archive)
-		{EditionReady, EditionArchived, true},
-		// No self-transitions
-		{EditionBuilding, EditionBuilding, false},
-		{EditionReady, EditionReady, false},
-		{EditionPublished, EditionPublished, false},
-		{EditionArchived, EditionArchived, false},
-		// Still blocked backwards transitions
-		{EditionReady, EditionBuilding, false},
-		{EditionPublished, EditionBuilding, false},
-		{EditionPublished, EditionReady, false},
-		{EditionArchived, EditionReady, false},
-		{EditionArchived, EditionPublished, false},
-		// Re-activated (now allowed)
-		{EditionArchived, EditionBuilding, true},
-	}
+	statuses := []EditionStatus{EditionBuilding, EditionReady, EditionPublished, EditionArchived}
 
-	for _, tt := range tests {
-		got := tt.from.CanTransitionTo(tt.to)
-		if got != tt.want {
-			t.Errorf("EditionStatus(%q).CanTransitionTo(%q) = %v, want %v", tt.from, tt.to, got, tt.want)
+	for _, from := range statuses {
+		for _, to := range statuses {
+			got := from.CanTransitionTo(to)
+			if from == to && got {
+				t.Errorf("EditionStatus(%q).CanTransitionTo(%q) = true, want false (self-transition)", from, to)
+			}
+			if from != to && !got {
+				t.Errorf("EditionStatus(%q).CanTransitionTo(%q) = false, want true (cross-status)", from, to)
+			}
 		}
 	}
 }
@@ -46,17 +25,17 @@ func TestEditionStatus_ValidTransitions(t *testing.T) {
 func TestEditionStatus_ValidateTransition(t *testing.T) {
 	t.Parallel()
 
-	t.Run("valid transition returns nil", func(t *testing.T) {
+	t.Run("valid cross-status returns nil", func(t *testing.T) {
 		err := EditionBuilding.ValidateTransition(EditionReady)
 		if err != nil {
 			t.Errorf("expected nil, got %v", err)
 		}
 	})
 
-	t.Run("invalid transition returns error", func(t *testing.T) {
-		err := EditionPublished.ValidateTransition(EditionBuilding)
+	t.Run("self-transition returns error", func(t *testing.T) {
+		err := EditionPublished.ValidateTransition(EditionPublished)
 		if err == nil {
-			t.Error("expected error for invalid transition, got nil")
+			t.Error("expected error for self-transition, got nil")
 		}
 	})
 }
