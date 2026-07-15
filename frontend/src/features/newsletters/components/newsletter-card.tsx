@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import { Edit3, Eye, Copy } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { NewsletterEdition } from "../../../api/client";
 import { formatTimeAgo } from "../../digest/components/stats-bar";
@@ -8,30 +8,35 @@ interface NewsletterCardProps {
   item: NewsletterEdition;
   isSelected: boolean;
   onClick: (item: NewsletterEdition) => void;
-  onEdit: (item: NewsletterEdition) => void;
-  onPreview: (item: NewsletterEdition) => void;
-  onDuplicate: (item: NewsletterEdition) => void;
+  onNextStep: (item: NewsletterEdition) => void;
+}
+
+type NextStep = {
+  label: string;
+  kind: "compose" | "review" | "publish" | "done";
+};
+
+function getNextStep(item: NewsletterEdition, t: (key: string) => string): NextStep {
+  if (item.status === "building") {
+    if (item.article_count <= 0) {
+      return { label: t("newsletters.selectArticles"), kind: "compose" };
+    }
+    if (!item.body_html || item.body_html.length === 0) {
+      return { label: t("newsletters.continueWriting"), kind: "compose" };
+    }
+    return { label: t("newsletters.sendForReview"), kind: "review" };
+  }
+  if (item.status === "ready") {
+    return { label: t("newsletters.previewAndPublish"), kind: "publish" };
+  }
+  return { label: t("newsletters.published"), kind: "done" };
 }
 
 const TARGET_ARTICLE_COUNT = 8;
 
-function stripHtml(html: string): string {
-  if (!html) return "";
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent ?? div.innerText ?? "";
-}
-
-function snippet(bodyHtml: string, max = 90): string {
-  const text = stripHtml(bodyHtml).trim();
-  if (!text) return "";
-  return text.length > max ? text.slice(0, max).trimEnd() + "…" : text;
-}
-
-export function NewsletterCard({ item, isSelected, onClick, onEdit, onPreview, onDuplicate }: NewsletterCardProps) {
+export function NewsletterCard({ item, isSelected, onClick, onNextStep }: NewsletterCardProps) {
   const { t } = useTranslation();
 
-  // Draggable
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `card-${item.id}`,
     data: { editionId: item.id, status: item.status },
@@ -42,9 +47,9 @@ export function NewsletterCard({ item, isSelected, onClick, onEdit, onPreview, o
     : undefined;
 
   const hasArticles = item.article_count > 0;
-  const hasDestination = item.destination != null && item.destination !== "";
   const hasBody = item.body_html.length > 0;
-  const bodySnippet = snippet(item.body_html);
+  const needsAttention = item.status === "building" && hasArticles && hasBody;
+  const nextStep = getNextStep(item, t);
 
   return (
     <div
@@ -53,102 +58,76 @@ export function NewsletterCard({ item, isSelected, onClick, onEdit, onPreview, o
       {...listeners}
       {...attributes}
       onClick={() => onClick(item)}
-      className={`cursor-grab rounded-lg border p-3.5 text-left transition-all duration-[var(--duration-base)] active:cursor-grabbing ${
+      className={`group cursor-grab rounded-lg border p-3.5 text-left transition-all duration-[var(--duration-base)] active:cursor-grabbing ${
         isDragging
           ? "z-50 border-[var(--color-accent-primary)]/40 bg-white/[0.08] opacity-60 shadow-xl ring-1 ring-[var(--color-accent-primary)]/30"
           : isSelected
             ? "border-[var(--color-accent-primary)]/40 bg-white/[0.06] ring-1 ring-[var(--color-accent-primary)]/20"
-            : "border-[var(--color-border)]/10 bg-white/[0.02] hover:border-[var(--color-accent-primary)]/20"
+            : needsAttention
+              ? "border-l-2 border-l-[var(--color-accent-primary)]/60 border-[var(--color-border)]/10 bg-white/[0.02] hover:border-[var(--color-accent-primary)]/20"
+              : "border-[var(--color-border)]/10 bg-white/[0.02] hover:border-[var(--color-accent-primary)]/20"
       }`}
     >
-      {/* Row 1: Release title */}
-      <h3 className="truncate text-sm font-medium text-[var(--color-bg-surface)]">
-        {item.title || "(no title)"}
-      </h3>
+      {/* Title + needs review badge */}
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="min-w-0 truncate text-sm font-medium text-[var(--color-bg-surface)]">
+          {item.title || t("newsletters.noTitle")}
+        </h3>
+        {needsAttention && (
+          <span className="shrink-0 rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent-primary)] whitespace-nowrap">
+            {t("newsletters.needsReview")}
+          </span>
+        )}
+      </div>
+
       {item.destination && (
-        <p className="truncate text-[11px] text-[var(--color-text-muted)]">{item.destination}</p>
+        <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">{item.destination}</p>
       )}
 
-      {/* Checklist */}
-      <div className="mt-2.5 space-y-1">
-        {/* Articles */}
-        <div className="flex items-center gap-1.5 text-[11px]">
-          <span className={`shrink-0 ${hasArticles ? "text-[var(--color-accent-success)]" : "text-[var(--color-text-muted)]"}`}>
-            {hasArticles ? "✓" : "○"}
-          </span>
-          <span className="text-[var(--color-bg-surface)]/70">
-            {hasArticles ? `${item.article_count} article${item.article_count !== 1 ? "s" : ""} linked` : "No articles linked"}
-          </span>
-          {hasArticles && (
-            <div className="ml-auto flex items-center gap-1.5">
-              <div className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.08]">
-                <div
-                  className="h-full rounded-full bg-[var(--color-accent-primary)] transition-all duration-[var(--duration-base)]"
-                  style={{ width: `${Math.min(100, (item.article_count / TARGET_ARTICLE_COUNT) * 100)}%` }}
-                />
-              </div>
-              <span className="text-[10px] text-[var(--color-text-muted)]">
-                {Math.min(item.article_count, TARGET_ARTICLE_COUNT)}/{TARGET_ARTICLE_COUNT}
-              </span>
+      {/* Article count + progress */}
+      <div className="mt-3 flex items-center gap-2">
+        <span className="text-xs text-[var(--color-bg-surface)]/70">
+          {t("newsletters.article", { count: item.article_count })}
+        </span>
+        {hasArticles && (
+          <div className="flex items-center gap-1.5">
+            <div className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.08]">
+              <div
+                className="h-full rounded-full bg-[var(--color-accent-primary)] transition-all duration-[var(--duration-base)]"
+                style={{ width: `${Math.min(100, (item.article_count / TARGET_ARTICLE_COUNT) * 100)}%` }}
+              />
             </div>
-          )}
-        </div>
-
-        {/* Destination */}
-        <div className="flex items-center gap-1.5 text-[11px]">
-          <span className={`shrink-0 ${hasDestination ? "text-[var(--color-accent-success)]" : "text-[var(--color-text-muted)]"}`}>
-            {hasDestination ? "✓" : "○"}
-          </span>
-          <span className="text-[var(--color-bg-surface)]/70">
-            {hasDestination ? `Destination: ${item.destination}` : "No destination set"}
-          </span>
-        </div>
-
-        {/* Body */}
-        <div className="flex items-center gap-1.5 text-[11px]">
-          <span className={`shrink-0 ${hasBody ? "text-[var(--color-accent-success)]" : "text-[var(--color-text-muted)]"}`}>
-            {hasBody ? "✓" : "○"}
-          </span>
-          <span className="text-[var(--color-bg-surface)]/70">
-            {hasBody ? "Body content written" : "No body content"}
-          </span>
-        </div>
+            <span className="text-[10px] text-[var(--color-text-muted)]">
+              {Math.min(item.article_count, TARGET_ARTICLE_COUNT)}/{TARGET_ARTICLE_COUNT}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Body snippet */}
-      {bodySnippet && (
-        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{bodySnippet}</p>
+      {/* Last edited */}
+      <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)]">
+        {t("newsletters.lastEdited")} {formatTimeAgo(item.updated_at, t)}
+      </p>
+
+      {/* Next-step CTA */}
+      {nextStep.kind !== "done" && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onNextStep(item);
+          }}
+          className={`mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-[0.97] ${
+            nextStep.kind === "review"
+              ? "border border-[var(--color-accent-primary)]/40 bg-[var(--color-accent-primary)]/15 text-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary)]/25"
+              : nextStep.kind === "publish"
+                ? "bg-[var(--color-accent-primary)] text-white hover:bg-[var(--color-accent-primary)]/90"
+                : "border border-[var(--color-border)]/20 text-[var(--color-bg-surface)]/80 hover:bg-white/[0.06] hover:text-[var(--color-bg-surface)]"
+          }`}
+        >
+          {nextStep.label}
+          <ArrowRight size={13} />
+        </button>
       )}
-
-      {/* Footer */}
-      <div className="mt-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-muted)]">
-          <span>Updated {formatTimeAgo(item.updated_at, t)}</span>
-        </div>
-        <div className="flex gap-0.5 opacity-0 transition-opacity duration-[var(--duration-fast)] group-hover:opacity-100">
-          <button
-            onClick={(e) => { e.stopPropagation(); onEdit(item); }}
-            className="rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
-            title="Edit"
-          >
-            <Edit3 size={13} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onPreview(item); }}
-            className="rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
-            title="Preview"
-          >
-            <Eye size={13} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDuplicate(item); }}
-            className="rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
-            title="Duplicate"
-          >
-            <Copy size={13} />
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
