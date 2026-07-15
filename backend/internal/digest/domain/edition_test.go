@@ -25,13 +25,14 @@ func TestEditionStatus_ValidTransitions(t *testing.T) {
 		{EditionReady, EditionReady, false},
 		{EditionPublished, EditionPublished, false},
 		{EditionArchived, EditionArchived, false},
-		// No backwards transitions
+		// Still blocked backwards transitions
 		{EditionReady, EditionBuilding, false},
 		{EditionPublished, EditionBuilding, false},
 		{EditionPublished, EditionReady, false},
-		{EditionArchived, EditionBuilding, false},
 		{EditionArchived, EditionReady, false},
 		{EditionArchived, EditionPublished, false},
+		// Re-activated (now allowed)
+		{EditionArchived, EditionBuilding, true},
 	}
 
 	for _, tt := range tests {

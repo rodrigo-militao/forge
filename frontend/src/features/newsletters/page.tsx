@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
 import { ChevronLeft, Plus } from "lucide-react";
+import type { DragEndEvent } from "@dnd-kit/core";
 import { api, type ArticleRef, type NewsletterEdition } from "../../api/client";
 import { ContentEditor } from "../../components/editor/ContentEditor";
 import { useAutosave } from "../../hooks/useAutosave";
@@ -120,6 +121,24 @@ export function NewslettersPage() {
       setSelectedItem(dup);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to duplicate");
+    }
+  }, [queryClient]);
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const editionId = active.data.current?.editionId as string;
+    const currentStatus = active.data.current?.status as string;
+    const targetStatus = (over.id as string).replace("column-", "");
+
+    if (!editionId || !targetStatus || targetStatus === currentStatus) return;
+
+    try {
+      await api.newsletters.updateStatus(editionId, targetStatus);
+      queryClient.invalidateQueries({ queryKey: ["editions"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to move release");
     }
   }, [queryClient]);
 
@@ -450,7 +469,7 @@ export function NewslettersPage() {
       {/* Kanban columns */}
       <div className="flex flex-1 gap-0">
         <div className={`min-w-0 ${selectedItem ? "flex-1" : "flex-1 max-w-[1360px]"}`}>
-          <KanbanBoard>
+          <KanbanBoard onDragEnd={handleDragEnd}>
             {groups.map((group) => (
               <KanbanColumn key={group.status} status={group.status} count={group.items.length}>
                 {group.items.map((item) => (

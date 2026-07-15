@@ -23,7 +23,7 @@ var allowedTransitions = map[EditionStatus]map[EditionStatus]bool{
 	EditionBuilding:  {EditionReady: true, EditionArchived: true},
 	EditionReady:     {EditionPublished: true, EditionArchived: true},
 	EditionPublished: {},
-	EditionArchived:  {},
+	EditionArchived:  {EditionBuilding: true},
 }
 
 // CanTransitionTo returns true if the edition can transition from the current status to the target.

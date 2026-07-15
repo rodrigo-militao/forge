@@ -1,3 +1,4 @@
+import { useDraggable } from "@dnd-kit/core";
 import { Edit3, Eye, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { NewsletterEdition } from "../../../api/client";
@@ -30,37 +31,43 @@ function snippet(bodyHtml: string, max = 90): string {
 export function NewsletterCard({ item, isSelected, onClick, onEdit, onPreview, onDuplicate }: NewsletterCardProps) {
   const { t } = useTranslation();
 
+  // Draggable
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `card-${item.id}`,
+    data: { editionId: item.id, status: item.status },
+  });
+
+  const dragStyle = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 100 }
+    : undefined;
+
   const hasArticles = item.article_count > 0;
   const hasDestination = item.destination != null && item.destination !== "";
   const hasBody = item.body_html.length > 0;
   const bodySnippet = snippet(item.body_html);
 
-  const checksDone = [hasArticles, hasDestination, hasBody].filter(Boolean).length;
-  const checkTotal = 3;
-
   return (
-    <button
+    <div
+      ref={setNodeRef}
+      style={dragStyle}
+      {...listeners}
+      {...attributes}
       onClick={() => onClick(item)}
-      className={`group w-full cursor-pointer rounded-lg border p-3.5 text-left transition-all duration-[var(--duration-base)] hover:-translate-y-0.5 active:translate-y-0 ${
-        isSelected
-          ? "border-[var(--color-accent-primary)]/40 bg-white/[0.06] ring-1 ring-[var(--color-accent-primary)]/20"
-          : "border-[var(--color-border)]/10 bg-white/[0.02] hover:border-[var(--color-accent-primary)]/20"
+      className={`cursor-grab rounded-lg border p-3.5 text-left transition-all duration-[var(--duration-base)] active:cursor-grabbing ${
+        isDragging
+          ? "z-50 border-[var(--color-accent-primary)]/40 bg-white/[0.08] opacity-60 shadow-xl ring-1 ring-[var(--color-accent-primary)]/30"
+          : isSelected
+            ? "border-[var(--color-accent-primary)]/40 bg-white/[0.06] ring-1 ring-[var(--color-accent-primary)]/20"
+            : "border-[var(--color-border)]/10 bg-white/[0.02] hover:border-[var(--color-accent-primary)]/20"
       }`}
     >
-      {/* Row 1: Release title + status */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-medium text-[var(--color-bg-surface)]">
-            {item.title || "(no title)"}
-          </h3>
-          {/* Destination as subtitle when present */}
-          {item.destination && (
-            <p className="truncate text-[11px] text-[var(--color-text-muted)]">
-              {item.destination}
-            </p>
-          )}
-        </div>
-      </div>
+      {/* Row 1: Release title */}
+      <h3 className="truncate text-sm font-medium text-[var(--color-bg-surface)]">
+        {item.title || "(no title)"}
+      </h3>
+      {item.destination && (
+        <p className="truncate text-[11px] text-[var(--color-text-muted)]">{item.destination}</p>
+      )}
 
       {/* Checklist */}
       <div className="mt-2.5 space-y-1">
@@ -70,12 +77,9 @@ export function NewsletterCard({ item, isSelected, onClick, onEdit, onPreview, o
             {hasArticles ? "✓" : "○"}
           </span>
           <span className="text-[var(--color-bg-surface)]/70">
-            {item.article_count > 0
-              ? `${item.article_count} article${item.article_count !== 1 ? "s" : ""} linked`
-              : "No articles linked"}
+            {hasArticles ? `${item.article_count} article${item.article_count !== 1 ? "s" : ""} linked` : "No articles linked"}
           </span>
-          {/* Progress bar when articles exist */}
-          {item.article_count > 0 && (
+          {hasArticles && (
             <div className="ml-auto flex items-center gap-1.5">
               <div className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.08]">
                 <div
@@ -100,7 +104,7 @@ export function NewsletterCard({ item, isSelected, onClick, onEdit, onPreview, o
           </span>
         </div>
 
-        {/* Body content */}
+        {/* Body */}
         <div className="flex items-center gap-1.5 text-[11px]">
           <span className={`shrink-0 ${hasBody ? "text-[var(--color-accent-success)]" : "text-[var(--color-text-muted)]"}`}>
             {hasBody ? "✓" : "○"}
@@ -111,25 +115,16 @@ export function NewsletterCard({ item, isSelected, onClick, onEdit, onPreview, o
         </div>
       </div>
 
-      {/* Body snippet (when available) */}
+      {/* Body snippet */}
       {bodySnippet && (
-        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-          {bodySnippet}
-        </p>
+        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{bodySnippet}</p>
       )}
 
-      {/* Footer: metadata + actions */}
+      {/* Footer */}
       <div className="mt-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-muted)]">
           <span>Updated {formatTimeAgo(item.updated_at, t)}</span>
-          {item.tags.length > 0 && (
-            <span className="hidden truncate group-hover:inline sm:inline max-w-[80px]">
-              {item.tags.slice(0, 2).join(", ")}
-            </span>
-          )}
         </div>
-
-        {/* Quick actions */}
         <div className="flex gap-0.5 opacity-0 transition-opacity duration-[var(--duration-fast)] group-hover:opacity-100">
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(item); }}
@@ -154,6 +149,6 @@ export function NewsletterCard({ item, isSelected, onClick, onEdit, onPreview, o
           </button>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

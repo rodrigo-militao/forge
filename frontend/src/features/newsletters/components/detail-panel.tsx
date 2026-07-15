@@ -100,6 +100,8 @@ export function NewsletterDetailPanel({
   } else if (item.status === "ready") {
     nextTransitions.push({ status: "published", label: "Mark as published" });
     nextTransitions.push({ status: "archived", label: "Archive" });
+  } else if (item.status === "archived") {
+    nextTransitions.push({ status: "building", label: "Reactivate" });
   }
 
   return (
