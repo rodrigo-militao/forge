@@ -83,7 +83,7 @@ export function NewslettersPage() {
 
   const handleCreate = useCallback(async () => {
     try {
-      const edition = await api.newsletters.create({ title: t("newsletters.newRelease") });
+      const edition = await api.newsletters.create({ title: t("newsletters.newNewsletter") });
       setSelectedItem(edition);
       setShowEditor(true);
       setShowPreview(false);
@@ -157,7 +157,7 @@ export function NewslettersPage() {
   const handleDuplicate = useCallback(async (item: NewsletterEdition) => {
     try {
       const dup = await api.newsletters.duplicate(item.id);
-      toast.success(t("newsletters.releaseDuplicated"));
+      toast.success(t("newsletters.newsletterDuplicated"));
       queryClient.invalidateQueries({ queryKey: ["editions"] });
       setSelectedItem(dup);
     } catch (err) {
@@ -611,10 +611,10 @@ export function NewslettersPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
-            {t("newsletters.releases")}
+            {t("newsletters.title")}
           </h1>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            {t("newsletters.activeReleases", { count: activeItems.length })}
+            {t("newsletters.activeNewsletters", { count: activeItems.length })}
             {publishedItems.length > 0 && ` · ${publishedItems.length} ${t("newsletters.published")}`}
             {archivedItems.length > 0 && ` · ${archivedItems.length} ${t("newsletters.archived")}`}
           </p>
@@ -624,7 +624,7 @@ export function NewslettersPage() {
           className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-accent-primary)]/90 hover:scale-[1.03] active:scale-[0.97]"
         >
           <Plus size={16} />
-          {t("newsletters.newRelease")}
+          {t("newsletters.newNewsletter")}
         </button>
       </div>
 
@@ -659,7 +659,7 @@ export function NewslettersPage() {
                 <Plus size={28} className="text-[var(--color-text-muted)]" />
               </div>
               <p className="text-sm text-[var(--color-text-muted)]">
-                {t("newsletters.noReleases")}
+                {t("newsletters.noNewsletters")}
               </p>
             </div>
           )}

@@ -78,7 +78,7 @@ export function KanbanColumn({
         {children}
         {count === 0 && (
           <div className="mt-8 text-center text-xs text-[var(--color-text-muted)]">
-            {t("newsletters.noReleasesInStage")}
+            {t("newsletters.noNewslettersInStage")}
           </div>
         )}
       </div>
