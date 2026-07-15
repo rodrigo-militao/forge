@@ -194,7 +194,10 @@
 - Publicação automática em qualquer plataforma externa (ADR 0003)
 - Qualquer forma de autonomia sem revisão humana (ADR 0005)
 - Montagem automática de edição via cron + notificações/lembretes (ADR 0029)
-- Ampliação de posicionamento para "plataforma completa de estudo/escrita" (portal de pesquisa, diretórios de organização, saída para artigo científico/script de vídeo além de newsletter/artigo) — decisão de posicionamento adiada conscientemente até haver dado real de uso do MVP atual, mesmo raciocínio da ADR 0008. Categoria/tags do Digest (ADR 0037) já são desenhadas de forma compatível com essa extensão futura, sem retrabalho.
+- Ampliação de posicionamento para "plataforma completa de estudo/escrita" — **parcialmente retomada**: a reestruturação Discover/Content(Articles,Newsletters,Ideas)/Library (ADR 0047-0051) já implementa boa parte dessa visão. O que continua fora de escopo, explicitamente adiado pela própria visão de produto (ver `docs/adr/0051-navegacao-content-create.md`):
+  - **Editorial Calendar** (calendário editorial de planejamento de publicação) — backlog, sem desenho técnico.
+  - **Repurposing** (transformar um artigo em múltiplos formatos: post de LinkedIn, thread, outline de podcast, etc.) — backlog, sem desenho técnico.
+  - Saída para artigo científico/script de vídeo — ainda mais distante, não retomado neste lote.
 - Integração com Obsidian e Telegram — backlog, sem desenho técnico ainda
 
 Esses itens só devem ser retomados depois do MVP validado com uso real, como decisões novas e deliberadas — não como continuação automática deste plano.
