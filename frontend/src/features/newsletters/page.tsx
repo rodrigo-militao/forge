@@ -2,14 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
-import { Eye, ChevronLeft, Copy } from "lucide-react";
+import { ChevronLeft, Plus } from "lucide-react";
 import { api, type ArticleRef, type NewsletterEdition } from "../../api/client";
 import { ContentEditor } from "../../components/editor/ContentEditor";
 import { useAutosave } from "../../hooks/useAutosave";
 import { NewsletterCard } from "./components/newsletter-card";
 import { NewsletterDetailPanel } from "./components/detail-panel";
+import { KanbanBoard, KanbanColumn } from "./components/kanban-board";
 
-const STATUS_OPTIONS = ["building", "ready", "published", "archived"] as const;
+const STATUS_ORDER = ["building", "ready", "published", "archived"] as const;
 
 export function NewslettersPage() {
   const { t } = useTranslation();
@@ -21,19 +22,14 @@ export function NewslettersPage() {
   const [bodyVersion, setBodyVersion] = useState(0);
   const [articles, setArticles] = useState<ArticleRef[]>([]);
   const [removingArticle, setRemovingArticle] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
   const [showEditor, setShowEditor] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewItem, setPreviewItem] = useState<NewsletterEdition | null>(null);
   const articlesReqRef = useRef(0);
 
   const { data: editions, isLoading } = useQuery({
-    queryKey: ["editions", { status: statusFilter || undefined, category: categoryFilter || undefined }],
-    queryFn: () => api.newsletters.list({
-      status: statusFilter || undefined,
-      category: categoryFilter || undefined,
-    }),
+    queryKey: ["editions"],
+    queryFn: () => api.newsletters.list(),
   });
 
   const { data: availableTags } = useQuery({
@@ -66,7 +62,7 @@ export function NewslettersPage() {
 
   const handleCreate = useCallback(async () => {
     try {
-      const edition = await api.newsletters.create({ title: "New newsletter" });
+      const edition = await api.newsletters.create({ title: "New release" });
       setSelectedItem(edition);
       setShowEditor(true);
       setShowPreview(false);
@@ -90,7 +86,7 @@ export function NewslettersPage() {
     setArticles([]);
     try {
       const arts = await api.newsletters.articles(item.id);
-      if (reqId !== articlesReqRef.current) return; // stale response
+      if (reqId !== articlesReqRef.current) return;
       setArticles(arts);
     } catch {
       // silently ignore
@@ -276,29 +272,40 @@ export function NewslettersPage() {
     return () => document.removeEventListener("keydown", handleKey);
   }, [showPreview, showEditor, selectedItem]);
 
-  // Loading state
+  // --- Data ---
+  const items = editions ?? [];
+  const groups = STATUS_ORDER.map((status) => ({
+    status,
+    items: items.filter((i) => i.status === status),
+  }));
+
+  // --- Loading state: 4 skeleton columns ---
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
-          <div className="skeleton skeleton-title !mb-0" />
-          <div className="skeleton !mb-0 !h-9 w-36 rounded-lg" />
+          <div className="skeleton skeleton-title !mb-0 !h-8 w-48" />
+          <div className="skeleton !mb-0 !h-9 w-32 rounded-lg" />
         </div>
-        <div className="mb-4 flex gap-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="skeleton !mb-0 !h-7 w-20 rounded-full" />
+        <div className="flex gap-4">
+          {STATUS_ORDER.map((_, i) => (
+            <div key={i} className="w-[320px] shrink-0 rounded-xl border border-[var(--color-border)]/10 bg-white/[0.015] p-3">
+              <div className="skeleton !mb-0 !h-6 w-24 rounded-md" />
+              <div className="mt-3 space-y-3">
+                {[1, 2].map((j) => (
+                  <div key={j} className="skeleton !mb-0 !h-28 rounded-lg"
+                    style={{ animationDelay: `${(i * 2 + j) * 80}ms` }}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="skeleton skeleton-card !mb-3 !h-24 rounded-lg"
-            style={{ animationDelay: `${i * 80}ms` }}
-          />
-        ))}
       </div>
     );
   }
 
-  // Preview mode — read-only rendered body
+  // --- Preview mode ---
   if (showPreview && previewItem) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 animate-[fadeIn_400ms_ease-out_forwards]">
@@ -307,7 +314,7 @@ export function NewslettersPage() {
           className="group cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] transition-colors hover:text-[var(--color-accent-primary)]/80"
         >
           <ChevronLeft size={16} />
-          Back to newsletters
+          Back to releases
         </button>
         <div className="rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02] p-6">
           <h1 className="mb-2 font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
@@ -327,7 +334,7 @@ export function NewslettersPage() {
     );
   }
 
-  // Editor view
+  // --- Editor view ---
   if (showEditor && selectedItem) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 animate-[fadeIn_400ms_ease-out_forwards]">
@@ -336,7 +343,7 @@ export function NewslettersPage() {
           className="group cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] transition-colors hover:text-[var(--color-accent-primary)]/80"
         >
           <ChevronLeft size={16} />
-          Back to newsletters
+          Back to releases
         </button>
         <ContentEditor
           title={editTitle}
@@ -356,7 +363,6 @@ export function NewslettersPage() {
           titlePlaceholder={t("newsletters.titlePlaceholder")}
           onTransform={handleTransform}
         >
-          {/* Newsletter-specific extras */}
           <div className="flex gap-2">
             <button
               onClick={handleGenerateIntro}
@@ -419,113 +425,57 @@ export function NewslettersPage() {
     );
   }
 
-  // --- Dashboard (split view: list + detail panel) ---
-  const items = editions ?? [];
-  const categories = [...new Set(items.map((e) => e.category).filter(Boolean))] as string[];
-
+  // --- Kanban board ---
   return (
-    <div className="p-6 animate-[fadeIn_400ms_ease-out_forwards]">
+    <div className="flex h-full flex-col p-6 animate-[fadeIn_400ms_ease-out_forwards]">
+      {/* Top toolbar */}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
-          {t("newsletters.title")}
-          {items.length > 0 && (
-            <span className="ml-2 align-baseline font-[var(--font-body)] text-base font-normal text-[var(--color-text-muted)]">
-              {items.length}
-            </span>
-          )}
-        </h1>
+        <div>
+          <h1 className="font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
+            Releases
+          </h1>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            {items.length} release{items.length !== 1 ? "s" : ""} across {STATUS_ORDER.length} stages
+          </p>
+        </div>
         <button
           onClick={handleCreate}
-          className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-accent-primary)]/90 hover:scale-[1.03] active:scale-[0.97]"
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-accent-primary)]/90 hover:scale-[1.03] active:scale-[0.97]"
         >
-          {t("newsletters.createNew")}
+          <Plus size={16} />
+          New Release
         </button>
       </div>
 
-      {/* Filter toolbar */}
-      {items.length > 0 && (
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-[var(--color-text-muted)]">Status</span>
-          {STATUS_OPTIONS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(statusFilter === s ? "" : s)}
-              className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-95 ${
-                statusFilter === s
-                  ? s === "archived"
-                    ? "bg-[var(--color-text-muted)]/20 text-[var(--color-text-muted)]"
-                    : s === "ready"
-                      ? "bg-[var(--color-accent-success)]/20 text-[var(--color-accent-success)]"
-                      : "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                  : "bg-white/[0.04] text-[var(--color-text-muted)] hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
-              }`}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-          {categories.length > 0 && (
-            <>
-              <span className="h-4 w-px bg-white/10" />
-              <span className="text-xs font-medium text-[var(--color-text-muted)]">Category</span>
-              <button
-                onClick={() => setCategoryFilter("")}
-                className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-95 ${
-                  !categoryFilter
-                    ? "bg-white/10 text-[var(--color-bg-surface)]"
-                    : "bg-white/[0.04] text-[var(--color-text-muted)] hover:bg-white/10"
-                }`}
-              >
-                All
-              </button>
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCategoryFilter(categoryFilter === c ? "" : c)}
-                  className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-[var(--duration-fast)] active:scale-95 ${
-                    categoryFilter === c
-                      ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]"
-                      : "bg-white/[0.04] text-[var(--color-text-muted)] hover:bg-white/10"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Dashboard list + optional detail panel */}
-      <div className="flex gap-0">
-        <div className={selectedItem ? "flex-1 min-w-0" : "w-full max-w-2xl"}>
-          <div className="space-y-2">
-            {items.map((item, idx) => (
-              <div
-                key={item.id}
-                style={{ animationDelay: `${idx * 40}ms` }}
-                className="opacity-0 animate-[fadeIn_300ms_ease-out_forwards]"
-              >
-                <NewsletterCard
-                  item={item}
-                  isSelected={selectedItem?.id === item.id}
-                  onClick={handleSelect}
-                  onEdit={handleEditFromDetail}
-                  onPreview={handlePreviewFromDetail}
-                  onDuplicate={handleDuplicate}
-                />
-              </div>
+      {/* Kanban columns */}
+      <div className="flex flex-1 gap-0">
+        <div className={`min-w-0 ${selectedItem ? "flex-1" : "flex-1 max-w-[1360px]"}`}>
+          <KanbanBoard>
+            {groups.map((group) => (
+              <KanbanColumn key={group.status} status={group.status} count={group.items.length}>
+                {group.items.map((item) => (
+                  <NewsletterCard
+                    key={item.id}
+                    item={item}
+                    isSelected={selectedItem?.id === item.id}
+                    onClick={handleSelect}
+                    onEdit={handleEditFromDetail}
+                    onPreview={handlePreviewFromDetail}
+                    onDuplicate={handleDuplicate}
+                  />
+                ))}
+              </KanbanColumn>
             ))}
-          </div>
+          </KanbanBoard>
 
+          {/* Empty state when nothing exists at all */}
           {items.length === 0 && (
             <div className="mt-16 flex flex-col items-center gap-4 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.04]">
-                <Copy size={28} className="text-[var(--color-text-muted)]" />
+                <Plus size={28} className="text-[var(--color-text-muted)]" />
               </div>
               <p className="text-sm text-[var(--color-text-muted)]">
-                {statusFilter || categoryFilter
-                  ? "No releases match the current filter."
-                  : "No releases yet. Create your first newsletter release."}
+                No releases yet. Create your first release.
               </p>
             </div>
           )}
