@@ -87,6 +87,8 @@
     "novosEmpty": "Todos os artigos revisados!",
     "selecionadosEmpty": "Selecione artigos para revisar depois.",
     "enviadosEmpty": "Nenhum artigo enviado para newsletter ainda.",
+    "createArticleAction": "Criar artigo a partir deste item",
+    "createIdeaAction": "Criar ideia a partir deste item",
     "discoverArticles": "Descobrir",
     "sortNewest": "Mais recentes",
     "sortOldest": "Mais antigos",

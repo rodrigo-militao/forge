@@ -87,6 +87,8 @@
     "novosEmpty": "All articles reviewed!",
     "selecionadosEmpty": "Select articles to review them later.",
     "enviadosEmpty": "No articles sent to newsletter yet.",
+    "createArticleAction": "Create article from this item",
+    "createIdeaAction": "Create idea from this item",
     "discoverArticles": "Discover",
     "sortNewest": "Newest first",
     "sortOldest": "Oldest first",

@@ -161,7 +161,7 @@ export function ArticleCard({
               e.stopPropagation();
               onCreateArticle(item);
             }}
-            title="Create article from this item"
+            title={t("digest.createArticleAction")}
             className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-primary)] active:scale-[0.92]"
           >
             <PenLine size={14} />
@@ -171,7 +171,7 @@ export function ArticleCard({
               e.stopPropagation();
               onCreateIdea(item);
             }}
-            title="Create idea from this item"
+            title={t("digest.createIdeaAction")}
             className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-primary)] active:scale-[0.92]"
           >
             <Lightbulb size={14} />
