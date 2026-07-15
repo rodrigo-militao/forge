@@ -31,6 +31,7 @@ type GenerateParams struct {
 	Topic             domain.Topic
 	Voice             domain.Voice
 	TargetLengthWords int
+	Outline           string
 }
 
 // WriteResult is the output of article generation.
@@ -51,7 +52,7 @@ func (s *WriterService) Generate(ctx context.Context, params GenerateParams) (*W
 		tlw = 1500
 	}
 
-	systemPrompt := BuildWriterSystemPrompt(params.Topic, voiceProfile.Instruction, tlw)
+	systemPrompt := BuildWriterSystemPrompt(params.Topic, voiceProfile.Instruction, tlw, params.Outline)
 	resp, err := s.llm.Complete(ctx, coredomain.LLMRequest{
 		SystemPrompt: systemPrompt,
 		Messages:     []coredomain.LLMMessage{{Role: "user", Content: "Write the article now. Follow all the rules above strictly."}},

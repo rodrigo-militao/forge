@@ -34,6 +34,7 @@ func (m *mockContentRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]d
 }
 func (m *mockContentRepo) Create(ctx context.Context, content *domain.GeneratedContent) error { return nil }
 func (m *mockContentRepo) UpdateBody(ctx context.Context, id uuid.UUID, title, body *string) error { return nil }
+func (m *mockContentRepo) UpdateOutline(ctx context.Context, id uuid.UUID, outline *string) error { return nil }
 func (m *mockContentRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	for i, c := range m.items {
 		if c.ID == id {

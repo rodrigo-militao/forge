@@ -35,8 +35,8 @@ Output strictly as JSON:
 }`
 
 // BuildWriterSystemPrompt builds the system prompt for article generation
-// using the topic, voice instruction, and target word count.
-func BuildWriterSystemPrompt(topic domain.Topic, voiceInstruction string, targetWords int) string {
+// using the topic, voice instruction, target word count, and optional outline.
+func BuildWriterSystemPrompt(topic domain.Topic, voiceInstruction string, targetWords int, outline string) string {
 	replacer := strings.NewReplacer(
 		"{{TOPIC}}", topic.Topic,
 		"{{ONE_LINE_PITCH}}", topic.OneLinePitch,
@@ -45,5 +45,9 @@ func BuildWriterSystemPrompt(topic domain.Topic, voiceInstruction string, target
 		"{{TARGET_LENGTH_WORDS}}", fmt.Sprintf("%d", targetWords),
 		"{{VOICE_PROFILE_BLOCK}}", voiceInstruction,
 	)
-	return replacer.Replace(writerTemplate)
+	result := replacer.Replace(writerTemplate)
+	if outline != "" {
+		result += "\n\nOUTLINE TO FOLLOW:\n" + outline
+	}
+	return result
 }

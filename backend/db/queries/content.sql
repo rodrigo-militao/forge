@@ -19,6 +19,12 @@ SET title = COALESCE($2, title), body_markdown = COALESCE($3, body_markdown), up
 WHERE id = $1
 RETURNING *;
 
+-- name: UpdateContentOutline :one
+UPDATE generated_content
+SET outline = $2, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
 -- name: AddContentTagArray :one
 UPDATE generated_content
 SET tags = array_append(tags, $2), updated_at = now()

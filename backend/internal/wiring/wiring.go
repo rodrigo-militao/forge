@@ -140,7 +140,8 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				return fmt.Errorf("invalid user id: %w", err)
 			}
 			var req struct {
-				Theme string `json:"theme"`
+				Theme   string `json:"theme"`
+				Outline string `json:"outline"`
 			}
 			if err := json.Unmarshal(payload, &req); err != nil || req.Theme == "" {
 				return fmt.Errorf("invalid payload: theme required")
@@ -161,11 +162,31 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				Topic:             *topic,
 				Voice:             voice,
 				TargetLengthWords: 1200,
+				Outline:           req.Outline,
 			})
 			if err != nil {
 				return fmt.Errorf("draft generation: %w", err)
 			}
 			_ = result
+			return nil
+		},
+
+		"compose_generate_outline": func(ctx context.Context, userID string, payload []byte) error {
+			id, err := uuid.Parse(userID)
+			if err != nil {
+				return fmt.Errorf("invalid user id: %w", err)
+			}
+			var req struct {
+				Theme string `json:"theme"`
+			}
+			if err := json.Unmarshal(payload, &req); err != nil || req.Theme == "" {
+				return fmt.Errorf("invalid payload: theme required")
+			}
+			svc := composeApp.NewOutlineGeneratorService(llmClient, contentRepo, id)
+			_, err = svc.Generate(ctx, composeApp.OutlineParams{Theme: req.Theme})
+			if err != nil {
+				return fmt.Errorf("outline generation: %w", err)
+			}
 			return nil
 		},
 

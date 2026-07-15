@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PenLine, Plus, Sparkles, WandSparkles, X } from "lucide-react";
+import { PenLine, Plus, Sparkles, WandSparkles, X, FileText, ChevronRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api, type ContentItem } from "../../api/client";
@@ -8,6 +8,7 @@ import { useJobPolling } from "../../hooks/useJobPolling";
 import { TiptapEditor } from "../../components/editor/TiptapEditor";
 
 type Mode = "ai" | "blank";
+type AiStep = "topic" | "outline" | "draft";
 
 export function ComposePage() {
   const { t } = useTranslation();
@@ -16,11 +17,14 @@ export function ComposePage() {
   const [theme, setTheme] = useState("");
   const [generating, setGenerating] = useState(false);
   const [aiRunning, setAiRunning] = useState(false);
+  const [outlineRunning, setOutlineRunning] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
+  const [editOutline, setEditOutline] = useState("");
   const [saving, setSaving] = useState(false);
   const [newTag, setNewTag] = useState("");
+  const [aiStep, setAiStep] = useState<AiStep>("topic");
 
   const { data: content } = useQuery({ queryKey: ["content"], queryFn: api.content.list });
   const { data: availableTags } = useQuery({ queryKey: ["tags"], queryFn: api.content.listTags });
@@ -28,210 +32,229 @@ export function ComposePage() {
 
   useJobPolling(generating, items.length, { interval: 3000, timeout: 60000, filter: (c) => c.product === "compose", onComplete: () => { setGenerating(false); toast.success("Draft ready in Library"); }, onTimeout: () => { setGenerating(false); } });
   useJobPolling(aiRunning, items.length, { interval: 3000, timeout: 90000, filter: (c) => c.product === "compose", onComplete: () => { setAiRunning(false); toast.success("Topic ready in Library"); }, onTimeout: () => { setAiRunning(false); } });
+  useJobPolling(outlineRunning, items.length, { interval: 3000, timeout: 60000, filter: (c) => c.product === "compose", onComplete: () => { setOutlineRunning(false); toast.success("Outline ready"); }, onTimeout: () => { setOutlineRunning(false); } });
 
   const handleGenerateDraft = useCallback(async () => { if (!theme.trim()) return; setGenerating(true); try { await api.compose.generateDraft(theme); toast.success("Draft generation queued"); } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); setGenerating(false); } }, [theme]);
-  const handleTransform = useCallback(
-    async (action: "expand" | "rewrite", editor: import("@tiptap/react").Editor) => {
-      const { from, to } = editor.state.selection;
-      const selectedText = editor.state.doc.textBetween(from, to);
-      if (!selectedText.trim()) { toast.error("Select some text first"); return; }
-      try {
-        await api.compose.transform(selectedText, action);
-        toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} queued`);
-      } catch (err) { toast.error(err instanceof Error ? err.message : "Transform failed"); }
-    },
-    [],
-  );
+
   const handleGenerateTopic = useCallback(async () => { setAiRunning(true); try { await api.compose.generateTopic(); toast.success("Topic generation queued"); } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); setAiRunning(false); } }, []);
+
+  const handleGenerateOutline = useCallback(async (themeText: string) => {
+    setOutlineRunning(true);
+    try {
+      await api.compose.generateOutline(themeText);
+      toast.success("Outline generation queued");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+      setOutlineRunning(false);
+    }
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!selectedItem) return;
     setSaving(true);
     try {
       await api.content.save(selectedItem.id, { title: editTitle, body_markdown: editBody });
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      toast.success(t("editor.saved"));
-    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
-    setSaving(false);
-  }, [selectedItem, editTitle, editBody, queryClient, t]);
+      if (selectedItem.outline !== undefined && editOutline !== (selectedItem.outline ?? "")) {
+        await api.content.updateOutline(selectedItem.id, editOutline);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["content"] });
+      toast.success("Saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }, [selectedItem, editTitle, editBody, editOutline, queryClient]);
+
+  const handleTransform = useCallback(async (text: string, action: "expand" | "rewrite") => {
+    try {
+      const result = await api.compose.transform(text, action);
+      toast.success(`${action} queued (${result.item_count} items)`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Transform failed");
+    }
+  }, []);
+
+  const handleAddTag = useCallback(async () => {
+    if (!selectedItem || !newTag.trim()) return;
+    try {
+      await api.content.addTag(selectedItem.id, newTag.trim());
+      setNewTag("");
+      await queryClient.invalidateQueries({ queryKey: ["content"] });
+      await queryClient.invalidateQueries({ queryKey: ["tags"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
+  }, [selectedItem, newTag, queryClient]);
+
+  const handleRemoveTag = useCallback(async (tag: string) => {
+    if (!selectedItem) return;
+    try {
+      await api.content.removeTag(selectedItem.id, tag);
+      await queryClient.invalidateQueries({ queryKey: ["content"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
+  }, [selectedItem, queryClient]);
 
   const handleStatusChange = useCallback(async (status: string) => {
     if (!selectedItem) return;
     try {
       await api.content.updateStatus(selectedItem.id, status);
-      setSelectedItem((prev) => prev ? { ...prev, status: status as ContentItem["status"] } : null);
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      toast.success(t("editor.statusUpdated"));
+      await queryClient.invalidateQueries({ queryKey: ["content"] });
+      toast.success("Status updated");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
-  }, [selectedItem, queryClient, t]);
-
-  const handleAddTag = useCallback(async (tag: string) => {
-    if (!selectedItem) return;
-    try { await api.content.addTag(selectedItem.id, tag); queryClient.invalidateQueries({ queryKey: ["content"] }); queryClient.invalidateQueries({ queryKey: ["tags"] }); } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to add tag"); }
   }, [selectedItem, queryClient]);
 
-  const handleRemoveTag = useCallback(async (tag: string) => {
-    if (!selectedItem) return;
-    try { await api.content.removeTag(selectedItem.id, tag); queryClient.invalidateQueries({ queryKey: ["content"] }); queryClient.invalidateQueries({ queryKey: ["tags"] }); } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to remove tag"); }
-  }, [selectedItem, queryClient]);
-
-  if (!mode) {
-    return (
-      <div className="mx-auto max-w-lg pt-20">
-        <h1 className="font-[var(--font-display)] text-center text-2xl text-balance">{t("compose.title")}</h1>
-        <div className="mt-8 grid grid-cols-2 gap-4">
-          <button onClick={() => setMode("ai")} className="cursor-pointer flex flex-col items-center gap-3 rounded-xl border bg-white/5 p-8 text-center transition-all duration-200 hover:bg-white/10 hover:shadow-[inset_0_0_0_1px_var(--color-accent-primary)]">
-            <Sparkles size={32} className="text-[var(--color-accent-primary)]" />
-            <span className="font-medium text-[var(--color-bg-surface)]">{t("compose.generateWithAI")}</span>
-            <span className="text-xs text-[var(--color-text-muted)]">Topic → voice → full article</span>
-          </button>
-          <button onClick={() => setMode("blank")} className="cursor-pointer flex flex-col items-center gap-3 rounded-xl border bg-white/5 p-8 text-center transition-all duration-200 hover:bg-white/10 hover:shadow-[inset_0_0_0_1px_var(--color-accent-primary)]">
-            <PenLine size={32} className="text-[var(--color-accent-primary)]" />
-            <span className="font-medium text-[var(--color-bg-surface)]">{t("compose.startBlank")}</span>
-            <span className="text-xs text-[var(--color-text-muted)]">TipTap editor with AI on demand</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // --- AI Mode ---
   if (mode === "ai") {
-    if (selectedItem) {
+    // Step 1: Generate Topic
+    if (aiStep === "topic") {
       return (
-        <div className="mx-auto max-w-3xl">
-          <button onClick={() => setSelectedItem(null)} className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-primary)]">
-            &larr; {t("nav.backToList")}
-          </button>
-          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} maxLength={200} className="mt-5 w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-lg font-[var(--font-display)] text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
-          <TiptapEditor key={selectedItem.id} content={selectedItem.body_markdown ?? ""} onTransform={handleTransform} className="mt-5 min-h-[300px]" />
-          <div className="mt-5 space-y-3">
-            <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("editor.tags")}</label>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {(selectedItem.tags ?? []).length > 0 ? (selectedItem.tags ?? []).map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent-primary)]/20 px-2.5 py-0.5 text-xs text-[var(--color-accent-primary)]">
-                  {tag}
-                  <button onClick={() => handleRemoveTag(tag)} className="cursor-pointer hover:text-[var(--color-accent-danger)]"><X size={11} /></button>
-                </span>
-              )) : (
-                <span className="text-xs text-[var(--color-text-muted)]">{t("editor.noTags")}</span>
-              )}
-            </div>
-            {(availableTags ?? []).filter((t) => !(selectedItem.tags ?? []).includes(t)).length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {(availableTags ?? []).filter((t) => !(selectedItem.tags ?? []).includes(t)).map((tag) => (
-                  <button key={tag} onClick={() => handleAddTag(tag)} className="cursor-pointer rounded-full bg-white/[0.06] px-2.5 py-0.5 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]">+ {tag}</button>
+        <div className="mx-auto max-w-2xl space-y-8">
+          <h1 className="font-[var(--font-display)] text-center text-2xl">{t("compose.generateWithAI")}</h1>
+          <div className="space-y-4">
+            <button onClick={handleGenerateTopic} disabled={aiRunning} className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
+              {aiRunning ? t("compose.generating") : <><Sparkles size={16} /> {t("compose.generateTopic")}</>}
+            </button>
+            {items.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-[var(--color-text-secondary)]">Available topics</h3>
+                {items.map((item) => (
+                  <button key={item.id} onClick={() => { setSelectedItem(item); setEditTitle(item.title ?? ""); setEditBody(item.body_markdown ?? ""); setEditOutline(item.outline ?? ""); setAiStep(item.outline ? "outline" : "draft"); }} className="flex w-full items-center gap-3 rounded-lg border border-[var(--color-border)]/10 bg-white/5 p-3 text-left transition-colors hover:bg-white/10 cursor-pointer">
+                    <PenLine size={16} className="shrink-0 text-[var(--color-accent-primary)]" />
+                    <span className="flex-1 truncate text-sm text-[var(--color-bg-surface)]">{item.title || "(no title)"}</span>
+                    {item.outline && <span className="shrink-0 rounded bg-[var(--color-accent-primary)]/20 px-1.5 py-0.5 text-xs text-[var(--color-accent-primary)]">Outline</span>}
+                    <ChevronRight size={14} className="shrink-0 text-[var(--color-text-muted)]" />
+                  </button>
                 ))}
               </div>
             )}
-            <div className="flex gap-2">
-              <input value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newTag.trim()) { handleAddTag(newTag.trim()); setNewTag(""); } }} placeholder={t("editor.addTag")} className="flex-1 rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-1.5 text-xs text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
-              <button onClick={() => { if (newTag.trim()) { handleAddTag(newTag.trim()); setNewTag(""); } }} disabled={!newTag.trim()} className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"><Plus size={14} /></button>
-            </div>
+            {items.length === 0 && !aiRunning && <p className="text-sm text-center text-[var(--color-text-muted)]">{t("compose.noTopics")}</p>}
           </div>
-          <div className="mt-6">
-            <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("editor.status")}</label>
-            <div className="mt-1.5 flex gap-2">
-              {(["draft", "published", "discarded"] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleStatusChange(s)}
-                  className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                    selectedItem?.status === s
-                      ? s === "published"
-                        ? "bg-[var(--color-accent-primary)] text-white"
-                        : s === "discarded"
-                          ? "bg-[var(--color-accent-danger)]/20 text-[var(--color-accent-danger)]"
-                          : "bg-white/10 text-[var(--color-bg-surface)]"
-                      : "bg-white/[0.06] text-[var(--color-text-muted)] hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
-                  }`}
-                >
-                  {t(`editor.${s}` as const)}
-                </button>
-              ))}
-            </div>
+          <button onClick={() => setMode(null)} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)] cursor-pointer">{t("nav.back")}</button>
+        </div>
+      );
+    }
+
+    // Step 2: Outline Review
+    if (aiStep === "outline" && selectedItem) {
+      return (
+        <div className="mx-auto max-w-2xl space-y-6">
+          <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+            <span>{t("compose.generateWithAI")}</span>
+            <ChevronRight size={14} />
+            <span className="text-[var(--color-bg-surface)]">Outline</span>
           </div>
-          <div className="mt-4 flex gap-2">
-            <button onClick={handleSave} disabled={saving} className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-              {saving ? t("editor.saving") : t("editor.save")}
+          <h1 className="font-[var(--font-display)] text-2xl">Review outline</h1>
+          <div className="space-y-3">
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)]">Title</label>
+            <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" placeholder="Article title…" />
+          </div>
+          <div className="space-y-3">
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)]">Outline</label>
+            <textarea value={editOutline} onChange={(e) => setEditOutline(e.target.value)} rows={12} className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-3 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)] font-mono" placeholder="Article outline…" />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => { setAiStep("draft"); }} className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90 cursor-pointer">
+              <PenLine size={16} /> Generate draft from outline
             </button>
-            <button onClick={() => setSelectedItem(null)} className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-white/5">
-              {t("settings.cancel")}
+            <button onClick={() => setAiStep("topic")} className="rounded-lg border border-[var(--color-border)]/20 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-white/5 cursor-pointer">
+              {t("nav.back")}
             </button>
           </div>
         </div>
       );
     }
 
+    // Step 3: Draft Editor
+    if (aiStep === "draft" && selectedItem) {
+      return (
+        <div className="mx-auto max-w-2xl space-y-6">
+          <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+            <span>{t("compose.generateWithAI")}</span>
+            <ChevronRight size={14} />
+            <span className="text-[var(--color-bg-surface)]">Draft</span>
+          </div>
+          <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full border-b border-[var(--color-border)]/10 bg-transparent py-2 text-lg font-medium text-[var(--color-bg-surface)] outline-none placeholder:text-[var(--color-text-muted)]" placeholder="Article title…" />
+          {editOutline && (
+            <div className="rounded-lg border border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 p-3">
+              <p className="mb-1 text-xs font-medium text-[var(--color-accent-primary)]">Following outline</p>
+              <p className="whitespace-pre-wrap text-xs text-[var(--color-text-secondary)] line-clamp-4">{editOutline}</p>
+            </div>
+          )}
+          <TiptapEditor content={editBody} onUpdate={setEditBody} onTransform={handleTransform} />
+          <div className="flex items-center gap-3">
+            <button onClick={handleSave} disabled={saving} className="rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50 cursor-pointer">
+              {saving ? t("editor.saving") : t("editor.save")}
+            </button>
+            <select value={selectedItem.status} onChange={(e) => handleStatusChange(e.target.value)} className="rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-2 text-sm text-[var(--color-bg-surface)] outline-none cursor-pointer">
+              <option value="draft">{t("editor.draft")}</option>
+              <option value="published">{t("editor.published")}</option>
+              <option value="discarded">{t("editor.discarded")}</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedItem.tags.map((tag) => (
+              <span key={tag} className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
+                {tag}
+                <button onClick={() => handleRemoveTag(tag)} className="cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-accent-danger)]"><X size={12} /></button>
+              </span>
+            ))}
+            <input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(); } }} placeholder={t("editor.addTag")} className="w-24 bg-transparent text-xs text-[var(--color-bg-surface)] outline-none placeholder:text-[var(--color-text-muted)]" />
+          </div>
+          <button onClick={() => { setAiStep("topic"); setSelectedItem(null); }} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)] cursor-pointer">{t("nav.back")}</button>
+        </div>
+      );
+    }
+  }
+
+  // --- Blank Mode ---
+  if (mode === "blank") {
     return (
-      <div className="mx-auto max-w-3xl">
-        <button onClick={() => setMode(null)} className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-primary)]">
-          &larr; {t("nav.back")}
-        </button>
-        <div className="mt-4 flex items-center justify-between">
-          <h1 className="font-[var(--font-display)] text-2xl">{t("compose.generateWithAI")}</h1>
-          <button onClick={handleGenerateTopic} disabled={aiRunning} className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-            <Sparkles size={16} className={aiRunning ? "animate-pulse" : ""} />
-            {aiRunning ? t("compose.generating") : t("compose.generateTopic")}
+      <div className="mx-auto max-w-2xl space-y-6">
+        <h1 className="font-[var(--font-display)] text-2xl">{t("compose.startBlank")}</h1>
+        <div className="flex gap-2">
+          <input type="text" value={theme} onChange={(e) => setTheme(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleGenerateDraft(); }} placeholder={t("compose.writeArticle")} className="flex-1 rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
+          <button onClick={() => handleGenerateOutline(theme)} disabled={!theme.trim() || outlineRunning} className="flex items-center gap-1.5 rounded-lg border border-[var(--color-accent-primary)]/30 px-3 py-2 text-sm text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)]/10 disabled:opacity-50 cursor-pointer">
+            <FileText size={14} /> {outlineRunning ? t("compose.generating") : "Outline"}
+          </button>
+          <button onClick={handleGenerateDraft} disabled={!theme.trim() || generating} className="flex items-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50 cursor-pointer">
+            {generating ? t("compose.generating") : <><Sparkles size={14} /> Generate</>}
           </button>
         </div>
-
-        <div className="mt-6 space-y-3">
-          {items.length === 0 && !aiRunning && (
-            <div className="flex flex-col items-center py-12 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
-              <svg width="96" height="72" viewBox="0 0 96 72" fill="none" className="mb-5 text-[var(--color-text-muted)]" aria-hidden="true">
-                <rect x="8" y="8" width="80" height="56" rx="6" stroke="currentColor" strokeWidth="1" opacity="0.2" />
-                <path d="M28 24h40" stroke="currentColor" strokeWidth="1" opacity="0.15" />
-                <path d="M28 36h24" stroke="currentColor" strokeWidth="1" opacity="0.1" />
-                <path d="M28 48h16" stroke="currentColor" strokeWidth="1" opacity="0.08" />
-              </svg>
-              <p className="text-sm text-[var(--color-text-muted)]">{t("compose.noTopics")}</p>
-              <button onClick={handleGenerateTopic} className="mt-4 cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90">
-                <Sparkles size={14} className="inline" /> {t("compose.generateTopic")}
-              </button>
-            </div>
-          )}
-          {aiRunning && items.length === 0 && (
-            <div className="flex flex-col items-center py-12 opacity-0 animate-[fadeIn_400ms_ease-out_forwards]">
-              <div className="mb-5 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse" />
-                <span className="h-2 w-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse [animation-delay:150ms]" />
-                <span className="h-2 w-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse [animation-delay:300ms]" />
-              </div>
-              <p className="text-sm text-[var(--color-accent-primary)]">{t("compose.generating")}</p>
-            </div>
-          )}
-          {items.map((item, idx) => (
-            <div
-              key={item.id}
-              onClick={() => { setSelectedItem(item); setEditTitle(item.title ?? ""); setEditBody(item.body_markdown ?? ""); }}
-              style={{ animationDelay: `${idx * 50}ms` }}
-              className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 transition-all duration-200 opacity-0 animate-[fadeIn_400ms_ease-out_forwards] hover:bg-white/[0.08]"
-            >
-              <h3 className="font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
-              {item.body_markdown && <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.body_markdown}</p>}
-              <span className="mt-2 inline-block rounded bg-white/10 px-2 py-0.5 text-xs text-[var(--color-text-muted)]">{item.status}</span>
-            </div>
-          ))}
-        </div>
+        <TiptapEditor content={editBody} onUpdate={setEditBody} onTransform={handleTransform} />
+        <button onClick={() => setMode(null)} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)] cursor-pointer">{t("nav.back")}</button>
       </div>
     );
   }
 
+  // --- Mode Selection ---
   return (
-    <div className="mx-auto max-w-3xl">
-      <button onClick={() => setMode(null)} className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent-primary)]">
-        &larr; {t("nav.back")}
-      </button>
-      <h1 className="mt-4 font-[var(--font-display)] text-2xl text-balance">{t("compose.startBlank")}</h1>
-      <div className="mt-5 flex gap-2">
-        <input type="text" value={theme} onChange={(e) => setTheme(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleGenerateDraft(); }} placeholder={t("compose.writeArticle")} className="flex-1 rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
-        <button onClick={handleGenerateDraft} disabled={generating || !theme.trim()} className="cursor-pointer flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-          <WandSparkles size={16} /> Generate
+    <div className="mx-auto max-w-md space-y-8">
+      <h1 className="font-[var(--font-display)] text-center text-2xl text-balance">{t("compose.title")}</h1>
+      <div className="space-y-4">
+        <button onClick={() => setMode("ai")} className="flex w-full items-center gap-4 rounded-lg border border-[var(--color-border)]/10 bg-white/5 p-5 text-left transition-colors hover:bg-white/10 cursor-pointer">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent-primary)]/20">
+            <WandSparkles size={20} className="text-[var(--color-accent-primary)]" />
+          </div>
+          <div>
+            <span className="block font-medium text-[var(--color-bg-surface)]">{t("compose.generateWithAI")}</span>
+            <span className="text-xs text-[var(--color-text-muted)]">Topic → outline → article</span>
+          </div>
+        </button>
+        <button onClick={() => setMode("blank")} className="flex w-full items-center gap-4 rounded-lg border border-[var(--color-border)]/10 bg-white/5 p-5 text-left transition-colors hover:bg-white/10 cursor-pointer">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10">
+            <PenLine size={20} className="text-[var(--color-text-secondary)]" />
+          </div>
+          <div>
+            <span className="block font-medium text-[var(--color-bg-surface)]">{t("compose.startBlank")}</span>
+            <span className="text-xs text-[var(--color-text-muted)]">Write from scratch with optional AI assist</span>
+          </div>
         </button>
       </div>
-      <TiptapEditor content={editBody} onUpdate={(html) => setEditBody(html)} onTransform={handleTransform} className="mt-5 min-h-[300px]" />
     </div>
   );
 }

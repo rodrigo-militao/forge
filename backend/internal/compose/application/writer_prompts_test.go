@@ -15,7 +15,7 @@ func TestBuildWriterSystemPrompt(t *testing.T) {
 		OneLinePitch: "How to use generics effectively",
 	}
 
-	prompt := BuildWriterSystemPrompt(topic, "VOICE: Clean Technical", 1500)
+	prompt := BuildWriterSystemPrompt(topic, "VOICE: Clean Technical", 1500, "")
 
 	if prompt == "" {
 		t.Fatal("expected non-empty prompt")
@@ -45,7 +45,7 @@ func TestBuildWriterSystemPrompt_zeroWords(t *testing.T) {
 		TargetLengthWords: 0,
 	}
 
-	prompt := BuildWriterSystemPrompt(topic, "VOICE: Test", 0)
+	prompt := BuildWriterSystemPrompt(topic, "VOICE: Test", 0, "")
 	if !strings.Contains(prompt, "Test Topic") {
 		t.Error("expected topic in prompt")
 	}

@@ -242,3 +242,22 @@ func (h *ContentHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
+
+func (h *ContentHandler) UpdateOutline(w http.ResponseWriter, r *http.Request) {
+	c, ok := h.saveOrDelete(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Outline *string `json:"outline"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	if err := h.svc.UpdateOutline(r.Context(), c.ID, req.Outline); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update outline")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}

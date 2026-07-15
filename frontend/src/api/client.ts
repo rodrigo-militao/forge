@@ -97,6 +97,7 @@ export interface ContentItem {
   source_type: string | null;
   title: string | null;
   body_markdown: string | null;
+  outline: string | null;
   metadata: Record<string, unknown>;
   origin: "ai_generated" | "manual";
   categories: string[];
@@ -176,6 +177,8 @@ export const api = {
     listTags: () => request<string[]>("/content/tags"),
     updateStatus: (id: string, status: string) =>
       request<{ status: string }>(`/content/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+    updateOutline: (id: string, outline: string) =>
+      request<{ status: string }>(`/content/${id}/outline`, { method: "PUT", body: JSON.stringify({ outline }) }),
   },
   digest: {
     run: () => request<{ job_id: string; status: string }>("/digest/run", { method: "POST" }),
@@ -205,6 +208,8 @@ export const api = {
   compose: {
     generateTopic: () =>
       request<{ edition_id: string; item_count: number }>("/compose/generate-topic", { method: "POST" }),
+    generateOutline: (theme: string) =>
+      request<{ edition_id: string; item_count: number }>("/compose/generate-outline", { method: "POST", body: JSON.stringify({ theme }) }),
     generateDraft: (theme: string) =>
       request<{ edition_id: string; item_count: number }>("/compose/generate-draft", { method: "POST", body: JSON.stringify({ theme }) }),
     transform: (text: string, action: "expand" | "rewrite") =>

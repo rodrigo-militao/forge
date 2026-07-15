@@ -40,6 +40,10 @@ func (s *ContentService) UpdateBody(ctx context.Context, id uuid.UUID, title, bo
 	return s.content.UpdateBody(ctx, id, title, bodyMarkdown)
 }
 
+func (s *ContentService) UpdateOutline(ctx context.Context, id uuid.UUID, outline *string) error {
+	return s.content.UpdateOutline(ctx, id, outline)
+}
+
 func (s *ContentService) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
 	return s.content.UpdateStatus(ctx, id, status)
 }

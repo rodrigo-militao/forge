@@ -25,6 +25,7 @@ type ContentReader interface {
 type ContentWriter interface {
 	Create(ctx context.Context, content *domain.GeneratedContent) error
 	UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error
+	UpdateOutline(ctx context.Context, id uuid.UUID, outline *string) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 }

@@ -69,6 +69,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Delete("/api/content/{id}/categories/{category}", contentH.RemoveCategory)
 		r.Get("/api/content/categories", contentH.ListCategories)
 		r.Put("/api/content/{id}/status", contentH.UpdateStatus)
+		r.Put("/api/content/{id}/outline", contentH.UpdateOutline)
 		r.Post("/api/content/{id}/tags", contentH.AddTag)
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
 		r.Get("/api/content/tags", contentH.ListTags)
@@ -97,6 +98,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		})
 
 		r.Post("/api/compose/generate-topic", enqueueJob(cfg.Jobs, cfg.Usages, "generate_topic", false, cfg.Plans))
+		r.Post("/api/compose/generate-outline", enqueueJob(cfg.Jobs, cfg.Usages, "compose_generate_outline", true, cfg.Plans))
 		r.Post("/api/compose/generate-draft", enqueueJob(cfg.Jobs, cfg.Usages, "compose_generate_draft", true, cfg.Plans))
 		r.Post("/api/compose/transform", enqueueJob(cfg.Jobs, cfg.Usages, "compose_transform", true, cfg.Plans))
 		r.Post("/api/compose/write", enqueueJob(cfg.Jobs, cfg.Usages, "compose_write", true, cfg.Plans))
