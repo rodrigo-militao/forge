@@ -89,6 +89,20 @@ export interface DigestInterest {
   created_at: string;
 }
 
+export interface Idea {
+  id: string;
+  user_id: string;
+  title: string;
+  context: string | null;
+  notes: string | null;
+  references: string | null;
+  priority: "low" | "medium" | "high";
+  status: "open" | "in_progress" | "used" | "archived";
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ContentItem {
   id: string;
   user_id: string;
@@ -252,5 +266,21 @@ export const api = {
       request<{ status: string }>(`/editions/${id}/destination`, { method: "PUT", body: JSON.stringify({ destination }) }),
     listDestinations: () =>
       request<string[]>("/editions/destinations"),
+  },
+  ideas: {
+    list: () => request<Idea[]>("/ideas"),
+    get: (id: string) => request<Idea>(`/ideas/${id}`),
+    create: (data: { title: string; context?: string; notes?: string; references?: string; priority?: string }) =>
+      request<Idea>("/ideas", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: { title?: string; context?: string; notes?: string; references?: string; priority?: string; status?: string }) =>
+      request<Idea>(`/ideas/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    archive: (id: string) =>
+      request<{ status: string }>(`/ideas/${id}`, { method: "DELETE" }),
+    addTag: (id: string, label: string) =>
+      request<{ status: string }>(`/ideas/${id}/tags`, { method: "POST", body: JSON.stringify({ label }) }),
+    removeTag: (id: string, tag: string) =>
+      request<{ status: string }>(`/ideas/${id}/tags/${encodeURIComponent(tag)}`, { method: "DELETE" }),
+    promote: (id: string) =>
+      request<{ idea_id: string; title: string; context: string | null; notes: string | null }>(`/ideas/${id}/promote`, { method: "POST" }),
   },
 };

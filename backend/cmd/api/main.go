@@ -40,6 +40,7 @@ func main() {
 	interests := postgres.NewDigestInterestRepository(pool)
 	sources := postgres.NewSourceRepository(pool)
 	editions := postgres.NewEditionRepository(pool)
+	ideas := postgres.NewIdeasRepository(postgres.New(pool))
 
 	// SSE event hub (ADR 0031)
 	hub := events.NewHub()
@@ -66,6 +67,7 @@ func main() {
 		Hub:        hub,
 		Plans:      plans,
 		ContentSvc: contentSvc,
+		Ideas:      ideas,
 	})
 
 	srv := &http.Server{

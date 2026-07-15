@@ -16,16 +16,17 @@ import (
 // RouterConfig wires the HTTP router. Passed as a struct to avoid
 // the 10-positional-parameter trap.
 type RouterConfig struct {
-	Users     ports.UserRepository
-	Usages    ports.UsageCounterRepository
-	Content   ports.ContentRepository
-	Jobs      ports.JobRepository
-	Interests digest.DigestInterestRepository
-	Sources   digest.SourceRepository
-	Editions  digest.EditionRepository
-	Hub       *events.Hub
-	Plans     *application.Plans
+	Users      ports.UserRepository
+	Usages     ports.UsageCounterRepository
+	Content    ports.ContentRepository
+	Jobs       ports.JobRepository
+	Interests  digest.DigestInterestRepository
+	Sources    digest.SourceRepository
+	Editions   digest.EditionRepository
+	Hub        *events.Hub
+	Plans      *application.Plans
 	ContentSvc *application.ContentService
+	Ideas      ports.IdeaRepository
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {
@@ -47,6 +48,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	digestH := NewDigestHandler(cfg.Content, cfg.Editions, cfg.Jobs)
 	interestsH := NewInterestsHandler(cfg.Interests, cfg.Plans)
 	sourcesH := NewSourcesHandler(cfg.Sources, cfg.Plans)
+	ideasH := NewIdeasHandler(cfg.Ideas)
 
 	r.Route("/api/auth", func(r chi.Router) {
 		r.Post("/register", authH.Register)
@@ -73,6 +75,8 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Post("/api/content/{id}/tags", contentH.AddTag)
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
 		r.Get("/api/content/tags", contentH.ListTags)
+
+		r.Mount("/api/ideas", ideasH.Routes())
 
 		r.Post("/api/digest/run", EnqueueDigestJob(cfg.Jobs, cfg.Usages, cfg.Plans))
 		r.Get("/api/digest/stats", digestH.GetStats)
