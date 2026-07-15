@@ -41,6 +41,7 @@ func main() {
 	sources := postgres.NewSourceRepository(pool)
 	editions := postgres.NewEditionRepository(pool)
 	ideas := postgres.NewIdeasRepository(postgres.New(pool))
+	sourceTrack := postgres.NewSourceTracking(pool)
 
 	// SSE event hub (ADR 0031)
 	hub := events.NewHub()
@@ -55,7 +56,7 @@ func main() {
 
 	// Router
 	plans := application.NewPlans(users)
-	contentSvc := application.NewContentService(content)
+	contentSvc := application.NewContentService(content, sourceTrack)
 	router := handler.NewRouter(handler.RouterConfig{
 		Users:      users,
 		Usages:     usages,
@@ -68,6 +69,7 @@ func main() {
 		Plans:      plans,
 		ContentSvc: contentSvc,
 		Ideas:      ideas,
+		SourceTrack: sourceTrack,
 	})
 
 	srv := &http.Server{

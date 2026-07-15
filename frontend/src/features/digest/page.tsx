@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, ChevronRight, EyeOff, Mail, Plus, Sparkles } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import toast from "react-hot-toast";
 import { api, type ContentItem, type NewsletterEdition, type DigestSource, type DigestInterest, type DigestJob } from "../../api/client";
 import { useAuth } from "../auth/store";
@@ -51,6 +52,7 @@ function StatusDot({ status }: { status: DigestJob["status"] }) {
 export function DigestPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [running, setRunning] = useState(false);
   const [selectedIDs, setSelectedIDs] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<FilterTab>("novos");
@@ -341,6 +343,28 @@ export function DigestPage() {
       }
     },
     [queryClient, t, selectedArticle],
+  );
+
+  const handleCreateArticle = useCallback(
+    (item: ContentItem) => {
+      const params = new URLSearchParams();
+      if (item.title) params.set("title", item.title);
+      const sourceUrl = item.metadata?.source_url as string | undefined;
+      if (sourceUrl) params.set("source_url", sourceUrl);
+      navigate({ to: `/content/articles?${params.toString()}` });
+    },
+    [navigate],
+  );
+
+  const handleCreateIdea = useCallback(
+    (item: ContentItem) => {
+      const params = new URLSearchParams();
+      if (item.title) params.set("title", item.title);
+      const sourceUrl = item.metadata?.source_url as string | undefined;
+      if (sourceUrl) params.set("source_url", sourceUrl);
+      navigate({ to: `/content/ideas?${params.toString()}` });
+    },
+    [navigate],
   );
 
   // Processing step label for running state
@@ -648,6 +672,8 @@ export function DigestPage() {
                     onDelete={handleDelete}
                     onAddToNewsletter={openNewsletterSelector}
                     onClick={handleCardClick}
+                    onCreateArticle={handleCreateArticle}
+                    onCreateIdea={handleCreateIdea}
                   />
                 </div>
               );

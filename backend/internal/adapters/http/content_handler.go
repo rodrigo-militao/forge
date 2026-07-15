@@ -11,16 +11,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
 type ContentHandler struct {
-	svc *application.ContentService
+	svc    *application.ContentService
+	source *postgres.SourceTracking
 }
 
-func NewContentHandler(svc *application.ContentService) *ContentHandler {
-	return &ContentHandler{svc: svc}
+func NewContentHandler(svc *application.ContentService, source *postgres.SourceTracking) *ContentHandler {
+	return &ContentHandler{svc: svc, source: source}
 }
 
 func (h *ContentHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -260,4 +262,28 @@ func (h *ContentHandler) UpdateOutline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func (h *ContentHandler) LinkSource(w http.ResponseWriter, r *http.Request) {
+	c, ok := h.saveOrDelete(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		SourceID string `json:"source_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	sourceID, err := uuid.Parse(req.SourceID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid source_id")
+		return
+	}
+	if err := h.svc.LinkSource(r.Context(), c.ID, sourceID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to link source")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "linked"})
 }

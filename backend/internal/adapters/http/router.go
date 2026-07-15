@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/rodrigo-militao/forge/internal/adapters/events"
+	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
@@ -27,6 +28,7 @@ type RouterConfig struct {
 	Plans      *application.Plans
 	ContentSvc *application.ContentService
 	Ideas      ports.IdeaRepository
+	SourceTrack *postgres.SourceTracking
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {
@@ -44,7 +46,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	}))
 
 	authH := NewAuthHandler(cfg.Users, cfg.Usages)
-	contentH := NewContentHandler(cfg.ContentSvc)
+	contentH := NewContentHandler(cfg.ContentSvc, cfg.SourceTrack)
 	digestH := NewDigestHandler(cfg.Content, cfg.Editions, cfg.Jobs)
 	interestsH := NewInterestsHandler(cfg.Interests, cfg.Plans)
 	sourcesH := NewSourcesHandler(cfg.Sources, cfg.Plans)
@@ -74,6 +76,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Put("/api/content/{id}/outline", contentH.UpdateOutline)
 		r.Post("/api/content/{id}/tags", contentH.AddTag)
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
+		r.Post("/api/content/{id}/link-source", contentH.LinkSource)
 		r.Get("/api/content/tags", contentH.ListTags)
 
 		r.Mount("/api/ideas", ideasH.Routes())

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Mail, Trash2, X, Check } from "lucide-react";
+import { Mail, Trash2, X, Check, PenLine, Lightbulb } from "lucide-react";
 import type { ContentItem } from "../../../api/client";
 
 function extractDomain(url: string): string {
@@ -19,6 +19,8 @@ interface ArticleCardProps {
   onDelete: (id: string) => void;
   onAddToNewsletter: (id: string, e: React.MouseEvent) => void;
   onClick: (id: string) => void;
+  onCreateArticle: (item: ContentItem) => void;
+  onCreateIdea: (item: ContentItem) => void;
 }
 
 export function ArticleCard({
@@ -29,6 +31,8 @@ export function ArticleCard({
   onDelete,
   onAddToNewsletter,
   onClick,
+  onCreateArticle,
+  onCreateIdea,
 }: ArticleCardProps) {
   const { t } = useTranslation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -155,6 +159,26 @@ export function ArticleCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
+              onCreateArticle(item);
+            }}
+            title="Create article from this item"
+            className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-primary)] active:scale-[0.92]"
+          >
+            <PenLine size={14} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCreateIdea(item);
+            }}
+            title="Create idea from this item"
+            className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-primary)] active:scale-[0.92]"
+          >
+            <Lightbulb size={14} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
               onAddToNewsletter(item.id, e);
             }}
             title={t("digest.addToNewsletterLabel")}
@@ -169,7 +193,7 @@ export function ArticleCard({
                 setShowDeleteConfirm(!showDeleteConfirm);
               }}
               title={t("digest.delete")}
-              className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-red-400 active:scale-[0.92]"
+              className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-danger)] active:scale-[0.92]"
             >
               <Trash2 size={14} />
             </button>
@@ -194,7 +218,7 @@ export function ArticleCard({
                       onDelete(item.id);
                       setShowDeleteConfirm(false);
                     }}
-                    className="flex cursor-pointer items-center gap-1 rounded-md bg-red-500/20 px-2 py-1 text-xs text-red-400 hover:bg-red-500/30"
+                    className="flex cursor-pointer items-center gap-1 rounded-md bg-[var(--color-accent-danger)]/20 px-2 py-1 text-xs text-[var(--color-accent-danger)] hover:bg-[var(--color-accent-danger)]/30"
                   >
                     <Trash2 size={12} /> {t("digest.deleteConfirmAction")}
                   </button>
