@@ -7,8 +7,6 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
-	"github.com/rodrigo-militao/forge/internal/adapters/events"
-	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
@@ -19,16 +17,16 @@ import (
 type RouterConfig struct {
 	Users      ports.UserRepository
 	Usages     ports.UsageCounterRepository
-	Content    ports.ContentRepository
+	Content    ports.ContentDigestReader
 	Jobs       ports.JobRepository
 	Interests  digest.DigestInterestRepository
 	Sources    digest.SourceRepository
 	Editions   digest.EditionRepository
-	Hub        *events.Hub
+	Hub        ports.EventBus
 	Plans      *application.Plans
 	ContentSvc *application.ContentService
 	Ideas      ports.IdeaRepository
-	SourceTrack *postgres.SourceTracking
+	SourceTrack application.SourceLinker
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {

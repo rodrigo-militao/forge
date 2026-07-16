@@ -1,0 +1,16 @@
+package ports
+
+import "github.com/google/uuid"
+
+// Event is a single notification delivered via the event bus.
+type Event struct {
+	Type string
+	Data string
+}
+
+// EventBus provides a subscriber-only interface for receiving events.
+// The HTTP handlers only need to Register (subscribe) and Unsubscribe.
+type EventBus interface {
+	Register(userID uuid.UUID) chan Event
+	Unregister(userID uuid.UUID, ch chan Event)
+}

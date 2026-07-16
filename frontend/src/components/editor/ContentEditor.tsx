@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { TiptapEditor } from "./TiptapEditor";
+import { TagInput } from "../ui/tag-input";
 
 interface ContentEditorProps {
   title: string;
@@ -44,7 +44,6 @@ export function ContentEditor({
 }: ContentEditorProps) {
   const { t } = useTranslation();
   const unusedTags = availableTags.filter((t) => !tags.includes(t));
-  const [newTag, setNewTag] = useState("");
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -87,18 +86,10 @@ export function ContentEditor({
       {/* Tags */}
       <div className="space-y-3">
         <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("editor.tags")}</label>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {tags.length > 0 ? tags.map((tag) => (
-            <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent-primary)]/20 px-2.5 py-0.5 text-xs text-[var(--color-accent-primary)]">
-              {tag}
-              <button onClick={() => onRemoveTag(tag)} className="cursor-pointer hover:text-[var(--color-accent-danger)]">
-                <X size={11} />
-              </button>
-            </span>
-          )) : (
-            <span className="text-xs text-[var(--color-text-muted)]">{t("editor.noTags")}</span>
-          )}
-        </div>
+        {tags.length === 0 && (
+          <span className="text-xs text-[var(--color-text-muted)]">{t("editor.noTags")}</span>
+        )}
+        <TagInput tags={tags} onAdd={onAddTag} onRemove={onRemoveTag} />
         {unusedTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-[var(--color-text-muted)]">{t("editor.add")}</span>
@@ -113,23 +104,6 @@ export function ContentEditor({
             ))}
           </div>
         )}
-        <div className="flex gap-2">
-          <input
-            value={newTag}
-            onChange={(e) => setNewTag(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && newTag.trim()) { onAddTag(newTag.trim()); setNewTag(""); } }}
-            placeholder={t("editor.addTag")}
-            maxLength={50}
-            className="flex-1 rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-1.5 text-xs text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]"
-          />
-          <button
-            onClick={() => { if (newTag.trim()) { onAddTag(newTag.trim()); setNewTag(""); } }}
-            disabled={!newTag.trim()}
-            className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            <Plus size={14} />
-          </button>
-        </div>
       </div>
 
       {/* Status */}

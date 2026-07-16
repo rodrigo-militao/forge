@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
+	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
 type mockIdeaRepo struct {
@@ -573,8 +574,8 @@ func TestIdeasHandler_RemoveTag_InvalidID(t *testing.T) {
 func TestIdeasHandler_Promote_Success(t *testing.T) {
 	uid := uuid.New()
 	ideaID := uuid.New()
-	ctx := strPtr("Some context")
-	notes := strPtr("Some notes")
+	ctx := lib.StrPtr("Some context")
+	notes := lib.StrPtr("Some notes")
 	repo := &mockIdeaRepo{
 		ideas: []domain.Idea{
 			{ID: ideaID, UserID: uid, Title: "Promotable Idea", Context: ctx, Notes: notes, Priority: domain.PriorityHigh, Status: domain.IdeaStatusOpen},

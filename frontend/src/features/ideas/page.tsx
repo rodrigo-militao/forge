@@ -1,10 +1,13 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
-import { Lightbulb, Plus, ArrowUpRight, Tag, X, Archive, ArrowRight } from "lucide-react";
+import { Lightbulb, Plus, ArrowUpRight, Archive, ArrowRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api, type Idea } from "../../api/client";
+import { queryKeys } from "../../lib/queryKeys";
+import { TagInput } from "../../components/ui/tag-input";
+import { Input } from "../../components/ui/input";
 
 type PriorityFilter = "all" | "low" | "medium" | "high";
 type StatusFilter = "all" | "open" | "in_progress" | "used" | "archived";
@@ -30,11 +33,10 @@ export function IdeasPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
   const [tagFilter, setTagFilter] = useState("");
-  const [newTag, setNewTag] = useState("");
   const [saving, setSaving] = useState(false);
 
   const { data: ideas = [] } = useQuery({
-    queryKey: ["ideas"],
+    queryKey: queryKeys.ideas.all,
     queryFn: api.ideas.list,
   });
 
@@ -69,7 +71,7 @@ export function IdeasPage() {
         await api.ideas.create(data);
         toast.success(t("ideas.created"));
       }
-      await queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.ideas.all });
       resetForm();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -81,7 +83,7 @@ export function IdeasPage() {
   const handleArchive = useCallback(async (id: string) => {
     try {
       await api.ideas.archive(id);
-      await queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.ideas.all });
       toast.success(t("ideas.deleted"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -101,21 +103,20 @@ export function IdeasPage() {
     }
   }, [navigate, t]);
 
-  const handleAddTag = useCallback(async (ideaId: string) => {
-    if (!newTag.trim()) return;
+  const handleAddTag = useCallback(async (ideaId: string, tag: string) => {
+    if (!tag.trim()) return;
     try {
-      await api.ideas.addTag(ideaId, newTag.trim());
-      setNewTag("");
-      await queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      await api.ideas.addTag(ideaId, tag.trim());
+      await queryClient.invalidateQueries({ queryKey: queryKeys.ideas.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
-  }, [newTag, queryClient]);
+  }, [queryClient]);
 
   const handleRemoveTag = useCallback(async (ideaId: string, tag: string) => {
     try {
       await api.ideas.removeTag(ideaId, tag);
-      await queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.ideas.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -155,7 +156,7 @@ export function IdeasPage() {
         <div className="space-y-4">
           <div className="space-y-2">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)]">{t("editor.title")}</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2.5 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" placeholder="Idea title…" autoFocus />
+            <Input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="py-2.5" placeholder="Idea title…" autoFocus />
           </div>
           <div className="space-y-2">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)]">{t("ideas.context")}</label>
@@ -167,7 +168,7 @@ export function IdeasPage() {
           </div>
           <div className="space-y-2">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)]">{t("ideas.references")}</label>
-            <input type="text" value={references} onChange={(e) => setReferences(e.target.value)} className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2.5 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" placeholder={t("ideas.referencesPlaceholder")} />
+            <Input type="text" value={references} onChange={(e) => setReferences(e.target.value)} className="py-2.5" placeholder={t("ideas.referencesPlaceholder")} />
           </div>
           <div className="space-y-2">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)]">{t("ideas.priority")}</label>
@@ -275,14 +276,13 @@ export function IdeasPage() {
               </div>
             </div>
             {/* Inline tag input */}
-            <div className="mt-2 flex items-center gap-2">
-              <Tag size={12} className="shrink-0 text-[var(--color-text-muted)]" />
-              <input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(idea.id); } }} placeholder={t("editor.addTag")} className="w-24 bg-transparent text-[10px] text-[var(--color-text-muted)] outline-none placeholder:text-[var(--color-text-muted)]" />
-              {idea.tags.map((tag) => (
-                <button key={tag} onClick={() => handleRemoveTag(idea.id, tag)} className="group flex items-center gap-0.5 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-[var(--color-text-muted)] hover:bg-[var(--color-accent-danger)]/15 hover:text-[var(--color-accent-danger)] cursor-pointer">
-                  {tag} <X size={8} className="opacity-0 group-hover:opacity-100" />
-                </button>
-              ))}
+            <div className="mt-2">
+              <TagInput
+                tags={idea.tags}
+                onAdd={(tag) => handleAddTag(idea.id, tag)}
+                onRemove={(tag) => handleRemoveTag(idea.id, tag)}
+                placeholder={t("editor.addTag")}
+              />
             </div>
           </div>
         ))}

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Archive, Copy, Edit3, Eye } from "lucide-react";
 import type { NewsletterEdition } from "../../../api/client";
-import { formatTimeAgo } from "../../digest/components/stats-bar";
+import { formatTimeAgo } from "../../../lib/time";
 
 interface NewsletterListCardProps {
   item: NewsletterEdition;

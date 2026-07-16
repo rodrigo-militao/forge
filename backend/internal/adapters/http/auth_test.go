@@ -16,8 +16,8 @@ import (
 func TestInitJWT(t *testing.T) {
 	// Just verify it doesn't panic with a normal secret.
 	InitJWT("unit-test-secret")
-	if len(jwtSecret) == 0 {
-		t.Fatal("jwtSecret should be set after InitJWT")
+	if globalAuth == nil {
+		t.Fatal("JWTAuthenticator should be initialized after InitJWT")
 	}
 }
 
@@ -71,7 +71,7 @@ func TestVerifyToken(t *testing.T) {
 			},
 		}
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		tokenStr, err := token.SignedString(jwtSecret)
+		tokenStr, err := token.SignedString(globalAuth.secret)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -22,6 +22,7 @@ import (
 	"github.com/rodrigo-militao/forge/internal/digest/adapters/rss"
 	"github.com/rodrigo-militao/forge/internal/digest/adapters/search"
 	"github.com/rodrigo-militao/forge/internal/worker"
+	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
 // WorkerConfig contains the runtime configuration for the worker process.
@@ -125,7 +126,7 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				UserID:       id,
 				Product:      coredomain.ProductCompose,
 				Status:       coredomain.ContentDraft,
-				SourceType:   strPtr("topic"),
+				SourceType:   lib.StrPtr("topic"),
 				Title:        &title,
 				BodyMarkdown: &result.Topic.OneLinePitch,
 			}); err != nil {
@@ -292,8 +293,6 @@ func buildContentSources(configs []digestDomain.SourceConfig) []digestDomain.Con
 	}
 	return sources
 }
-
-func strPtr(s string) *string { return &s }
 
 func joinStrings(items []string, sep string) string {
 	if len(items) == 0 {

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	coredomain "github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
+	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
 // TransformOptions describes a text transformation request.
@@ -54,7 +55,7 @@ func (s *TransformService) Run(ctx context.Context, opts TransformOptions) error
 		UserID:       s.userID,
 		Product:      coredomain.ProductCompose,
 		Status:       coredomain.ContentDraft,
-		SourceType:   strPtrTransform(opts.Action),
+		SourceType:   lib.StrPtr(opts.Action),
 		Title:        &title,
 		BodyMarkdown: &resp.Content,
 	}); err != nil {
@@ -62,5 +63,3 @@ func (s *TransformService) Run(ctx context.Context, opts TransformOptions) error
 	}
 	return nil
 }
-
-func strPtrTransform(s string) *string { return &s }

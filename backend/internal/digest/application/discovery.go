@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
+	"github.com/rodrigo-militao/forge/internal/lib"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
@@ -101,7 +102,7 @@ func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult,
 			UserID:       s.userID,
 			Product:      domain.ProductDigest,
 			Status:       domain.ContentDraft,
-			SourceType:   strPtr("discovery"),
+			SourceType:   lib.StrPtr("discovery"),
 			Title:        &item.Title,
 			BodyMarkdown: &summary,
 			Metadata:     meta,
@@ -157,5 +158,3 @@ func buildMetadata(item digest.DigestItem) json.RawMessage {
 	b, _ := json.Marshal(m)
 	return json.RawMessage(b)
 }
-
-func strPtr(s string) *string { return &s }

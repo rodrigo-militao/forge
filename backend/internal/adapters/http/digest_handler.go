@@ -12,13 +12,13 @@ import (
 
 // DigestHandler serves digest-specific endpoints.
 type DigestHandler struct {
-	content  ports.ContentRepository
+	content  ports.ContentDigestReader
 	editions digest.EditionRepository
 	jobs     ports.JobRepository
 }
 
 // NewDigestHandler creates a digest handler.
-func NewDigestHandler(content ports.ContentRepository, editions digest.EditionRepository, jobs ports.JobRepository) *DigestHandler {
+func NewDigestHandler(content ports.ContentDigestReader, editions digest.EditionRepository, jobs ports.JobRepository) *DigestHandler {
 	return &DigestHandler{content: content, editions: editions, jobs: jobs}
 }
 

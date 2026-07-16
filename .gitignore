@@ -7,6 +7,5 @@ frontend/.next
 .verboo
 
 # Coverage artifacts
-backend/coverage.html
-backend/*.out
+backend/coverage/
 frontend/coverage/

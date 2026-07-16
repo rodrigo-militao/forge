@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
+	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
 // --- Mocks (shared with discovery_test) ---
@@ -65,7 +66,7 @@ func TestCategorizeService_Run_HappyPath_SingleCategory(t *testing.T) {
 		categorizer:   writer,
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: strPtr("test")},
+				{ID: articleID, Title: lib.StrPtr("test")},
 			},
 		},
 		userID: uuid.New(),
@@ -94,7 +95,7 @@ func TestCategorizeService_Run_MultipleCategories(t *testing.T) {
 		categorizer:   writer,
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: strPtr("test")},
+				{ID: articleID, Title: lib.StrPtr("test")},
 			},
 		},
 		userID: uuid.New(),
@@ -134,7 +135,7 @@ func TestCategorizeService_Run_InvalidJSON(t *testing.T) {
 		categorizer: &mockCategorizer{},
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: uuid.New(), Title: strPtr("test")},
+				{ID: uuid.New(), Title: lib.StrPtr("test")},
 			},
 		},
 		userID: uuid.New(),
@@ -151,7 +152,7 @@ func TestCategorizeService_Run_LLMError(t *testing.T) {
 		categorizer: &mockCategorizer{},
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: uuid.New(), Title: strPtr("test")},
+				{ID: uuid.New(), Title: lib.StrPtr("test")},
 			},
 		},
 		userID: uuid.New(),
@@ -187,7 +188,7 @@ func TestCategorizeService_Run_WithExistingCategories(t *testing.T) {
 		categorizer:   writer,
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: strPtr("test")},
+				{ID: articleID, Title: lib.StrPtr("test")},
 			},
 		},
 		userID: uuid.New(),
@@ -218,7 +219,7 @@ func TestCategorizeService_Run_ListExistingCategoriesError(t *testing.T) {
 		categorizer:   writer,
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: strPtr("test")},
+				{ID: articleID, Title: lib.StrPtr("test")},
 			},
 		},
 		userID: uuid.New(),
@@ -248,8 +249,8 @@ func TestCategorizeService_Run_MissingArticleInResponse(t *testing.T) {
 		categorizer:   writer,
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: articleID1, Title: strPtr("article 1")},
-				{ID: articleID2, Title: strPtr("article 2")},
+				{ID: articleID1, Title: lib.StrPtr("article 1")},
+				{ID: articleID2, Title: lib.StrPtr("article 2")},
 			},
 		},
 		userID: uuid.New(),
@@ -279,7 +280,7 @@ func TestCategorizeService_Run_EmptyCategoriesArray(t *testing.T) {
 		categorizer:   writer,
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: strPtr("test")},
+				{ID: articleID, Title: lib.StrPtr("test")},
 			},
 		},
 		userID: uuid.New(),
@@ -304,7 +305,7 @@ func TestCategorizeService_Run_WhitespaceCategories(t *testing.T) {
 		categorizer:   writer,
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: strPtr("test")},
+				{ID: articleID, Title: lib.StrPtr("test")},
 			},
 		},
 		userID: uuid.New(),
@@ -493,7 +494,7 @@ func TestCategorizeService_Run_AddCategoryError(t *testing.T) {
 		categorizer:   writer,
 		digestQueries: &mockCategorizeQueries{
 			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: strPtr("test")},
+				{ID: articleID, Title: lib.StrPtr("test")},
 			},
 		},
 		userID: uuid.New(),

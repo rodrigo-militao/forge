@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../features/auth/store";
+import { Input } from "../components/ui/input";
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -39,19 +40,19 @@ export function LoginPage() {
           </p>
         )}
 
-        <input
+        <Input
           type="email"
           placeholder={t("auth.email")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-sm text-[var(--color-bg-surface)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+          className="border-[var(--color-border)]/20"
         />
-        <input
+        <Input
           type="password"
           placeholder={t("auth.password")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-[var(--color-border)]/20 bg-white/5 px-4 py-2 text-sm text-[var(--color-bg-surface)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)] focus:outline-none"
+          className="border-[var(--color-border)]/20"
         />
 
         <button

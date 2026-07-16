@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	coredomain "github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
+	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
 // OutlineGeneratorService generates article outlines via LLM.
@@ -61,7 +62,7 @@ func (s *OutlineGeneratorService) Generate(ctx context.Context, params OutlinePa
 		UserID:      s.userID,
 		Product:     coredomain.ProductCompose,
 		Status:      coredomain.ContentDraft,
-		SourceType:  strPtrWriter("topic"),
+		SourceType:  lib.StrPtr("topic"),
 		Title:       &title,
 		Outline:     &outline,
 	}); err != nil {

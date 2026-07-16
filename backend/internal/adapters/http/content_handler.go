@@ -11,17 +11,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
 type ContentHandler struct {
 	svc    *application.ContentService
-	source *postgres.SourceTracking
+	source application.SourceLinker
 }
 
-func NewContentHandler(svc *application.ContentService, source *postgres.SourceTracking) *ContentHandler {
+func NewContentHandler(svc *application.ContentService, source application.SourceLinker) *ContentHandler {
 	return &ContentHandler{svc: svc, source: source}
 }
 

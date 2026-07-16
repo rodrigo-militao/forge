@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rodrigo-militao/forge/internal/core/application"
+	"github.com/rodrigo-militao/forge/internal/lib"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
@@ -360,7 +361,7 @@ func TestEditionHandler_UpdateDestination_EmptyBecomesNil(t *testing.T) {
 	eid := uuid.New()
 	repo := &mockEditionRepo{
 		editions: []digest.Edition{
-			{ID: eid, UserID: uid, Title: "Test", Status: digest.EditionBuilding, Destination: strPtr("old")},
+			{ID: eid, UserID: uid, Title: "Test", Status: digest.EditionBuilding, Destination: lib.StrPtr("old")},
 		},
 	}
 	h := NewEditionHandler(repo, nil, nil, &application.Plans{})

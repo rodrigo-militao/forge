@@ -14,8 +14,8 @@ import (
 
 	handler "github.com/rodrigo-militao/forge/internal/adapters/http"
 	"github.com/rodrigo-militao/forge/internal/adapters/events"
-	"github.com/rodrigo-militao/forge/internal/adapters/postgres"
 	"github.com/rodrigo-militao/forge/internal/core/application"
+	"github.com/rodrigo-militao/forge/internal/wiring"
 )
 
 func main() {
@@ -32,44 +32,35 @@ func main() {
 	}
 	defer pool.Close()
 
-	// Repositories
-	users := postgres.NewUserRepository(pool)
-	usages := postgres.NewUsageCounterRepository(pool)
-	content := postgres.NewContentRepository(pool)
-	jobs := postgres.NewJobRepository(pool)
-	interests := postgres.NewDigestInterestRepository(pool)
-	sources := postgres.NewSourceRepository(pool)
-	editions := postgres.NewEditionRepository(pool)
-	ideas := postgres.NewIdeasRepository(postgres.New(pool))
-	sourceTrack := postgres.NewSourceTracking(pool)
+	// Shared container — holds all common dependencies
+	c := wiring.BuildContainer(pool)
+	defer c.Hub.Close()
 
-	// SSE event hub (ADR 0031)
-	hub := events.NewHub()
-	defer hub.Close()
+	// InitJWT must be called before any authenticated requests
+	handler.InitJWT(env("JWT_SECRET", "dev-secret"))
 
 	// Start Postgres LISTEN goroutine for content_changed
 	go func() {
-		if err := events.ListenContentChanged(context.Background(), dbURL, hub); err != nil {
+		if err := events.ListenContentChanged(context.Background(), dbURL, c.Hub); err != nil {
 			slog.Error("events listener failed", "error", err)
 		}
 	}()
 
 	// Router
-	plans := application.NewPlans(users)
-	contentSvc := application.NewContentService(content, sourceTrack)
+	contentSvc := application.NewContentService(c.Content, c.Content, c.Content, c.Content, c.SourceTrack)
 	router := handler.NewRouter(handler.RouterConfig{
-		Users:      users,
-		Usages:     usages,
-		Content:    content,
-		Jobs:       jobs,
-		Interests:  interests,
-		Sources:    sources,
-		Editions:   editions,
-		Hub:        hub,
-		Plans:      plans,
-		ContentSvc: contentSvc,
-		Ideas:      ideas,
-		SourceTrack: sourceTrack,
+		Users:       c.Users,
+		Usages:      c.Usages,
+		Content:     c.Content,
+		Jobs:        c.Jobs,
+		Interests:   c.Interests,
+		Sources:     c.Sources,
+		Editions:    c.Editions,
+		Hub:         c.Hub,
+		Plans:       c.Plans,
+		ContentSvc:  contentSvc,
+		Ideas:       c.Ideas,
+		SourceTrack: c.SourceTrack,
 	})
 
 	srv := &http.Server{

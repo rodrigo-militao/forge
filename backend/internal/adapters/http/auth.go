@@ -33,14 +33,17 @@ type jwtClaims struct {
 	jwt.RegisteredClaims
 }
 
-// jwtSecret is set at startup from config.
-var jwtSecret []byte
-
-func InitJWT(secret string) {
-	jwtSecret = []byte(secret)
+// JWTAuthenticator signs and verifies JWT tokens using a secret key.
+type JWTAuthenticator struct {
+	secret []byte
 }
 
-func signToken(userID uuid.UUID) (string, error) {
+// NewJWTAuthenticator creates an authenticator with the given secret.
+func NewJWTAuthenticator(secret string) *JWTAuthenticator {
+	return &JWTAuthenticator{secret: []byte(secret)}
+}
+
+func (a *JWTAuthenticator) signToken(userID uuid.UUID) (string, error) {
 	claims := jwtClaims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -49,15 +52,15 @@ func signToken(userID uuid.UUID) (string, error) {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	return token.SignedString(a.secret)
 }
 
-func verifyToken(tokenStr string) (uuid.UUID, error) {
+func (a *JWTAuthenticator) verifyToken(tokenStr string) (uuid.UUID, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &jwtClaims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
-		return jwtSecret, nil
+		return a.secret, nil
 	})
 	if err != nil {
 		return uuid.Nil, err
@@ -67,6 +70,23 @@ func verifyToken(tokenStr string) (uuid.UUID, error) {
 		return uuid.Nil, errors.New("invalid token")
 	}
 	return claims.UserID, nil
+}
+
+// Package-level convenience for existing callers.
+// New code should create a JWTAuthenticator explicitly.
+var globalAuth *JWTAuthenticator
+
+// InitJWT initializes the package-level authenticator.
+func InitJWT(secret string) {
+	globalAuth = NewJWTAuthenticator(secret)
+}
+
+func signToken(userID uuid.UUID) (string, error) {
+	return globalAuth.signToken(userID)
+}
+
+func verifyToken(tokenStr string) (uuid.UUID, error) {
+	return globalAuth.verifyToken(tokenStr)
 }
 
 // --- password hashing ---

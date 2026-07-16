@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../features/auth/store";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useOutsideClick } from "../../hooks/useOutsideClick";
 
 const STORAGE_KEY = "forge:sidebar-collapsed";
 
@@ -44,16 +45,7 @@ export function Sidebar() {
   }, [collapsed]);
 
   // Close create dropdown on outside click
-  useEffect(() => {
-    if (!createOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (createRef.current && !createRef.current.contains(e.target as Node)) {
-        setCreateOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [createOpen]);
+  useOutsideClick(createRef, () => setCreateOpen(false), createOpen);
 
   const handleLogout = useCallback(async () => {
     await logout();

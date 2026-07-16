@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
+	"github.com/rodrigo-militao/forge/internal/lib"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
@@ -517,7 +518,7 @@ func Test_buildMetadata(t *testing.T) {
 }
 
 func Test_strPtr(t *testing.T) {
-	s := strPtr("hello")
+	s := lib.StrPtr("hello")
 	if s == nil {
 		t.Fatal("expected non-nil pointer")
 	}
@@ -525,7 +526,7 @@ func Test_strPtr(t *testing.T) {
 		t.Errorf("expected 'hello', got '%s'", *s)
 	}
 
-	empty := strPtr("")
+	empty := lib.StrPtr("")
 	if empty == nil {
 		t.Fatal("expected non-nil pointer for empty string")
 	}

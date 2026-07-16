@@ -5,13 +5,12 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+
+	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
 // Event is a single SSE event delivered to a client.
-type Event struct {
-	Type string
-	Data string
-}
+type Event = ports.Event
 
 // Hub manages per-user SSE client channels and fan-out.
 type Hub struct {

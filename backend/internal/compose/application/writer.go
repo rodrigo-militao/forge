@@ -8,6 +8,7 @@ import (
 	"github.com/rodrigo-militao/forge/internal/compose/domain"
 	coredomain "github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
+	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
 // WriterService generates complete articles via LLM using voice routing.
@@ -76,7 +77,7 @@ func (s *WriterService) Generate(ctx context.Context, params GenerateParams) (*W
 		UserID:       s.userID,
 		Product:      coredomain.ProductCompose,
 		Status:       coredomain.ContentDraft,
-		SourceType:   strPtrWriter("topic"),
+		SourceType:   lib.StrPtr("topic"),
 		Title:        &title,
 		BodyMarkdown: &body,
 	}); err != nil {
@@ -88,5 +89,3 @@ func (s *WriterService) Generate(ctx context.Context, params GenerateParams) (*W
 		ContentID: contentID,
 	}, nil
 }
-
-func strPtrWriter(s string) *string { return &s }

@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mail, Trash2, X, Check, PenLine, Lightbulb } from "lucide-react";
 import type { ContentItem } from "../../../api/client";
+import { formatTimeAgo } from "../../../lib/time";
+import { useOutsideClick } from "../../../hooks/useOutsideClick";
 
 function extractDomain(url: string): string {
   try {
@@ -39,36 +41,20 @@ export function ArticleCard({
   const deleteRef = React.useRef<HTMLDivElement>(null);
 
   // Close delete confirm on outside click or Escape
+  useOutsideClick(deleteRef, () => setShowDeleteConfirm(false), showDeleteConfirm);
   React.useEffect(() => {
     if (!showDeleteConfirm) return;
-    function handleClick(e: MouseEvent) {
-      if (deleteRef.current && !deleteRef.current.contains(e.target as Node)) {
-        setShowDeleteConfirm(false);
-      }
-    }
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") setShowDeleteConfirm(false);
     }
-    document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
+    return () => document.removeEventListener("keydown", handleKey);
   }, [showDeleteConfirm]);
 
   const sourceUrl = (item.metadata?.source_url as string) ?? "";
   const domain = sourceUrl ? extractDomain(sourceUrl) : "";
 
-  const itemTimeAgo = (() => {
-    const diffMs = Date.now() - new Date(item.created_at).getTime();
-    const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return t("digest.justNow");
-    if (diffMin < 60) return t("digest.minutesAgo", { n: diffMin });
-    const diffH = Math.floor(diffMin / 60);
-    if (diffH < 24) return t("digest.hoursAgo", { n: diffH });
-    return t("digest.daysAgo", { n: Math.floor(diffH / 24) });
-  })();
+  const itemTimeAgo = formatTimeAgo(item.created_at, t);
 
   return (
     <div

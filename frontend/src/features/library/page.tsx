@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import toast from "react-hot-toast";
 import { api, type ContentItem } from "../../api/client";
+import { queryKeys } from "../../lib/queryKeys";
 import { ContentEditor } from "../../components/editor/ContentEditor";
 import { useAutosave } from "../../hooks/useAutosave";
 import { filterLibraryContent } from "./filter";
@@ -24,12 +25,12 @@ export function LibraryPage() {
 
 
   const { data: content, isLoading } = useQuery({
-    queryKey: ["content"],
+    queryKey: queryKeys.content.all,
     queryFn: api.content.list,
   });
 
   const { data: availableTags } = useQuery({
-    queryKey: ["tags"],
+    queryKey: queryKeys.tags.all,
     queryFn: api.content.listTags,
   });
 
@@ -65,7 +66,7 @@ export function LibraryPage() {
   const handleSave = useCallback(async () => {
     if (!selectedItem) return;
     await api.content.save(selectedItem.id, { title: editTitle, body_markdown: editBody });
-    queryClient.invalidateQueries({ queryKey: ["content"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
   }, [selectedItem, editTitle, editBody, queryClient]);
 
   const { isSynced, isSaving, error: saveError } = useAutosave({
@@ -93,8 +94,8 @@ export function LibraryPage() {
     if (!selectedItem) return;
     try {
       await api.content.addTag(selectedItem.id, tag);
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add tag");
     }
@@ -104,8 +105,8 @@ export function LibraryPage() {
     if (!selectedItem) return;
     try {
       await api.content.removeTag(selectedItem.id, tag);
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to remove tag");
     }
@@ -116,7 +117,7 @@ export function LibraryPage() {
     try {
       await api.content.updateStatus(selectedItem.id, status);
       setSelectedItem((prev) => prev ? { ...prev, status: status as ContentItem["status"] } : null);
-      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
       toast.success(t("editor.statusUpdated"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");

@@ -1,6 +1,21 @@
-import { useAuth } from "../features/auth/store";
-
 const BASE = "/api";
+
+let onUnauthorized: (() => void) | null = null;
+
+export function setOnUnauthorized(cb: () => void) {
+  onUnauthorized = cb;
+}
+
+function friendlyError(status: number): string {
+  switch (status) {
+    case 400: return "Invalid request. Check your input.";
+    case 403: return "You don't have permission.";
+    case 404: return "Not found.";
+    case 429: return "Too many requests. Please wait.";
+    case 500: return "Server error. Please try again.";
+    default: return "Request failed. Try again.";
+  }
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
@@ -25,7 +40,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   clearTimeout(timeout);
 
   if (res.status === 401) {
-    useAuth.getState().clearSession();
+    onUnauthorized?.();
     const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
     if (currentPath !== "/login" && currentPath !== "/register" && currentPath !== "/") {
       if (typeof sessionStorage !== "undefined") {
@@ -43,17 +58,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
   if (res.status === 204) return undefined as unknown as Promise<T>;
   return res.json();
-}
-
-function friendlyError(status: number): string {
-  switch (status) {
-    case 400: return "Invalid request. Check your input.";
-    case 403: return "You don't have permission.";
-    case 404: return "Not found.";
-    case 429: return "Too many requests. Please wait.";
-    case 500: return "Server error. Please try again.";
-    default: return "Request failed. Try again.";
-  }
 }
 
 export interface AuthResponse {

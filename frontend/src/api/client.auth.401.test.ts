@@ -1,12 +1,12 @@
 import { test } from "poku";
 import assert from "node:assert/strict";
-import { api } from "./client";
-import { useAuth } from "../features/auth/store";
+import { api, setOnUnauthorized } from "./client";
 
 test("401 response clears session and stores redirect path", async () => {
-  useAuth.setState({ user: { id: "1", email: "a@b.com", name: "T" }, loading: false });
+  let cleared = false;
+  setOnUnauthorized(() => { cleared = true; });
 
-  const stored = { redirectAfterLogin: "" };
+  const stored: Record<string, string> = {};
   const mockSessionStorage = {
     getItem: () => null,
     setItem: (key: string, value: string) => {
@@ -28,8 +28,7 @@ test("401 response clears session and stores redirect path", async () => {
   await assert.rejects(
     () => api.content.list(),
     (err: Error) => {
-      assert.strictEqual(useAuth.getState().user, null);
-      assert.strictEqual(useAuth.getState().loading, false);
+      assert.ok(cleared, "onUnauthorized was called");
       return true;
     },
   );

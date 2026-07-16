@@ -60,16 +60,6 @@ type DigestStats struct {
 	DraftNewsletters  int        `json:"draft_newsletters"`
 }
 
-// ContentRepository combines all content persistence roles for consumers
-// that need full access (e.g. ContentHandler).
-type ContentRepository interface {
-	ContentReader
-	ContentWriter
-	ContentCategorizer
-	ContentDigestReader
-	ContentTagger
-}
-
 // IdeaRepository manages the ideas entity.
 type IdeaRepository interface {
 	Create(ctx context.Context, idea *domain.Idea) error

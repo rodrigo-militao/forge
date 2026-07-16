@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/rodrigo-militao/forge/internal/adapters/events"
+	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
 // NewEventsHandler returns an SSE endpoint that streams content_changed events
 // for the authenticated user (ADR 0031).
-func NewEventsHandler(hub *events.Hub) http.HandlerFunc {
+func NewEventsHandler(hub ports.EventBus) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := UserIDFromContext(r.Context())
 		if !ok {

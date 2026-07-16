@@ -1,7 +1,6 @@
 import { test } from "poku";
 import assert from "node:assert/strict";
-import { api } from "./client";
-import { useAuth } from "../features/auth/store";
+import { api, setOnUnauthorized } from "./client";
 
 test("client error paths (sequential)", async () => {
   // ── 1. Network error ──
@@ -53,18 +52,18 @@ test("client error paths (sequential)", async () => {
   try { await api.content.list(); assert.fail(); }
   catch (e: any) { assert.ok(e.message.includes("Request failed"), "418"); }
 
-  // ── 9. 401 clears session ──
-  useAuth.setState({ user: { id: "1", email: "a@b.com", name: "Test" } as any, loading: false });
-  // Need valid JSON body for 401 so the 401 handler throws correctly
-  // When res.json() fails, body.error = res.statusText (which is "" for new Response)
-  // This results in an empty message. Use explicit body JSON instead.
-  const orig401Fetch = globalThis.fetch;
+  // ── 9. 401 triggers onUnauthorized ──
+  let unauthorizedCalled = false;
+  setOnUnauthorized(() => { unauthorizedCalled = true; });
   globalThis.fetch = async () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   try { await api.content.list(); assert.fail(); }
   catch (e: any) {
     assert.ok(e.message.includes("Unauthorized"), "401 error message");
-    assert.strictEqual(useAuth.getState().user, null, "user cleared on 401");
+    assert.ok(unauthorizedCalled, "onUnauthorized was called on 401");
   }
+
+  // Reset for remaining tests
+  setOnUnauthorized(() => {});
 
   // ── 10. listDestinations ──
   globalThis.fetch = async () => new Response(JSON.stringify(["Substack", "Ghost"]), { status: 200 });

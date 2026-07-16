@@ -1,10 +1,13 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PenLine, Sparkles, WandSparkles, X, FileText, ChevronRight } from "lucide-react";
+import { PenLine, Sparkles, WandSparkles, FileText, ChevronRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { api, type ContentItem } from "../../api/client";
+import { queryKeys } from "../../lib/queryKeys";
 import { useJobPolling } from "../../hooks/useJobPolling";
+import { TagInput } from "../../components/ui/tag-input";
+import { Input } from "../../components/ui/input";
 import { TiptapEditor } from "../../components/editor/TiptapEditor";
 import type { Editor } from "@tiptap/react";
 
@@ -24,10 +27,9 @@ export function ComposePage() {
   const [editBody, setEditBody] = useState("");
   const [editOutline, setEditOutline] = useState("");
   const [saving, setSaving] = useState(false);
-  const [newTag, setNewTag] = useState("");
   const [aiStep, setAiStep] = useState<AiStep>("topic");
 
-  const { data: content } = useQuery({ queryKey: ["content"], queryFn: api.content.list });
+  const { data: content } = useQuery({ queryKey: queryKeys.content.all, queryFn: api.content.list });
   const items = content?.filter((c) => c.product === "compose") ?? [];
 
   useJobPolling(generating, items.length, { interval: 3000, timeout: 60000, filter: (c) => c.product === "compose", onComplete: () => { setGenerating(false); toast.success("Draft ready in Library"); }, onTimeout: () => { setGenerating(false); } });
@@ -57,7 +59,7 @@ export function ComposePage() {
       if (selectedItem.outline !== undefined && editOutline !== (selectedItem.outline ?? "")) {
         await api.content.updateOutline(selectedItem.id, editOutline);
       }
-      await queryClient.invalidateQueries({ queryKey: ["content"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
       toast.success("Saved");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save");
@@ -76,23 +78,22 @@ export function ComposePage() {
     }
   }, []);
 
-  const handleAddTag = useCallback(async () => {
-    if (!selectedItem || !newTag.trim()) return;
+  const handleAddTag = useCallback(async (tag: string) => {
+    if (!selectedItem || !tag.trim()) return;
     try {
-      await api.content.addTag(selectedItem.id, newTag.trim());
-      setNewTag("");
-      await queryClient.invalidateQueries({ queryKey: ["content"] });
-      await queryClient.invalidateQueries({ queryKey: ["tags"] });
+      await api.content.addTag(selectedItem.id, tag.trim());
+      await queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.tags.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
-  }, [selectedItem, newTag, queryClient]);
+  }, [selectedItem, queryClient]);
 
   const handleRemoveTag = useCallback(async (tag: string) => {
     if (!selectedItem) return;
     try {
       await api.content.removeTag(selectedItem.id, tag);
-      await queryClient.invalidateQueries({ queryKey: ["content"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -102,7 +103,7 @@ export function ComposePage() {
     if (!selectedItem) return;
     try {
       await api.content.updateStatus(selectedItem.id, status);
-      await queryClient.invalidateQueries({ queryKey: ["content"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
       toast.success("Status updated");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -152,7 +153,7 @@ export function ComposePage() {
           <h1 className="font-[var(--font-display)] text-2xl">Review outline</h1>
           <div className="space-y-3">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)]">Title</label>
-            <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" placeholder="Article title…" />
+            <Input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Article title…" />
           </div>
           <div className="space-y-3">
             <label className="block text-xs font-medium text-[var(--color-text-secondary)]">Outline</label>
@@ -197,15 +198,11 @@ export function ComposePage() {
               <option value="discarded">{t("editor.discarded")}</option>
             </select>
           </div>
-          <div className="flex items-center gap-2">
-            {selectedItem.tags.map((tag) => (
-              <span key={tag} className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
-                {tag}
-                <button onClick={() => handleRemoveTag(tag)} className="cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-accent-danger)]"><X size={12} /></button>
-              </span>
-            ))}
-            <input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(); } }} placeholder={t("editor.addTag")} className="w-24 bg-transparent text-xs text-[var(--color-bg-surface)] outline-none placeholder:text-[var(--color-text-muted)]" />
-          </div>
+          <TagInput
+            tags={selectedItem.tags}
+            onAdd={(tag) => handleAddTag(tag)}
+            onRemove={(tag) => handleRemoveTag(tag)}
+          />
           <button onClick={() => { setAiStep("topic"); setSelectedItem(null); }} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-bg-surface)] cursor-pointer">{t("nav.back")}</button>
         </div>
       );
@@ -218,7 +215,7 @@ export function ComposePage() {
       <div className="mx-auto max-w-2xl space-y-6">
         <h1 className="font-[var(--font-display)] text-2xl">{t("compose.startBlank")}</h1>
         <div className="flex gap-2">
-          <input type="text" value={theme} onChange={(e) => setTheme(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleGenerateDraft(); }} placeholder={t("compose.writeArticle")} className="flex-1 rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-sm text-[var(--color-bg-surface)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)]" />
+          <Input type="text" value={theme} onChange={(e) => setTheme(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleGenerateDraft(); }} placeholder={t("compose.writeArticle")} className="flex-1" />
           <button onClick={() => handleGenerateOutline(theme)} disabled={!theme.trim() || outlineRunning} className="flex items-center gap-1.5 rounded-lg border border-[var(--color-accent-primary)]/30 px-3 py-2 text-sm text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)]/10 disabled:opacity-50 cursor-pointer">
             <FileText size={14} /> {outlineRunning ? t("compose.generating") : "Outline"}
           </button>

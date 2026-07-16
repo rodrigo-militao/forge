@@ -7,14 +7,21 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
-	"github.com/rodrigo-militao/forge/internal/core/ports"
 	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
+// JobClaimer is the minimal job persistence interface the runner needs.
+// Define it here so processNext is testable without a real database.
+type JobClaimer interface {
+	ClaimNext(ctx context.Context) (*domain.Job, error)
+	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.JobStatus, errMsg *string) error
+}
+
 // Runner polls the jobs table at a fixed interval and processes jobs.
 type Runner struct {
-	jobs       ports.JobRepository
+	jobs       JobClaimer
 	handlers   map[string]Handler
 	interval   time.Duration
 	NotifyFunc func(ctx context.Context, userID string) // called after each successful job
@@ -24,7 +31,7 @@ type Runner struct {
 type Handler func(ctx context.Context, userID string, payload []byte) error
 
 // NewRunner creates a job runner.
-func NewRunner(jobs ports.JobRepository, interval time.Duration) *Runner {
+func NewRunner(jobs JobClaimer, interval time.Duration) *Runner {
 	return &Runner{
 		jobs:     jobs,
 		handlers: make(map[string]Handler),
@@ -70,7 +77,7 @@ func (r *Runner) processNext(ctx context.Context) {
 			slog.String("job_id", job.ID.String()),
 			slog.String("job_type", job.Type),
 		)
-		r.jobs.UpdateStatus(ctx, job.ID, domain.JobFailed, strPtr("unknown job type"))
+		r.jobs.UpdateStatus(ctx, job.ID, domain.JobFailed, lib.StrPtr("unknown job type"))
 		return
 	}
 
@@ -114,6 +121,3 @@ func (r *Runner) processNext(ctx context.Context) {
 		r.NotifyFunc(ctx, job.UserID.String())
 	}
 }
-
-// strPtr is a helper to convert string to *string.
-func strPtr(s string) *string { return &s }

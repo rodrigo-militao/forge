@@ -77,6 +77,8 @@ run-dev:
 	echo "=== Step 0: Cleaning stale processes ==="; \
 	pkill -f "go-build.*api" 2>/dev/null || true; \
 	pkill -f "go-build.*worker" 2>/dev/null || true; \
+	pkill -f "node.*vite" 2>/dev/null || true; \
+	rm -rf $(F)/node_modules/.vite; \
 	sleep 1; \
 	echo "=== Step 1: Installing dependencies ==="; \
 	cd $(B) && go mod tidy; \
@@ -123,9 +125,9 @@ coverage-frontend:
 
 # Coverage — backend (go test -coverprofile + HTML report)
 coverage-backend:
-	cd backend && go test -coverprofile=coverage.out ./internal/... 2>&1; \
-		go tool cover -html=coverage.out -o coverage.html; \
-		echo "=== Coverage HTML: backend/coverage.html ==="
+	cd backend && mkdir -p coverage && go test -coverprofile=coverage/coverage.out ./internal/... 2>&1; \
+		go tool cover -html=coverage/coverage.out -o coverage/coverage.html; \
+		echo "=== Coverage HTML: backend/coverage/coverage.html ==="
 
 # Coverage — both sides
 coverage: coverage-backend coverage-frontend

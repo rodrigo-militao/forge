@@ -20,7 +20,7 @@ func TestNewRouter(t *testing.T) {
 		Editions:    &mockEditionRepo{},
 		Hub:         &events.Hub{},
 		Plans:       plansWithMaxGenerations(uid, 5),
-		ContentSvc:  application.NewContentService(&mockContentRepo{}, &mockSourceLinker{}),
+		ContentSvc:  application.NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{}),
 		Ideas:       &mockIdeaRepo{},
 		SourceTrack: nil,
 	})

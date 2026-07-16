@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../lib/queryKeys";
 
 const SSE_URL = "/api/events";
 
@@ -13,9 +14,9 @@ export function useSSE() {
     esRef.current = es;
 
     es.addEventListener("content_changed", () => {
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      queryClient.invalidateQueries({ queryKey: ["digest", "stats"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.digest.stats });
     });
 
     es.onopen = () => {
@@ -25,9 +26,9 @@ export function useSSE() {
         staleTimerRef.current = null;
       }
       // Invalidate on reconnect to catch events missed during downtime
-      queryClient.invalidateQueries({ queryKey: ["content"] });
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      queryClient.invalidateQueries({ queryKey: ["digest", "stats"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.digest.stats });
     };
 
     es.onerror = () => {
@@ -36,9 +37,9 @@ export function useSSE() {
       // the cache so the next interaction triggers a fresh fetch.
       if (!staleTimerRef.current) {
         staleTimerRef.current = setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ["content"] });
-          queryClient.invalidateQueries({ queryKey: ["editions"] });
-          queryClient.invalidateQueries({ queryKey: ["digest", "stats"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
+          queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+          queryClient.invalidateQueries({ queryKey: queryKeys.digest.stats });
           staleTimerRef.current = null;
         }, 30000);
       }

@@ -5,9 +5,12 @@ import { Toaster } from "react-hot-toast";
 
 import { AppRouter } from "./app/router";
 import { useAuth } from "./features/auth/store";
+import { setOnUnauthorized } from "./api/client";
 
 import "./styles/app.css";
 import "./i18n/index";
+
+setOnUnauthorized(() => useAuth.getState().clearSession());
 
 const queryClient = new QueryClient();
 

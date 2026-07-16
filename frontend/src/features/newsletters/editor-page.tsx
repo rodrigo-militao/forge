@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
 import { ChevronLeft, ArrowRight, Check } from "lucide-react";
 import { api, type ArticleRef, type NewsletterEdition } from "../../api/client";
+import { queryKeys } from "../../lib/queryKeys";
 import { ContentEditor } from "../../components/editor/ContentEditor";
 import { useAutosave } from "../../hooks/useAutosave";
 
@@ -41,17 +42,17 @@ export function NewsletterEditorPage() {
   const [previewNewsletter, setPreviewNewsletter] = useState<NewsletterEdition | null>(null);
 
   const { data: edition, isLoading } = useQuery({
-    queryKey: ["edition", editionId],
+    queryKey: queryKeys.editions.detail(editionId),
     queryFn: () => api.newsletters.get(editionId),
   });
 
   const { data: editionArticles } = useQuery({
-    queryKey: ["edition-articles", editionId],
+    queryKey: queryKeys.editions.articles(editionId),
     queryFn: () => api.newsletters.articles(editionId),
   });
 
   const { data: availableTags } = useQuery({
-    queryKey: ["tags"],
+    queryKey: queryKeys.tags.all,
     queryFn: api.content.listTags,
   });
 
@@ -76,8 +77,8 @@ export function NewsletterEditorPage() {
       title: editTitle,
       body_html: editBody,
     });
-    queryClient.invalidateQueries({ queryKey: ["editions"] });
-    queryClient.invalidateQueries({ queryKey: ["edition", editionId] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
   }, [edition, editTitle, editBody, queryClient, editionId]);
 
   const { isSynced, isSaving, error: saveError } = useAutosave({
@@ -90,8 +91,8 @@ export function NewsletterEditorPage() {
     if (!edition) return;
     try {
       await api.newsletters.updateStatus(edition.id, status);
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      queryClient.invalidateQueries({ queryKey: ["edition", editionId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
       toast.success(t("editor.statusUpdated"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
@@ -102,8 +103,8 @@ export function NewsletterEditorPage() {
     if (!edition) return;
     try {
       await api.newsletters.updateCategory(edition.id, category);
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      queryClient.invalidateQueries({ queryKey: ["edition", editionId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
@@ -113,9 +114,9 @@ export function NewsletterEditorPage() {
     if (!edition) return;
     try {
       await api.newsletters.addTag(edition.id, tag);
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      queryClient.invalidateQueries({ queryKey: ["edition", editionId] });
-      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
@@ -125,9 +126,9 @@ export function NewsletterEditorPage() {
     if (!edition) return;
     try {
       await api.newsletters.removeTag(edition.id, tag);
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      queryClient.invalidateQueries({ queryKey: ["edition", editionId] });
-      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
@@ -139,10 +140,10 @@ export function NewsletterEditorPage() {
     try {
       await api.newsletters.removeArticle(edition.id, contentID);
       setArticles((prev) => prev.filter((a) => a.content_id !== contentID));
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      queryClient.invalidateQueries({ queryKey: ["edition", editionId] });
-      queryClient.invalidateQueries({ queryKey: ["edition-articles", editionId] });
-      queryClient.invalidateQueries({ queryKey: ["article-newsletter-ids"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.editions.articles(editionId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.articleNewsletterIds.all });
       toast.success(t("newsletters.articleRemoved"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
@@ -210,8 +211,8 @@ export function NewsletterEditorPage() {
       }
       try {
         await api.newsletters.updateStatus(edition.id, "ready");
-        queryClient.invalidateQueries({ queryKey: ["editions"] });
-        queryClient.invalidateQueries({ queryKey: ["edition", editionId] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
         toast.success(t("newsletters.movedToReview"));
       } catch (err) {
         toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
