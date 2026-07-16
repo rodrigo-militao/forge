@@ -7,7 +7,8 @@ import toast from "react-hot-toast";
 import { api, type ContentItem, type NewsletterEdition, type DigestSource, type DigestInterest, type DigestJob } from "../../api/client";
 import { useAuth } from "../auth/store";
 import { StatsBar, formatTimeAgo } from "./components/stats-bar";
-import { FilterTabs, type FilterTab } from "./components/filter-tabs";
+import { FilterTabs } from "./components/filter-tabs";
+import type { FilterTabItem } from "./components/filter-tabs";
 import { ArticleCard } from "./components/article-card";
 import { DetailPanel } from "./components/detail-panel";
 
@@ -53,7 +54,7 @@ export function DigestPage() {
   const navigate = useNavigate();
   const [running, setRunning] = useState(false);
   const [selectedIDs, setSelectedIDs] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<FilterTab>("novos");
+  const [activeTab, setActiveTab] = useState<string>("novos");
   const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [selectedArticle, setSelectedArticle] = useState<ContentItem | null>(null);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
@@ -127,6 +128,14 @@ export function DigestPage() {
     }
   }
 
+  // Digest tab definitions
+  const digestTabs: FilterTabItem[] = [
+    { id: "todos", labelKey: "digest.tabTodos" },
+    { id: "novos", labelKey: "digest.tabNovos" },
+    { id: "selecionados", labelKey: "digest.tabSelecionados" },
+    { id: "enviados", labelKey: "digest.tabEnviados" },
+  ];
+
   // Tab-based filtering
   const filteredByTab = (() => {
     switch (activeTab) {
@@ -146,7 +155,7 @@ export function DigestPage() {
   const sortedItems = sortArticles(filteredByTab, sortBy);
 
   // Tab counts
-  const tabCounts = {
+  const tabCounts: Record<string, number> = {
     todos: digestItems.length,
     novos: digestItems.filter((c) => !usedSet.has(c.id)).length,
     selecionados: selectedIDs.size,
@@ -454,7 +463,7 @@ export function DigestPage() {
 
       {/* Toolbar: filters + sort + batch newsletter */}
       <div className="mt-3 flex items-center justify-between">
-        <FilterTabs active={activeTab} onChange={setActiveTab} counts={tabCounts} />
+        <FilterTabs tabs={digestTabs} active={activeTab} onChange={setActiveTab} counts={tabCounts} />
         <div className="flex items-center gap-2">
           {/* Sort */}
           <div ref={sortRef} className="relative">

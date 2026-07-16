@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Copy, Check, ExternalLink, Edit3, Eye, ArrowRight, ClipboardList } from "lucide-react";
+import { Archive, X, Copy, Check, ExternalLink, Edit3, Eye, ArrowRight, ClipboardList, FileText, Clock, AlignLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { NewsletterEdition, ArticleRef } from "../../../api/client";
 import { api } from "../../../api/client";
@@ -22,22 +22,25 @@ interface NewsletterDetailPanelProps {
   onGenerateIntro: () => void;
   onDestinationChange: (destination: string | null) => void;
   onNavigateToDiscover: () => void;
+  onArchive: (item: NewsletterEdition) => void;
+  onUnarchive: () => void;
 }
 
-const statusConfig: Record<string, { label: string; className: string }> = {
-  building: { label: "Building", className: "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]" },
-  ready: { label: "Ready", className: "bg-[var(--color-accent-success)]/20 text-[var(--color-accent-success)]" },
-  published: { label: "Published", className: "bg-white/10 text-[var(--color-bg-surface)]" },
-  archived: { label: "Archived", className: "bg-[var(--color-text-muted)]/20 text-[var(--color-text-muted)]" },
+const statusConfig: Record<string, { labelKey: string; className: string }> = {
+  building: { labelKey: "newsletters.building", className: "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]" },
+  ready: { labelKey: "newsletters.ready", className: "bg-[var(--color-accent-success)]/20 text-[var(--color-accent-success)]" },
+  published: { labelKey: "newsletters.published", className: "bg-white/10 text-[var(--color-bg-surface)]" },
+  archived: { labelKey: "newsletters.archived", className: "bg-[var(--color-text-muted)]/20 text-[var(--color-text-muted)]" },
 };
 
 const DEFAULT_DESTINATIONS = ["Substack", "Markdown genérico", "Texto simples"];
 
 type StepState = "done" | "active" | "pending";
-type Stage = "discover" | "compose" | "ready" | "published";
+type Stage = "discover" | "compose" | "ready" | "published" | "archived";
 
 function getStage(item: NewsletterEdition): Stage {
-  if (item.status === "published" || item.status === "archived") return "published";
+  if (item.status === "archived") return "archived";
+  if (item.status === "published") return "published";
   if (item.status === "ready") return "ready";
   if (item.status === "building" && item.article_count > 0) return "compose";
   return "discover";
@@ -67,11 +70,11 @@ function PipelineProgress({ item }: { item: NewsletterEdition }) {
           <div key={step.label} className="flex items-center">
             <div className="flex flex-col items-center gap-1">
               <div
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-medium transition-all duration-[var(--duration-base)] ${
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-semibold transition-all duration-[var(--duration-base)] ${
                   step.state === "done"
-                    ? "bg-[var(--color-accent-success)] text-white"
+                    ? "bg-[var(--color-accent-success)] text-white shadow-sm shadow-[var(--color-accent-success)]/30"
                     : step.state === "active"
-                      ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)] ring-1 ring-[var(--color-accent-primary)]/40"
+                      ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)] ring-2 ring-[var(--color-accent-primary)]/50 shadow-lg shadow-[var(--color-accent-primary)]/15"
                       : "bg-white/[0.04] text-[var(--color-text-muted)]"
                 }`}
               >
@@ -112,9 +115,9 @@ function PipelineProgress({ item }: { item: NewsletterEdition }) {
 function StageSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-4">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">{label}</span>
-        <div className="h-px flex-1 bg-white/[0.06]" />
+      <div className="mb-2.5 flex items-center gap-3">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]/80">{label}</span>
+        <div className="h-[2px] flex-1 rounded-full bg-gradient-to-r from-white/[0.08] to-transparent" />
       </div>
       {children}
     </div>
@@ -198,6 +201,8 @@ export function NewsletterDetailPanel({
   onGenerateIntro,
   onDestinationChange,
   onNavigateToDiscover,
+  onArchive,
+  onUnarchive,
 }: NewsletterDetailPanelProps) {
   const { t } = useTranslation();
   const [editingCategory, setEditingCategory] = useState(false);
@@ -207,6 +212,7 @@ export function NewsletterDetailPanel({
   const [showDestSuggestions, setShowDestSuggestions] = useState(false);
   const [scrollFade, setScrollFade] = useState(false);
   const [stayInDiscover, setStayInDiscover] = useState(false);
+  const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
   const prevStageRef = useRef(getStage(item));
   const destRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -358,6 +364,11 @@ export function NewsletterDetailPanel({
   );
 
   // Tags display (shared)
+  // Word count from body_html
+  const wordCount = item.body_html
+    ? item.body_html.replace(/<[^>]*>/g, "").trim().split(/\s+/).filter(Boolean).length
+    : 0;
+
   const tagsSection = item.tags.length > 0 && (
     <div className="flex flex-wrap gap-1">
       {item.tags.map((tag) => (
@@ -371,8 +382,104 @@ export function NewsletterDetailPanel({
     </div>
   );
 
+  // Stage-aware bottom CTA
+  const bottomCta = (() => {
+    switch (stage) {
+      case "discover":
+        if (articles.length > 0) {
+          return (
+            <button
+              onClick={() => setStayInDiscover(false)}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--color-accent-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[var(--color-accent-primary)]/20 transition-all hover:bg-[var(--color-accent-primary)]/90 hover:shadow-lg hover:shadow-[var(--color-accent-primary)]/25 active:scale-[0.97]"
+            >
+              {t("newsletters.continueToCompose")}
+              <ArrowRight size={16} strokeWidth={2.5} />
+            </button>
+          );
+        }
+        return (
+          <button
+            onClick={onNavigateToDiscover}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/10 px-4 py-2.5 text-sm font-semibold text-[var(--color-accent-primary)] transition-all hover:bg-[var(--color-accent-primary)]/20 active:scale-[0.97]"
+          >
+            <ExternalLink size={15} />
+            {t("newsletters.discoverWeb")}
+          </button>
+        );
+      case "compose":
+        if (allChecksPass && !generating) {
+          return (
+            <button
+              onClick={() => onStatusChange("ready")}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--color-accent-success)] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[var(--color-accent-success)]/20 transition-all hover:bg-[var(--color-accent-success)]/90 hover:shadow-lg hover:shadow-[var(--color-accent-success)]/25 active:scale-[0.97]"
+            >
+              <ClipboardList size={16} />
+              {t("newsletters.sendForReview")}
+              <ArrowRight size={16} strokeWidth={2.5} />
+            </button>
+          );
+        }
+        return (
+          <div className="flex gap-2">
+            <button
+              onClick={onEdit}
+              className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--color-accent-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--color-accent-primary)]/90 active:scale-[0.97]"
+            >
+              <Edit3 size={15} />
+              {t("newsletters.continueEditing")}
+            </button>
+            <button
+              onClick={onPreview}
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--color-border)]/20 px-4 py-2.5 text-sm text-[var(--color-bg-surface)] transition-all hover:bg-white/10 active:scale-[0.97]"
+            >
+              <Eye size={15} />
+              {t("newsletters.preview")}
+            </button>
+          </div>
+        );
+      case "ready":
+        return (
+          <button
+            onClick={() => onStatusChange("published")}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--color-accent-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[var(--color-accent-primary)]/20 transition-all hover:bg-[var(--color-accent-primary)]/90 hover:shadow-lg hover:shadow-[var(--color-accent-primary)]/25 active:scale-[0.97]"
+          >
+            <Eye size={16} />
+            {t("newsletters.markAsPublished")}
+            <ArrowRight size={16} strokeWidth={2.5} />
+          </button>
+        );
+      case "published":
+        return (
+          <div className="flex gap-2">
+            <button
+              onClick={() => onDuplicate(item)}
+              className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--color-accent-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--color-accent-primary)]/90 active:scale-[0.97]"
+            >
+              <Copy size={15} />
+              {t("newsletters.createNextEdition")}
+            </button>
+            <button
+              onClick={() => onArchive(item)}
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--color-accent-danger)]/30 px-4 py-2.5 text-sm text-[var(--color-accent-danger)] transition-all hover:bg-[var(--color-accent-danger)]/10 active:scale-[0.97]"
+            >
+              <Archive size={15} />
+            </button>
+          </div>
+        );
+      case "archived":
+        return (
+          <button
+            onClick={onUnarchive}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/10 px-4 py-2.5 text-sm font-semibold text-[var(--color-accent-primary)] transition-all hover:bg-[var(--color-accent-primary)]/20 active:scale-[0.97]"
+          >
+            {t("newsletters.unarchiveAction")}
+          </button>
+        );
+    }
+  })();
+
   return (
-    <div className="relative flex w-[400px] shrink-0 flex-col max-h-[75vh] rounded-lg border border-l-0 border-[var(--color-border)]/20 bg-white/5 shadow-[-4px_0_12px_rgba(0,0,0,0.12)]">
+    <div className="relative flex w-[400px] shrink-0 flex-col max-h-[75vh] rounded-lg border border-[var(--color-border)]/20 bg-white/5 shadow-lg">
       <style>{`
         .panel-scroll::-webkit-scrollbar { width: 4px; }
         .panel-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -382,42 +489,52 @@ export function NewsletterDetailPanel({
       <div
         ref={scrollRef}
         onScroll={checkScrollFade}
-        className="panel-scroll flex-1 overflow-y-auto p-5"
+        className="panel-scroll flex-1 overflow-y-auto p-5 pb-3"
       >
         {/* Pipeline */}
         <PipelineProgress item={item} />
 
-        {/* Status + Meta row */}
-        <div className="mb-4 flex items-center justify-between">
-          <span className={`rounded px-2 py-0.5 text-xs font-medium ${cfg.className}`}>
-            {cfg.label}
+        {/* Stats summary bar */}
+        <div className="mb-4 flex items-center gap-3 rounded-lg bg-white/[0.03] px-3 py-2.5 text-[11px] text-[var(--color-text-muted)]">
+          <span className="flex items-center gap-1.5">
+            <FileText size={13} />
+            {item.article_count} {item.article_count === 1 ? t("newsletters.article") : t("newsletters.articles")}
           </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onDuplicate(item)}
-              className="flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
-              title="Duplicate"
-            >
-              <Copy size={14} /> Duplicate
-            </button>
+          <span className="text-[var(--color-text-muted)]/30">|</span>
+          <span className="flex items-center gap-1.5">
+            <Clock size={13} />
+            {formatTimeAgo(item.updated_at, t)}
+          </span>
+          {wordCount > 0 && (
+            <>
+              <span className="text-[var(--color-text-muted)]/30">|</span>
+              <span className="flex items-center gap-1.5">
+                <AlignLeft size={13} />
+                ~{wordCount} {t("newsletters.words")}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Status + Title row */}
+        <div className="mb-4 flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h2 className="break-words text-lg font-semibold leading-snug text-[var(--color-bg-surface)]">
+              {item.title || t("newsletters.noTitle")}
+            </h2>
+            <span className={`mt-1.5 inline-block rounded px-2 py-0.5 text-[10px] font-medium ${cfg.className}`}>
+              {t(cfg.labelKey)}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
             <button
               onClick={onClose}
-              className="cursor-pointer rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
+              className="cursor-pointer rounded p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
             >
               <X size={16} />
             </button>
           </div>
         </div>
-
-        {/* Title */}
-        <h2 className="mb-3 break-words text-lg font-semibold leading-snug text-[var(--color-bg-surface)]">
-          {item.title || t("newsletters.noTitle")}
-        </h2>
-
-        {/* Last activity */}
-        <p className="mb-5 text-xs text-[var(--color-text-muted)]">
-          Updated {formatTimeAgo(item.updated_at, t)}
-        </p>
 
         {/* ===== STAGE: DISCOVER (browse Novos articles + add) ===== */}
         {stage === "discover" && (
@@ -478,22 +595,64 @@ export function NewsletterDetailPanel({
 
             <StageSection label={`${t("newsletters.selectedArticles")} (${articles.length})`}>
               {articles.length > 0 ? (
-                <div className="max-h-36 space-y-1 overflow-y-auto">
+                <div className="max-h-48 space-y-1 overflow-y-auto">
                   {articles.map((a) => (
-                    <div
-                      key={a.content_id}
-                      className="flex items-center justify-between rounded-md bg-white/[0.04] px-2.5 py-1.5 transition-colors hover:bg-white/[0.08]"
-                    >
-                      <span className="min-w-0 truncate text-xs text-[var(--color-bg-surface)]">
-                        {a.title || t("newsletters.noTitle")}
-                      </span>
-                      <button
-                        onClick={() => onRemoveArticle(a.content_id)}
-                        disabled={removingArticle === a.content_id}
-                        className="ml-1 cursor-pointer shrink-0 rounded p-0.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-accent-danger)]/20 hover:text-[var(--color-accent-danger)] disabled:opacity-50"
+                    <div key={a.content_id}>
+                      <div
+                        onClick={() => setExpandedArticle(expandedArticle === a.content_id ? null : a.content_id)}
+                        className="group flex cursor-pointer items-center justify-between rounded-md bg-white/[0.04] px-2.5 py-1.5 transition-colors hover:bg-white/[0.08]"
                       >
-                        <X size={12} />
-                      </button>
+                        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                          <span className="truncate text-xs text-[var(--color-bg-surface)] group-hover:text-[var(--color-accent-primary)]">
+                            {a.title || t("newsletters.noTitle")}
+                          </span>
+                          {(() => {
+                            const contentItem = allContent?.find((c) => c.id === a.content_id);
+                            const sourceUrl = contentItem?.metadata?.source_url as string | undefined;
+                            return sourceUrl ? (
+                              <a
+                                href={sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="shrink-0 rounded p-0.5 text-[var(--color-text-muted)] opacity-0 transition-all hover:text-[var(--color-accent-primary)] group-hover:opacity-100"
+                              >
+                                <ExternalLink size={11} />
+                              </a>
+                            ) : null;
+                          })()}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onRemoveArticle(a.content_id); }}
+                          disabled={removingArticle === a.content_id}
+                          className="ml-1 cursor-pointer shrink-0 rounded p-0.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-accent-danger)]/20 hover:text-[var(--color-accent-danger)] disabled:opacity-50"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                      {expandedArticle === a.content_id && a.body_markdown && (
+                        <div className="mt-1.5 rounded-lg border border-[var(--color-border)]/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-[var(--color-bg-surface)]/80">
+                          <p className="whitespace-pre-wrap">{a.body_markdown}</p>
+                          <div className="mt-3 flex items-center justify-end gap-2 border-t border-[var(--color-border)]/10 pt-2">
+                            {(() => {
+                              const contentItem = allContent?.find((c) => c.id === a.content_id);
+                              const sourceUrl = contentItem?.metadata?.source_url as string | undefined;
+                              return sourceUrl ? (
+                                <a
+                                  href={sourceUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex cursor-pointer items-center gap-1 text-[10px] font-medium text-[var(--color-accent-primary)] transition-colors hover:text-[var(--color-accent-primary)]/80"
+                                >
+                                  <ExternalLink size={11} />
+                                  {t("newsletters.viewSource")}
+                                </a>
+                              ) : null;
+                            })()}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -507,23 +666,22 @@ export function NewsletterDetailPanel({
               onAddArticle={onAddArticle}
             />
 
-            <div className="mb-4 flex flex-col gap-2">
-              <button
-                onClick={onEdit}
-                className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-white transition-all hover:bg-[var(--color-accent-primary)]/90 active:scale-[0.97]"
-              >
-                <Edit3 size={15} />
-                {t("newsletters.continueEditing")}
-                <ArrowRight size={14} />
-              </button>
-              <button
-                onClick={onGenerateIntro}
-                disabled={generating}
-                className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/10 px-3 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-all hover:bg-[var(--color-accent-primary)]/20 active:scale-[0.97] disabled:opacity-50"
-              >
-                {generating ? t("newsletters.generatingBtn") : t("newsletters.generateIntroBtn")}
-              </button>
-            </div>
+            <button
+              onClick={onGenerateIntro}
+              disabled={generating}
+              className="mb-4 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/10 px-3 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-all hover:bg-[var(--color-accent-primary)]/20 active:scale-[0.97] disabled:opacity-60"
+            >
+              {generating ? (
+                <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-current animate-[dotPulse_1.4s_ease-out_infinite]" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-current animate-[dotPulse_1.4s_ease-out_infinite_200ms]" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-current animate-[dotPulse_1.4s_ease-out_infinite_400ms]" />
+                  </span>
+                  {t("newsletters.generatingIntro")}
+                </span>
+              ) : t("newsletters.generateIntroBtn")}
+            </button>
 
             <StageSection label={t("newsletters.settings")}>
               <div className="mb-3">
@@ -575,50 +733,23 @@ export function NewsletterDetailPanel({
               </div>
             </StageSection>
 
-            <StageSection label={t("newsletters.actions")}>
-              <div className="space-y-2">
-                <button
-                  onClick={() => onStatusChange("ready")}
-                  disabled={!allChecksPass}
-                  className={`flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${
-                    allChecksPass
-                      ? "bg-[var(--color-accent-success)] text-white hover:bg-[var(--color-accent-success)]/90"
-                      : "border border-[var(--color-border)]/20 text-[var(--color-text-muted)]"
-                  }`}
-                >
-                  {allChecksPass ? (
-                    <>
-                      <ClipboardList size={15} />
-                      {t("newsletters.sendForReview")}
-                    </>
-                  ) : (
-                    t("newsletters.completeChecklist")
-                  )}
-                </button>
-                <button
-                  onClick={onPreview}
-                  className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)]/10 px-3 py-2 text-sm text-[var(--color-bg-surface)] transition-all hover:bg-white/10 active:scale-[0.97]"
-                >
-                  <Eye size={15} />
-                  {t("newsletters.preview")}
-                </button>
-              </div>
-            </StageSection>
           </>
         )}
 
         {/* ===== STAGE: READY ===== */}
         {stage === "ready" && (
           <>
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--color-accent-success)]/30 bg-[var(--color-accent-success)]/10 px-3 py-2 text-sm font-medium text-[var(--color-accent-success)]">
-              <Check size={16} strokeWidth={3} />
+            <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-[var(--color-accent-success)]/40 bg-[var(--color-accent-success)]/15 px-4 py-3 text-sm font-semibold text-[var(--color-accent-success)] shadow-sm shadow-[var(--color-accent-success)]/10">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-accent-success)]/20">
+                <Check size={14} strokeWidth={3.5} />
+              </div>
               {t("newsletters.readyToPublish")}
             </div>
 
             {item.destination && (
               <p className="mb-4 text-xs text-[var(--color-bg-surface)]/80">
-                Publishing to <strong className="text-[var(--color-bg-surface)]">{item.destination}</strong>
-                {item.article_count > 0 && ` · ${item.article_count} articles`}
+                {t("newsletters.publishingTo")} <strong className="text-[var(--color-bg-surface)]">{item.destination}</strong>
+                {item.article_count > 0 && ` · ${item.article_count} ${t("newsletters.articles")}`}
               </p>
             )}
 
@@ -641,24 +772,6 @@ export function NewsletterDetailPanel({
               </div>
             </StageSection>
 
-            <StageSection label={t("newsletters.actions")}>
-              <div className="space-y-2">
-                <button
-                  onClick={() => onStatusChange("published")}
-                  className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-white transition-all hover:bg-[var(--color-accent-primary)]/90 active:scale-[0.97]"
-                >
-                  <Eye size={15} />
-                  {t("newsletters.markAsPublished")}
-                </button>
-                <button
-                  onClick={onPreview}
-                  className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)]/10 px-3 py-2 text-sm text-[var(--color-bg-surface)] transition-all hover:bg-white/10 active:scale-[0.97]"
-                >
-                  <Eye size={15} />
-                  {t("newsletters.preview")}
-                </button>
-              </div>
-            </StageSection>
           </>
         )}
 
@@ -687,31 +800,34 @@ export function NewsletterDetailPanel({
               </StageSection>
             )}
 
-            <StageSection label={t("newsletters.actions")}>
-              <div className="space-y-2">
-                <button
-                  onClick={onPreview}
-                  className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)]/10 px-3 py-2 text-sm text-[var(--color-bg-surface)] transition-all hover:bg-white/10 active:scale-[0.97]"
-                >
-                  <Eye size={15} />
-                  {t("newsletters.view")}
-                </button>
-                <button
-                  onClick={() => onDuplicate(item)}
-                  className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)]/10 px-3 py-2 text-sm text-[var(--color-bg-surface)] transition-all hover:bg-white/10 active:scale-[0.97]"
-                >
-                  <Copy size={15} />
-                  {t("newsletters.createNextEdition")}
-                </button>
+          </>
+        )}
+
+        {/* ===== STAGE: ARCHIVED ===== */}
+        {stage === "archived" && (
+          <>
+            <div className="mb-4 rounded-lg border border-[var(--color-text-muted)]/20 bg-[var(--color-text-muted)]/5 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+                <Archive size={16} />
+                {t("newsletters.archived")}
               </div>
-            </StageSection>
+              {item.destination && (
+                <p className="mt-1 text-xs text-[var(--color-bg-surface)]/60">{item.destination}</p>
+              )}
+            </div>
+
           </>
         )}
       </div>
 
-      {/* Bottom fade */}
+      {/* Fixed bottom CTA bar */}
+      <div className="shrink-0 border-t border-[var(--color-border)]/10 bg-white/[0.03] px-4 py-3">
+        {bottomCta}
+      </div>
+
+      {/* Bottom fade (over the scrollable area, above the fixed bar) */}
       {scrollFade && (
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-16 rounded-b-lg bg-gradient-to-t from-white/5 to-transparent" />
+        <div className="pointer-events-none absolute bottom-[62px] left-0 right-0 z-10 h-10 rounded-b-lg bg-gradient-to-t from-white/[0.04] to-transparent" />
       )}
     </div>
   );
