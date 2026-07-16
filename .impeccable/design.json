@@ -14,7 +14,7 @@
       "display": { "displayName": "Fraunces Display", "purpose": "Page titles only — once per screen." },
       "body": { "displayName": "Inter Body", "purpose": "Paragraphs, descriptions, running text. Max 70ch." },
       "label": { "displayName": "Inter Label", "purpose": "Buttons, form labels, navigation, table headers." },
-      "mono": { "displayName": "IBM Plex Mono", "purpose": "Tags, timestamps, versions, URLs." }
+      "mono": { "displayName": "JetBrains Mono", "purpose": "Tags, timestamps, versions, URLs." }
     },
     "motion": [
       { "name": "duration-fast", "value": "120ms", "purpose": "Hover, toggle, micro-interaction." },

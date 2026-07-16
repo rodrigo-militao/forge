@@ -30,7 +30,7 @@ typography:
     fontWeight: 500
     lineHeight: 1.4
   mono:
-    fontFamily: "IBM Plex Mono, SF Mono, monospace"
+    fontFamily: "JetBrains Mono, SF Mono, monospace"
     fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1.4
@@ -121,7 +121,7 @@ A restrained palette of warm charcoal, warm off-white, and burnt orange. Neutral
 
 **Display Font:** Fraunces (with Georgia, serif fallback)
 **Body Font:** Inter (with system-ui, sans-serif fallback)
-**Label/Mono Font:** IBM Plex Mono (with SF Mono, monospace fallback)
+**Label/Mono Font:** JetBrains Mono (with SF Mono, monospace fallback)
 
 **Character:** A pairing of authority and clarity. Fraunces brings editorial weight — its variable optical sizes make it feel typeset, not typed. Inter provides the clean, highly-legible reading experience needed for scanning lists of articles, metadata, and form labels. The contrast is deliberate: serif for the voice of the product, sans for the operational interface.
 
@@ -131,7 +131,7 @@ A restrained palette of warm charcoal, warm off-white, and burnt orange. Neutral
 - **Title** (Inter 500, 1rem / 16px, 1.4): Card titles, list item titles, dialog headings.
 - **Body** (Inter 400, 0.9375rem / 15px, 1.5): Paragraphs, descriptions, running text. Max line length 70ch.
 - **Label** (Inter 500, 0.8125rem / 13px, 1.4): Buttons, form labels, navigation items, table headers.
-- **Mono** (IBM Plex Mono 500, 0.8125rem / 13px, 1.4): Tags, timestamps, versions, code snippets, URLs.
+- **Mono** (JetBrains Mono 500, 0.8125rem / 13px, 1.4): Tags, timestamps, versions, code snippets, URLs.
 
 ### Named Rules
 **The One-Family Interface Rule.** Buttons, labels, navigation, body, and data use Inter exclusively. Fraunces is reserved for page and section titles only — never in buttons, never in form labels, never in navigation.

@@ -46,10 +46,12 @@ func (h *Hub) Unregister(userID uuid.UUID, ch chan Event) {
 	defer h.mu.Unlock()
 
 	if clients, ok := h.clients[userID]; ok {
-		delete(clients, ch)
-		close(ch)
-		if len(clients) == 0 {
-			delete(h.clients, userID)
+		if _, exists := clients[ch]; exists {
+			delete(clients, ch)
+			close(ch)
+			if len(clients) == 0 {
+				delete(h.clients, userID)
+			}
 		}
 	}
 }

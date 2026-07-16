@@ -227,3 +227,18 @@ test("library filter: empty string tagFilter does not filter", () => {
 
   assert.strictEqual(result.length, 2);
 });
+
+test("library filter: items with null categories handle category filter gracefully", () => {
+  const items: ContentItem[] = [
+    item({ id: "1", categories: null as unknown as string[] }),
+  ];
+
+  const result = filterLibraryContent({
+    content: items,
+    showDeleted: false,
+    categoryFilter: "tech",
+    tagFilter: "",
+  });
+
+  assert.strictEqual(result.length, 0);
+});

@@ -12,8 +12,8 @@
   --color-text-secondary: #5c5b58;
   --color-text-muted: #8c8a86;
   --font-display: "Fraunces", Georgia, serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", "SF Mono", monospace;
+  --font-body: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
 
   /* Type scale — docs/design-system.md §3 */
   --text-body: 1rem;

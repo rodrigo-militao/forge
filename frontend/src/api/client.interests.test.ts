@@ -20,3 +20,20 @@ test("digest.interests CRUD", async () => {
   globalThis.fetch = async () => new Response(null, { status: 204 });
   await assert.doesNotReject(async () => api.digest.interests.delete("2"));
 });
+
+test("digest.interests.updateEnabled sends PUT with enabled", async () => {
+  let method = "";
+  let body = "";
+  let url = "";
+  globalThis.fetch = async (u: RequestInfo, opts?: RequestInit) => {
+    url = u.toString();
+    method = opts?.method ?? "";
+    body = opts?.body as string;
+    return new Response(JSON.stringify({ status: "updated" }), { status: 200 });
+  };
+
+  await api.digest.interests.updateEnabled("1", false);
+  assert.strictEqual(method, "PUT");
+  assert.ok(url.includes("/digest/interests/1"));
+  assert.strictEqual(JSON.parse(body).enabled, false);
+});

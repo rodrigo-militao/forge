@@ -72,7 +72,7 @@ Três papéis, como no mockup de referência:
 |---|---|---|---|
 | Display/títulos | `font-display` | Serifada — autoridade e clareza. Títulos de página, nome do produto, headings principais | **Fraunces** (variável, tem peso pra ficar editorial sem parecer clássica demais) ou **Source Serif 4** |
 | Corpo | `font-body` | Sans — leitura limpa. Texto corrido, labels, botões, navegação | **Inter** ou **IBM Plex Sans** |
-| Técnico/detalhes | `font-mono` | Monoespaçada — técnico e direto. Timestamps, versões (`v1.2.3`), tags de categoria, trechos de código/URL | **IBM Plex Mono** ou **JetBrains Mono** |
+| Técnico/detalhes | `font-mono` | Monoespaçada — técnico e direto. Timestamps, versões (`v1.2.3`), tags de categoria, trechos de código/URL | **JetBrains Mono** (escolhida) |
 
 ### Escala tipográfica sugerida
 

@@ -2,8 +2,11 @@ legacy/
 .DS_Store
 backend/.env
 *.local
+frontend/.next
+.impeccable
+.verboo
 
 # Coverage artifacts
-backend/coverage.out
 backend/coverage.html
+backend/*.out
 frontend/coverage/

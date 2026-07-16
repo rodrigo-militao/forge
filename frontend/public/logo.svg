@@ -1,13 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="217.5242 182.5442 202.3963 79.0395" width="600px" height="400px" xmlns:bx="https://boxy-svg.com">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="140 182.5442 300 79.0395" width="600px" height="400px">
   <defs>
-    <style bx:fonts="JetBrains Mono">@import url(https://fonts.googleapis.com/css2?family=JetBrains+Mono%3Aital%2Cwght%400%2C100..800%3B1%2C100..800&amp;display=swap);</style>
+    <style>@import url(https://fonts.googleapis.com/css2?family=JetBrains+Mono%3Aital%2Cwght%400%2C100..800%3B1%2C100..800&amp;display=swap);</style>
   </defs>
   <g transform="matrix(1, 0, 0, 1, -19.95551490783692, 1.4619719982147217)">
-    <text class="logo-text" style="fill: rgb(247, 246, 243); font-family: &quot;JetBrains Mono&quot;; font-size: 58px; font-weight: 700; letter-spacing: 4px; white-space: pre;" transform="matrix(1.03119, 0, 0, 1, -7.60732, 0.16193)" x="237.674" y="239.992">FORG</text>
-    <text class="tagline" style="fill: rgb(86, 122, 97); font-family: &quot;JetBrains Mono&quot;; font-size: 14px; font-weight: 700; letter-spacing: 5px; white-space: pre;" transform="matrix(0.466644, 0, 0, 0.672583, 140.780975, 76.567688)" x="240.848" y="269.454">BUILD BETTER CONTENT</text>
-    <path d="M 399.442 197.785 L 439.442 197.785 L 439.442 207.285 L 399.442 207.285 L 399.442 197.785 Z" style="stroke-width: 1; fill: rgb(201, 107, 44);"/>
-    <path d="M 399.584 213.38 L 430.99 213.557 L 436.765 217.538 L 431.28 222.452 L 399.584 222.88 L 399.584 213.38 Z" style="stroke-width: 1; fill: rgb(86, 122, 97);"/>
-    <path d="M 399.876 229.474 L 439.876 229.474 L 439.876 238.974 L 399.876 238.974 L 399.876 229.474 Z" style="stroke-width: 1; fill: rgb(247, 246, 243);"/>
+    <rect x="190" y="188" width="48" height="12" rx="3" fill="#C96B2C"/>
+    <rect x="190" y="206" width="36" height="12" rx="3" fill="#567A61"/>
+    <rect x="190" y="224" width="24" height="12" rx="3" fill="#F7F6F3"/>
+    <text style="fill: #F7F6F3; font-family: 'JetBrains Mono'; font-size: 58px; font-weight: 700; letter-spacing: 4px;" transform="matrix(1.03119, 0, 0, 1, -7.60732, 0.16193)" x="265" y="239.992">FORGE</text>
   </g>
 </svg>

@@ -3,6 +3,7 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -59,6 +60,9 @@ func (r *Runner) processNext(ctx context.Context) {
 	if err != nil {
 		return
 	}
+	if job == nil {
+		return
+	}
 
 	handler, ok := r.handlers[job.Type]
 	if !ok {
@@ -78,6 +82,19 @@ func (r *Runner) processNext(ctx context.Context) {
 	// Per-handler timeout prevents a hung handler from blocking the pipeline.
 	handlerCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
+
+	// Panic recovery prevents a single handler panic from crashing the worker.
+	defer func() {
+		if rec := recover(); rec != nil {
+			errMsg := fmt.Sprintf("panic: %v", rec)
+			lib.LogAttrs(ctx, slog.LevelError, "job handler panicked",
+				slog.String("job_id", job.ID.String()),
+				slog.String("panic", errMsg),
+			)
+			r.jobs.UpdateStatus(ctx, job.ID, domain.JobFailed, &errMsg)
+		}
+	}()
+
 	if err := handler(handlerCtx, job.UserID.String(), job.Payload); err != nil {
 		lib.LogAttrs(ctx, slog.LevelError, "job failed",
 			slog.String("job_id", job.ID.String()),

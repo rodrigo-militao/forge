@@ -13,18 +13,24 @@ interface NewsletterListCardProps {
   onArchive: (item: NewsletterEdition) => void;
 }
 
-const statusConfig: Record<string, { labelKey: string; className: string }> = {
-  building: { labelKey: "newsletters.building", className: "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]" },
-  ready: { labelKey: "newsletters.ready", className: "bg-[var(--color-accent-success)]/20 text-[var(--color-accent-success)]" },
-  published: { labelKey: "newsletters.published", className: "bg-white/10 text-[var(--color-bg-surface)]" },
-  archived: { labelKey: "newsletters.archived", className: "bg-[var(--color-text-muted)]/20 text-[var(--color-text-muted)]" },
+const statusMeta: Record<string, { labelKey: string; dot: string }> = {
+  building: { labelKey: "newsletters.building", dot: "bg-[var(--color-accent-primary)]" },
+  ready: { labelKey: "newsletters.ready", dot: "bg-[var(--color-accent-success)]" },
+  published: { labelKey: "newsletters.published", dot: "bg-[var(--color-bg-surface)]" },
+  archived: { labelKey: "newsletters.archived", dot: "bg-[var(--color-text-muted)]" },
 };
 
-const TARGET_ARTICLE_COUNT = 8;
+function stageProgress(item: NewsletterEdition): number {
+  if (item.status === "published" || item.status === "archived") return 100;
+  if (item.status === "ready") return 75;
+  if (item.article_count > 0) return 50;
+  return 25;
+}
 
 export function NewsletterListCard({ item, isSelected, onClick, onEdit, onDuplicate, onPreview, onArchive }: NewsletterListCardProps) {
   const { t } = useTranslation();
-  const cfg = statusConfig[item.status] ?? statusConfig.building;
+  const meta = statusMeta[item.status] ?? statusMeta.building;
+  const pct = stageProgress(item);
 
   return (
     <div
@@ -35,39 +41,43 @@ export function NewsletterListCard({ item, isSelected, onClick, onEdit, onDuplic
           : "border-[var(--color-border)]/10 bg-white/[0.02] hover:border-[var(--color-accent-primary)]/25 hover:bg-white/[0.05] hover:shadow-md hover:shadow-black/5"
       }`}
     >
-      {/* Top row: title + status badge */}
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="min-w-0 truncate text-sm font-medium text-[var(--color-bg-surface)]">
-          {item.title || t("newsletters.noTitle")}
-        </h3>
-        <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-medium ${cfg.className}`}>
-          {t(cfg.labelKey)}
-        </span>
+      {/* Top row: status dot + name (left) | compact progress bar (right) */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className={`inline-block h-2 w-2 rounded-full ${meta.dot}`} />
+          <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+            {t(meta.labelKey)}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-1 w-12 overflow-hidden rounded-full bg-white/[0.08]">
+            <div
+              className="h-full rounded-full bg-[var(--color-accent-primary)] transition-all duration-[var(--duration-base)]"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="text-[10px] font-medium tabular-nums text-[var(--color-text-muted)]">{pct}%</span>
+        </div>
       </div>
+
+      {/* Title */}
+      <h3 className="mt-1.5 min-w-0 truncate text-sm font-medium text-[var(--color-bg-surface)]">
+        {item.title || t("newsletters.noTitle")}
+      </h3>
 
       {/* Destination */}
       {item.destination && (
         <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">{item.destination}</p>
       )}
 
-      {/* Article count + progress bar */}
-      <div className="mt-2.5 flex items-center gap-2">
-        <span className="text-xs text-[var(--color-bg-surface)]/70">
-          {t("newsletters.article", { count: item.article_count })}
+      {/* Metadata: last edited | article count */}
+      <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+        <span>{formatTimeAgo(item.updated_at, t)}</span>
+        <span className="text-[var(--color-text-muted)]/30">|</span>
+        <span>
+          {item.article_count}{" "}
+          {item.article_count === 1 ? t("newsletters.article") : t("newsletters.articles")}
         </span>
-        {item.article_count > 0 && (
-          <div className="flex items-center gap-1.5">
-            <div className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.08]">
-              <div
-                className="h-full rounded-full bg-[var(--color-accent-primary)] transition-all duration-[var(--duration-base)]"
-                style={{ width: `${Math.min(100, (item.article_count / TARGET_ARTICLE_COUNT) * 100)}%` }}
-              />
-            </div>
-            <span className="text-[10px] text-[var(--color-text-muted)]">
-              {Math.min(item.article_count, TARGET_ARTICLE_COUNT)}/{TARGET_ARTICLE_COUNT}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Tags */}
@@ -87,11 +97,8 @@ export function NewsletterListCard({ item, isSelected, onClick, onEdit, onDuplic
         </div>
       )}
 
-      {/* Bottom row: timestamp + actions */}
-      <div className="mt-2.5 flex items-center justify-between">
-        <span className="text-[10px] text-[var(--color-text-muted)]">
-          {t("newsletters.lastEdited")} {formatTimeAgo(item.updated_at, t)}
-        </span>
+      {/* Bottom row: actions */}
+      <div className="mt-2.5 flex items-center justify-end">
         <div className="flex items-center gap-1 opacity-0 transition-opacity duration-[var(--duration-fast)] group-hover:opacity-100 group-focus-within:opacity-100">
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(item); }}
