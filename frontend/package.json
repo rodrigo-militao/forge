@@ -54,7 +54,12 @@
     "poku": "^4.5.0",
     "tsx": "^4.23.0",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
-  }
+  },
+  "description": "This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.",
+  "main": "eslint.config.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

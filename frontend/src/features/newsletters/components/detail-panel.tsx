@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, X, Copy, Check, ExternalLink, Edit3, Eye, ArrowRight, ClipboardList, FileText, Clock, AlignLeft } from "lucide-react";
+import { Archive, X, Copy, Check, ExternalLink, Edit3, Eye, ArrowRight, ChevronDown, ClipboardList, FileText, Clock, AlignLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { NewsletterEdition, ArticleRef } from "../../../api/client";
 import { api } from "../../../api/client";
@@ -112,14 +112,25 @@ function PipelineProgress({ item }: { item: NewsletterEdition }) {
   );
 }
 
-function StageSection({ label, children }: { label: string; children: React.ReactNode }) {
+function StageSection({ label, children, defaultCollapsed }: { label: string; children: React.ReactNode; defaultCollapsed?: boolean }) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
+  const isCollapsible = defaultCollapsed !== undefined;
   return (
     <div className="mb-4">
-      <div className="mb-2.5 flex items-center gap-3">
+      <div
+        className={`mb-2.5 flex items-center gap-3 ${isCollapsible ? "cursor-pointer select-none" : ""}`}
+        onClick={() => isCollapsible && setCollapsed(!collapsed)}
+      >
+        {isCollapsible && (
+          <ChevronDown
+            size={11}
+            className={`shrink-0 text-[var(--color-text-muted)]/50 transition-transform duration-[var(--duration-fast)] ${collapsed ? "-rotate-90" : ""}`}
+          />
+        )}
         <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]/80">{label}</span>
         <div className="h-[2px] flex-1 rounded-full bg-gradient-to-r from-white/[0.08] to-transparent" />
       </div>
-      {children}
+      {!collapsed && children}
     </div>
   );
 }
@@ -480,12 +491,6 @@ export function NewsletterDetailPanel({
 
   return (
     <div className="relative flex w-[400px] shrink-0 flex-col max-h-[75vh] rounded-lg border border-[var(--color-border)]/20 bg-white/5 shadow-lg">
-      <style>{`
-        .panel-scroll::-webkit-scrollbar { width: 4px; }
-        .panel-scroll::-webkit-scrollbar-track { background: transparent; }
-        .panel-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-        .panel-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
-      `}</style>
       <div
         ref={scrollRef}
         onScroll={checkScrollFade}
@@ -683,7 +688,7 @@ export function NewsletterDetailPanel({
               ) : t("newsletters.generateIntroBtn")}
             </button>
 
-            <StageSection label={t("newsletters.settings")}>
+            <StageSection label={t("newsletters.settings")} defaultCollapsed>
               <div className="mb-3">
                 <label className="mb-1 block text-xs font-medium text-[var(--color-text-muted)]">{t("newsletters.destination")}</label>
                 {destinationEditor}
@@ -720,7 +725,7 @@ export function NewsletterDetailPanel({
               )}
             </StageSection>
 
-            <StageSection label={t("newsletters.export")}>
+            <StageSection label={t("newsletters.export")} defaultCollapsed>
               <div className="flex flex-wrap gap-2">
                 <CopyButton
                   getContent={() => item.body_html}

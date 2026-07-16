@@ -99,7 +99,7 @@ export function NewsletterListCard({ item, isSelected, onClick, onEdit, onDuplic
 
       {/* Bottom row: actions */}
       <div className="mt-2.5 flex items-center justify-end">
-        <div className="flex items-center gap-1 opacity-0 transition-opacity duration-[var(--duration-fast)] group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="flex items-center gap-1 opacity-40 transition-opacity duration-[var(--duration-fast)] group-hover:opacity-100 group-focus-within:opacity-100">
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(item); }}
             data-tooltip={t("editor.edit")}

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
-import { ArrowUpDown, ChevronLeft, Plus, Sparkles } from "lucide-react";
+import { Archive, ArrowUpDown, ChevronLeft, Copy, Edit3, Plus, Sparkles } from "lucide-react";
 import { api, type ArticleRef, type NewsletterEdition } from "../../api/client";
 import { FilterTabs } from "../digest/components/filter-tabs";
 import type { FilterTabItem } from "../digest/components/filter-tabs";
@@ -41,6 +41,10 @@ export function NewslettersPage() {
   const [activeTab, setActiveTab] = useState<string>("todas");
   const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
   const sortRef = useRef<HTMLDivElement>(null);
   const articlesReqRef = useRef(0);
 
@@ -89,34 +93,44 @@ export function NewslettersPage() {
     setShowPreview(true);
   }, [selectedItem]);
 
-  const handleDuplicate = useCallback(async (item: NewsletterEdition) => {
+  const handleDuplicate = useCallback((item: NewsletterEdition) => {
     const name = item.title || t("newsletters.noTitle");
-    if (!window.confirm(`${t("newsletters.confirmDuplicate")} "${name}"?`)) return;
-    try {
-      const dup = await api.newsletters.duplicate(item.id);
-      toast.success(t("newsletters.newsletterDuplicated"));
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      setSelectedItem(dup);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("newsletters.failedToDuplicate"));
-    }
+    setConfirmDialog({
+      message: `${t("newsletters.confirmDuplicate")} "${name}"?`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const dup = await api.newsletters.duplicate(item.id);
+          toast.success(t("newsletters.newsletterDuplicated"));
+          queryClient.invalidateQueries({ queryKey: ["editions"] });
+          setSelectedItem(dup);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : t("newsletters.failedToDuplicate"));
+        }
+      },
+    });
   }, [queryClient, t]);
 
   const handleCloseDetailPanel = useCallback(() => {
     setSelectedItem(null);
   }, []);
 
-  const handleArchive = useCallback(async (item: NewsletterEdition) => {
+  const handleArchive = useCallback((item: NewsletterEdition) => {
     const name = item.title || t("newsletters.noTitle");
-    if (!window.confirm(`${t("newsletters.confirmArchive")} "${name}"?`)) return;
-    try {
-      await api.newsletters.updateStatus(item.id, "archived");
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      setSelectedItem((prev) => prev?.id === item.id ? { ...prev, status: "archived" as const } : prev);
-      toast.success(t("newsletters.archivedSuccessfully"));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
-    }
+    setConfirmDialog({
+      message: `${t("newsletters.confirmArchive")} "${name}"?`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await api.newsletters.updateStatus(item.id, "archived");
+          queryClient.invalidateQueries({ queryKey: ["editions"] });
+          setSelectedItem((prev) => prev?.id === item.id ? { ...prev, status: "archived" as const } : prev);
+          toast.success(t("newsletters.archivedSuccessfully"));
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
+        }
+      },
+    });
   }, [queryClient, t]);
 
   const handleUnarchive = useCallback(async () => {
@@ -131,16 +145,41 @@ export function NewslettersPage() {
     }
   }, [selectedItem, queryClient, t]);
 
-  const handleStatusChange = useCallback(async (status: string) => {
+  const handleStatusChange = useCallback((status: string) => {
     if (!selectedItem) return;
-    try {
-      await api.newsletters.updateStatus(selectedItem.id, status);
-      setSelectedItem((prev) => prev ? { ...prev, status: status as NewsletterEdition["status"] } : null);
-      queryClient.invalidateQueries({ queryKey: ["editions"] });
-      toast.success(t("editor.statusUpdated"));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
+
+    // Intercept "published" for confirmation
+    if (status === "published") {
+      const name = selectedItem.title || t("newsletters.noTitle");
+      setConfirmDialog({
+        message: `${t("newsletters.confirmPublish")} "${name}"?`,
+        onConfirm: async () => {
+          setConfirmDialog(null);
+          if (!selectedItem) return;
+          try {
+            await api.newsletters.updateStatus(selectedItem.id, "published");
+            setSelectedItem((prev) => prev ? { ...prev, status: "published" as const } : null);
+            queryClient.invalidateQueries({ queryKey: ["editions"] });
+            toast.success(t("editor.statusUpdated"));
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
+          }
+        },
+      });
+      return;
     }
+
+    // For other statuses ("ready"), proceed directly
+    (async () => {
+      try {
+        await api.newsletters.updateStatus(selectedItem.id, status);
+        setSelectedItem((prev) => prev ? { ...prev, status: status as NewsletterEdition["status"] } : null);
+        queryClient.invalidateQueries({ queryKey: ["editions"] });
+        toast.success(t("editor.statusUpdated"));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
+      }
+    })();
   }, [selectedItem, queryClient, t]);
 
   const handleCategoryChange = useCallback(async (category: string | null) => {
@@ -347,59 +386,10 @@ export function NewslettersPage() {
     );
   }
 
-  // --- Preview mode ---
-  if (showPreview && previewItem) {
-    return (
-      <div className="mx-auto max-w-3xl space-y-4 animate-[fadeIn_400ms_ease-out_forwards]">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => { setShowPreview(false); setPreviewItem(null); }}
-            className="group cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] transition-colors hover:text-[var(--color-accent-primary)]/80"
-          >
-            <ChevronLeft size={16} />
-            {t("newsletters.backToList")}
-          </button>
-          {previewItem.status === "ready" && (
-            <button
-              onClick={async () => {
-                try {
-                  await api.newsletters.updateStatus(previewItem.id, "published");
-                  queryClient.invalidateQueries({ queryKey: ["editions"] });
-                  toast.success(t("newsletters.markAsPublished"));
-                  setShowPreview(false);
-                  setPreviewItem(null);
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
-                }
-              }}
-              className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-all hover:bg-[var(--color-accent-primary)]/90 hover:scale-[1.03] active:scale-[0.97]"
-            >
-              <Sparkles size={16} />
-              {t("newsletters.markAsPublished")}
-            </button>
-          )}
-        </div>
-        <div className="rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02] p-6">
-          <h1 className="mb-2 font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
-            {previewItem.title || t("newsletters.noTitle")}
-          </h1>
-          {previewItem.destination && (
-            <p className="mb-4 text-xs text-[var(--color-text-muted)]">
-              {t("newsletters.destination")}: {previewItem.destination}
-            </p>
-          )}
-          <div
-            className="prose prose-invert max-w-none text-sm leading-relaxed text-[var(--color-bg-surface)]/90 [&_h1]:text-xl [&_h2]:text-lg [&_h3]:text-base [&_a]:text-[var(--color-accent-primary)] [&_a]:underline"
-            dangerouslySetInnerHTML={{ __html: previewItem.body_html }}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // --- Main view: header + stats + toolbar + list + sidebar ---
+  // --- Main view: header + stats + toolbar + list + sidebar + preview overlay ---
   return (
-    <div className="flex h-full flex-col p-6 animate-[fadeIn_400ms_ease-out_forwards]">
+    <>
+      <div className="flex h-full flex-col p-6 animate-[fadeIn_400ms_ease-out_forwards]">
       {/* Header */}
       <div className="mb-5 flex items-start justify-between">
         <div>
@@ -540,5 +530,131 @@ export function NewslettersPage() {
         )}
       </div>
     </div>
+
+      {/* Confirm dialog */}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            className="mx-4 w-full max-w-sm rounded-xl border border-[var(--color-border)]/20 bg-[var(--color-bg-base)] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-[var(--color-bg-surface)]">{confirmDialog.message}</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="cursor-pointer rounded-lg border border-[var(--color-border)]/20 px-4 py-2 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-white/10"
+              >
+                {t("editor.cancel")}
+              </button>
+              <button
+                onClick={confirmDialog.onConfirm}
+                className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-[var(--color-accent-primary)]/90 active:scale-[0.97]"
+              >
+                {t("editor.confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview overlay */}
+      {showPreview && previewItem && (
+        <div
+          className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/60 pt-12 pb-12"
+          onClick={() => { setShowPreview(false); setPreviewItem(null); }}
+        >
+          <div
+            className="mx-auto w-full max-w-3xl space-y-4 animate-[fadeIn_300ms_ease-out_forwards]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={() => { setShowPreview(false); setPreviewItem(null); }}
+                className="group cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] transition-colors hover:text-[var(--color-accent-primary)]/80"
+              >
+                <ChevronLeft size={16} />
+                {t("newsletters.backToList")}
+              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handleEditNavigation(previewItem)}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-border)]/20 px-3 py-1.5 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
+                  data-tooltip={t("editor.edit")}
+                  aria-label={t("editor.edit")}
+                >
+                  <Edit3 size={14} />
+                  <span className="hidden sm:inline">{t("editor.edit")}</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(
+                        previewItem.body_html || ""
+                      );
+                      toast.success(t("newsletters.copiedToClipboard"));
+                    } catch {
+                      toast.error(t("newsletters.failed"));
+                    }
+                  }}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-border)]/20 px-3 py-1.5 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
+                  data-tooltip={t("newsletters.copyAsHtml")}
+                  aria-label={t("newsletters.copyAsHtml")}
+                >
+                  <Copy size={14} />
+                  <span className="hidden sm:inline">{t("newsletters.copyAsHtml")}</span>
+                </button>
+                {previewItem.status !== "archived" && (
+                  <button
+                    onClick={() => handleArchive(previewItem)}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-border)]/20 px-3 py-1.5 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent-danger)]/30 hover:bg-[var(--color-accent-danger)]/10 hover:text-[var(--color-accent-danger)]"
+                    data-tooltip={t("newsletters.archiveAction")}
+                    aria-label={t("newsletters.archiveAction")}
+                  >
+                    <Archive size={14} />
+                    <span className="hidden sm:inline">{t("newsletters.archiveAction")}</span>
+                  </button>
+                )}
+                {previewItem.status === "ready" && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.newsletters.updateStatus(previewItem.id, "published");
+                        queryClient.invalidateQueries({ queryKey: ["editions"] });
+                        toast.success(t("newsletters.markAsPublished"));
+                        setShowPreview(false);
+                        setPreviewItem(null);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
+                      }
+                    }}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--color-accent-primary)] px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-[var(--color-accent-primary)]/90 active:scale-[0.97]"
+                  >
+                    <Sparkles size={14} />
+                    <span className="hidden sm:inline">{t("newsletters.markAsPublished")}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg border border-[var(--color-border)]/10 bg-[var(--color-bg-base)] p-6">
+              <h1 className="mb-2 font-[var(--font-display)] text-2xl font-semibold text-[var(--color-bg-surface)]">
+                {previewItem.title || t("newsletters.noTitle")}
+              </h1>
+              {previewItem.destination && (
+                <p className="mb-4 text-xs text-[var(--color-text-muted)]">
+                  {t("newsletters.destination")}: {previewItem.destination}
+                </p>
+              )}
+              <div
+                className="prose prose-invert max-w-none text-sm leading-relaxed text-[var(--color-bg-surface)]/90 [&_h1]:text-xl [&_h2]:text-lg [&_h3]:text-base [&_a]:text-[var(--color-accent-primary)] [&_a]:underline"
+                dangerouslySetInnerHTML={{ __html: previewItem.body_html }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

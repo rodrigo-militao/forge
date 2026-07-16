@@ -47,6 +47,12 @@ body {
   line-height: var(--text-body--line-height);
 }
 
+/* Custom scrollbar — detail panel and other scrollable panel surfaces */
+.panel-scroll::-webkit-scrollbar { width: 4px; }
+.panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.panel-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }
+.panel-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
 /* Light theme — ADR 0010, docs/design-system.md §2.1 */
 [data-theme="light"] {
   --color-bg-base: #f7f6f3;
