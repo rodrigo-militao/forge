@@ -1,6 +1,7 @@
 legacy/
 .DS_Store
 backend/.env
+backend/.vite
 *.local
 frontend/.next
 .impeccable
