@@ -13,7 +13,7 @@ import { ComposePage } from "../features/compose/page";
 import { LibraryPage } from "../features/library/page";
 import { SettingsPage } from "../features/settings/page";
 import { NewslettersPage } from "../features/newsletters/page";
-import { NewsletterEditorPage } from "../features/newsletters/editor-page";
+import { EditorialWorkspace } from "../features/newsletters/editorial-workspace";
 import { IdeasPage } from "../features/ideas/page";
 import { useAuth } from "../features/auth/store";
 
@@ -82,7 +82,7 @@ const contentNewslettersRoute = createRoute({
 const newsletterEditRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "/content/newsletters/$id/edit",
-  component: NewsletterEditorPage,
+  component: EditorialWorkspace,
 });
 
 const ideasRoute = createRoute({

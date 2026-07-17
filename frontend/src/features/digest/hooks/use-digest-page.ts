@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import toast from "react-hot-toast";
-import { api, type ContentItem, type NewsletterEdition, type DigestSource, type DigestInterest } from "../../../api/client";
-import { useAuth } from "../../auth/store";
+import { api, type ContentItem, type NewsletterEdition } from "../../../api/client";
 import { queryKeys } from "../../../lib/queryKeys";
 import { useOutsideClick } from "../../../hooks/useOutsideClick";
+import { useDigestQueries } from "./use-digest-queries";
 import type { SortKey } from "../helpers";
 
 export function useDigestPage() {
@@ -32,60 +32,23 @@ export function useDigestPage() {
   const [showJobs, setShowJobs] = useState(false);
   const selectorRef = useRef<HTMLDivElement>(null);
 
-  const { data: content, isLoading, isError, dataUpdatedAt } = useQuery({
-    queryKey: queryKeys.content.all,
-    queryFn: api.content.list,
-  });
-
-  const { data: usedIDs } = useQuery({
-    queryKey: queryKeys.articleNewsletterIds.all,
-    queryFn: api.digest.articleNewsletterIDs,
-  });
-
-  const { data: stats } = useQuery({
-    queryKey: queryKeys.digest.stats,
-    queryFn: api.digest.stats,
-  });
-
-  const { data: jobs } = useQuery({
-    queryKey: queryKeys.digest.jobs,
-    queryFn: api.digest.jobs,
-    enabled: showJobs,
-  });
-
-  const user = useAuth((s) => s.user);
-  const { data: sources } = useQuery({
-    queryKey: queryKeys.digestSources.all,
-    queryFn: api.digest.sources.list,
-    staleTime: 30000,
-  });
-  const { data: interestsData } = useQuery({
-    queryKey: queryKeys.digestInterests.all,
-    queryFn: api.digest.interests.list,
-    staleTime: 30000,
-  });
-
-  const hasActiveSources = (sources ?? []).some((s: DigestSource) => s.enabled);
-  const hasActiveInterests = (interestsData ?? []).some((i: DigestInterest) => i.enabled);
-
-  const usedSet = new Set(usedIDs ?? []);
-
-  // All non-deleted digest items
-  const digestItems = (content ?? []).filter(
-    (c) => c.product === "digest" && c.deleted_at === null,
-  );
-
-  // Contextual tip for empty state
-  let contextualTipKey: string | null = null;
-  if (digestItems.length === 0) {
-    if (user?.restrict_search_to_sources && !hasActiveSources) {
-      contextualTipKey = "digest.restrictNoSources";
-    } else if (!hasActiveSources && !hasActiveInterests) {
-      contextualTipKey = "digest.noSourcesNoInterests";
-    } else {
-      contextualTipKey = "digest.emptyWithSources";
-    }
-  }
+  const {
+    content,
+    isLoading,
+    isError,
+    dataUpdatedAt,
+    usedIDs,
+    usedSet,
+    stats,
+    jobs,
+    sources,
+    interestsData,
+    hasActiveSources,
+    hasActiveInterests,
+    digestItems,
+    contextualTipKey,
+    user,
+  } = useDigestQueries(showJobs);
 
   // Digest tab definitions
   const digestTabs = [

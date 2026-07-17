@@ -15,6 +15,25 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
+// contentOpError maps ContentService errors to HTTP status codes.
+//   - domain.ErrNotFound → 404
+//   - domain.ErrNotOwned → 403
+//   - other errors → 500 (logged)
+func contentOpError(w http.ResponseWriter, err error) bool {
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, domain.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "content not found")
+	} else if errors.Is(err, domain.ErrNotOwned) {
+		writeError(w, http.StatusForbidden, "not your content")
+	} else {
+		slog.Error("content operation failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "operation failed")
+	}
+	return false
+}
+
 type ContentHandler struct {
 	svc    *application.ContentService
 	source application.SourceLinker
@@ -34,32 +53,14 @@ func (h *ContentHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, items)
 }
 
-
-func (h *ContentHandler) saveOrDelete(w http.ResponseWriter, r *http.Request) (*domain.GeneratedContent, bool) {
+func (h *ContentHandler) Save(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid content id")
-		return nil, false
-	}
-	userID, _ := UserIDFromContext(r.Context())
-	c, err := h.svc.GetOwnedContent(r.Context(), id, userID)
-	if err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "content not found")
-		} else {
-			writeError(w, http.StatusForbidden, "not your content")
-		}
-		return nil, false
-	}
-	return c, true
-}
-
-func (h *ContentHandler) Save(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
 		return
 	}
+	userID, _ := UserIDFromContext(r.Context())
 	var req struct {
 		Title        *string `json:"title"`
 		BodyMarkdown *string `json:"body_markdown"`
@@ -68,30 +69,34 @@ func (h *ContentHandler) Save(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	if err := h.svc.UpdateBody(r.Context(), c.ID, req.Title, req.BodyMarkdown); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save")
+	if !contentOpError(w, h.svc.UpdateBody(r.Context(), id, userID, req.Title, req.BodyMarkdown)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "saved"})
 }
 
 func (h *ContentHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
 		return
 	}
-	if err := h.svc.SoftDelete(r.Context(), c.ID); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to delete")
+	userID, _ := UserIDFromContext(r.Context())
+	if !contentOpError(w, h.svc.SoftDelete(r.Context(), id, userID)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
 func (h *ContentHandler) UpdateCategories(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
 		return
 	}
+	userID, _ := UserIDFromContext(r.Context())
 	var req struct {
 		Categories []string `json:"categories"`
 	}
@@ -99,18 +104,20 @@ func (h *ContentHandler) UpdateCategories(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	if err := h.svc.SetCategories(r.Context(), c.ID, req.Categories); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update categories")
+	if !contentOpError(w, h.svc.SetCategories(r.Context(), id, userID, req.Categories)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
 func (h *ContentHandler) AddCategory(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
 		return
 	}
+	userID, _ := UserIDFromContext(r.Context())
 	var req struct {
 		Category string `json:"category"`
 	}
@@ -123,26 +130,27 @@ func (h *ContentHandler) AddCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "category cannot be empty")
 		return
 	}
-	if err := h.svc.AddCategory(r.Context(), c.ID, req.Category); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to add category")
+	if !contentOpError(w, h.svc.AddCategory(r.Context(), id, userID, req.Category)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "category added"})
 }
 
 func (h *ContentHandler) RemoveCategory(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
 		return
 	}
+	userID, _ := UserIDFromContext(r.Context())
 	catParam := chi.URLParam(r, "category")
 	cat, err := url.QueryUnescape(catParam)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid category")
 		return
 	}
-	if err := h.svc.RemoveCategory(r.Context(), c.ID, cat); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to remove category")
+	if !contentOpError(w, h.svc.RemoveCategory(r.Context(), id, userID, cat)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "category removed"})
@@ -163,10 +171,13 @@ func (h *ContentHandler) ListCategories(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ContentHandler) AddTag(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
 		return
 	}
+	userID, _ := UserIDFromContext(r.Context())
 	var req struct {
 		Tag string `json:"tag"`
 	}
@@ -179,26 +190,27 @@ func (h *ContentHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "tag cannot be empty")
 		return
 	}
-	if err := h.svc.AddTag(r.Context(), c.ID, req.Tag); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to add tag")
+	if !contentOpError(w, h.svc.AddTag(r.Context(), id, userID, req.Tag)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "tag added"})
 }
 
 func (h *ContentHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
 		return
 	}
+	userID, _ := UserIDFromContext(r.Context())
 	tagParam := chi.URLParam(r, "tag")
 	tag, err := url.QueryUnescape(tagParam)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid tag")
 		return
 	}
-	if err := h.svc.RemoveTag(r.Context(), c.ID, tag); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to remove tag")
+	if !contentOpError(w, h.svc.RemoveTag(r.Context(), id, userID, tag)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "tag removed"})
@@ -219,10 +231,13 @@ func (h *ContentHandler) ListTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ContentHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
 		return
 	}
+	userID, _ := UserIDFromContext(r.Context())
 	var req struct {
 		Status string `json:"status"`
 	}
@@ -237,18 +252,20 @@ func (h *ContentHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid status: must be draft, published, or discarded")
 		return
 	}
-	if err := h.svc.UpdateStatus(r.Context(), c.ID, status); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update status")
+	if !contentOpError(w, h.svc.UpdateStatus(r.Context(), id, userID, status)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
 func (h *ContentHandler) UpdateOutline(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
 		return
 	}
+	userID, _ := UserIDFromContext(r.Context())
 	var req struct {
 		Outline *string `json:"outline"`
 	}
@@ -256,18 +273,20 @@ func (h *ContentHandler) UpdateOutline(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	if err := h.svc.UpdateOutline(r.Context(), c.ID, req.Outline); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update outline")
+	if !contentOpError(w, h.svc.UpdateOutline(r.Context(), id, userID, req.Outline)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
 func (h *ContentHandler) LinkSource(w http.ResponseWriter, r *http.Request) {
-	c, ok := h.saveOrDelete(w, r)
-	if !ok {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
 		return
 	}
+	userID, _ := UserIDFromContext(r.Context())
 	var req struct {
 		SourceID string `json:"source_id"`
 	}
@@ -280,8 +299,7 @@ func (h *ContentHandler) LinkSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid source_id")
 		return
 	}
-	if err := h.svc.LinkSource(r.Context(), c.ID, sourceID); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to link source")
+	if !contentOpError(w, h.svc.LinkSource(r.Context(), id, sourceID, userID)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "linked"})

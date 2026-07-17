@@ -16,6 +16,20 @@ const (
 	ContentDiscarded ContentStatus = "discarded"
 )
 
+// CanTransitionTo returns true if the transition to the target status is allowed.
+// Content moves forward: draft → published → discarded. Discarded is terminal.
+func (s ContentStatus) CanTransitionTo(target ContentStatus) bool {
+	if s == ContentDiscarded {
+		return false
+	}
+	return s != target
+}
+
+// ValidContentStatuses returns all valid content statuses.
+func ValidContentStatuses() []ContentStatus {
+	return []ContentStatus{ContentDraft, ContentPublished, ContentDiscarded}
+}
+
 // ContentProduct identifies which product generated this content.
 type ContentProduct string
 

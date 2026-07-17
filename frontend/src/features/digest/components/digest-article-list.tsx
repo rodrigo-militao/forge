@@ -2,17 +2,8 @@ import { useTranslation } from "react-i18next";
 import { EyeOff, Sparkles } from "lucide-react";
 import type { ContentItem } from "../../../api/client";
 import { api } from "../../../api/client";
+import { sortItems, type SortKey } from "../../../lib/sort";
 import { ArticleCard } from "./article-card";
-
-type SortKey = "newest" | "oldest" | "title";
-
-function sortArticles(items: ContentItem[], sort: SortKey) {
-  return [...items].sort((a, b) => {
-    if (sort === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    return (a.title ?? "").localeCompare(b.title ?? "");
-  });
-}
 
 interface DigestArticleListProps {
   sortedItems: ContentItem[];
@@ -54,7 +45,7 @@ export function DigestArticleList({
   sortBy,
 }: DigestArticleListProps) {
   const { t } = useTranslation();
-  const sortedItems = sortArticles(rawSortedItems, sortBy);
+  const sortedItems = sortItems(rawSortedItems, sortBy, "created_at");
 
   return (
     <div className="min-w-0 flex-1 overflow-y-auto pr-4">

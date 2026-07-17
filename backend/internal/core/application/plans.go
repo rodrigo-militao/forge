@@ -28,7 +28,7 @@ func (p *Plans) CheckMonthGenerationQuota(ctx context.Context, userID uuid.UUID,
 	if err != nil {
 		used = 0
 	}
-	if used >= user.MaxMonthlyGenerations {
+	if _, exceeded := user.QuotaRemaining(used); exceeded {
 		return &LimitError{Name: "monthly_generation", Limit: user.MaxMonthlyGenerations, Current: used}
 	}
 	return nil
@@ -40,7 +40,7 @@ func (p *Plans) CheckSourceLimit(ctx context.Context, userID uuid.UUID, enabledC
 	if err != nil {
 		return fmt.Errorf("failed to check source limit: %w", err)
 	}
-	if enabledCount >= user.MaxActiveSources {
+	if !user.CanEnableSource(enabledCount) {
 		return &LimitError{Name: "max_active_sources", Limit: user.MaxActiveSources, Current: enabledCount}
 	}
 	return nil
@@ -52,7 +52,7 @@ func (p *Plans) CheckInterestLimit(ctx context.Context, userID uuid.UUID, enable
 	if err != nil {
 		return fmt.Errorf("failed to check interest limit: %w", err)
 	}
-	if enabledCount >= user.MaxActiveInterests {
+	if !user.CanEnableInterest(enabledCount) {
 		return &LimitError{Name: "max_active_interests", Limit: user.MaxActiveInterests, Current: enabledCount}
 	}
 	return nil

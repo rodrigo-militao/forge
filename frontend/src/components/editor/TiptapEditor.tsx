@@ -1,22 +1,50 @@
-import { useCallback, useState } from "react";
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { useState, useRef } from "react";
+import { useEditor, EditorContent, EditorContext } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import LinkExtension from "@tiptap/extension-link";
+import Underline from "@tiptap/extension-underline";
+import Highlight from "@tiptap/extension-highlight";
+import TextAlign from "@tiptap/extension-text-align";
+import { TaskItem, TaskList } from "@tiptap/extension-list";
+import Typography from "@tiptap/extension-typography";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
+import Image from "@tiptap/extension-image";
+import { FontSize } from "./FontSize";
+
+// --- Tiptap Node SCSS ---
+import "../tiptap-node/blockquote-node/blockquote-node.scss";
+import "../tiptap-node/code-block-node/code-block-node.scss";
+import "../tiptap-node/horizontal-rule-node/horizontal-rule-node.scss";
+import "../tiptap-node/list-node/list-node.scss";
+import "../tiptap-node/image-node/image-node.scss";
+import "../tiptap-node/heading-node/heading-node.scss";
+import "../tiptap-node/paragraph-node/paragraph-node.scss";
+
+// --- Template styles ---
+import "../tiptap-templates/simple/simple-editor.scss";
+
+// --- UI Primitives ---
 import {
-  Bold,
-  Bot,
-  Code,
-  Heading1,
-  Heading2,
-  Heading3,
-  Italic,
-  Link,
-  List,
-  ListOrdered,
-  Type,
-} from "lucide-react";
-import { FontSize, fontSizeOptions } from "./FontSize";
+  Toolbar,
+  ToolbarGroup,
+  ToolbarSeparator,
+} from "../tiptap-ui-primitive/toolbar";
+import { Spacer } from "../tiptap-ui-primitive/spacer";
+
+// --- Tiptap UI ---
+import { MarkButton } from "../tiptap-ui/mark-button";
+import { HeadingDropdownMenu } from "../tiptap-ui/heading-dropdown-menu";
+import { ListDropdownMenu } from "../tiptap-ui/list-dropdown-menu";
+import { LinkPopover } from "../tiptap-ui/link-popover";
+import { TextAlignButton } from "../tiptap-ui/text-align-button";
+import { UndoRedoButton } from "../tiptap-ui/undo-redo-button";
+import { BlockquoteButton } from "../tiptap-ui/blockquote-button";
+import { CodeBlockButton } from "../tiptap-ui/code-block-button";
+import {
+  ColorHighlightPopover,
+} from "../tiptap-ui/color-highlight-popover";
 
 interface TiptapEditorProps {
   content?: string;
@@ -24,7 +52,8 @@ interface TiptapEditorProps {
   onUpdate?: (html: string) => void;
   editable?: boolean;
   className?: string;
-  onTransform?: (action: "expand" | "rewrite", editor: Editor) => void;
+  toolbarRight?: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export function TiptapEditor({
@@ -33,212 +62,123 @@ export function TiptapEditor({
   onUpdate,
   editable = true,
   className = "",
-  onTransform,
+  toolbarRight,
+  children,
 }: TiptapEditorProps) {
-  const [linkURL, setLinkURL] = useState("");
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   const editor = useEditor({
+    immediatelyRender: false,
+    shouldRerenderOnTransaction: false,
     content,
     editable,
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
+        heading: { levels: [1, 2, 3, 4] },
+        underline: false,
       }),
+      Underline,
       FontSize,
       LinkExtension.configure({
         openOnClick: false,
-        HTMLAttributes: { class: "text-[var(--color-accent-primary)] underline cursor-pointer" },
+        HTMLAttributes: {
+          class: "text-[var(--color-accent-primary)] underline cursor-pointer",
+        },
       }),
       Placeholder.configure({ placeholder }),
+      Highlight.configure({ multicolor: true }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Typography,
+      Superscript,
+      Subscript,
+      Image,
     ],
     onUpdate: ({ editor: ed }) => {
       onUpdate?.(ed.getHTML());
     },
     editorProps: {
       attributes: {
-        class: "focus:outline-none min-h-[200px] text-sm leading-relaxed",
+        autocomplete: "off",
+        autocorrect: "off",
+        autocapitalize: "off",
+        "aria-label": "Main content area, start typing to enter text.",
+        class: "simple-editor",
       },
     },
   });
 
-  const addLink = useCallback(() => {
-    if (!editor) return;
-    if (linkURL.trim()) {
-      editor.chain().focus().extendMarkRange("link").setLink({ href: linkURL.trim() }).run();
-    } else {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-    }
-    setLinkURL("");
-  }, [editor, linkURL]);
-
-  const [isTransforming, setIsTransforming] = useState(false);
-
-  if (!editor) {
-    return (
-      <div className={`rounded-lg border border-[var(--color-border)]/20 bg-white/5 p-4 ${className}`}>
-        <p className="text-sm text-[var(--color-text-muted)]">Editor unavailable</p>
-      </div>
-    );
-  }
-
   return (
-    <div className={`rounded-lg border border-[var(--color-border)]/20 bg-white/5 ${className}`}>
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-[var(--color-border)]/10 px-2 py-1.5">
-        <ToolbarButton
-          active={editor.isActive("heading", { level: 1 })}
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          title="Heading 1"
-        >
-          <Heading1 size={15} />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("heading", { level: 2 })}
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          title="Heading 2"
-        >
-          <Heading2 size={15} />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("heading", { level: 3 })}
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          title="Heading 3"
-        >
-          <Heading3 size={15} />
-        </ToolbarButton>
+    <div className={`simple-editor-wrapper flex min-h-0 flex-1 flex-col ${className}`}>
+      <EditorContext.Provider value={{ editor }}>
+        {/* Toolbar — sticky at top */}
+        <div className="sticky top-0 z-[1] shrink-0 bg-[var(--color-bg-base)]">
+          <Toolbar ref={toolbarRef} role="toolbar" aria-label="Text formatting">
+            <Spacer />
 
-        <span className="mx-1 h-4 w-px bg-[var(--color-border)]/20" />
+            <ToolbarGroup>
+              <UndoRedoButton action="undo" />
+              <UndoRedoButton action="redo" />
+            </ToolbarGroup>
 
-        <ToolbarButton
-          active={editor.isActive("bold")}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          title="Bold"
-        >
-          <Bold size={15} />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("italic")}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          title="Italic"
-        >
-          <Italic size={15} />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("code")}
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          title="Code"
-        >
-          <Code size={15} />
-        </ToolbarButton>
+            <ToolbarSeparator />
 
-        <span className="mx-1 h-4 w-px bg-[var(--color-border)]/20" />
+            <ToolbarGroup>
+              <HeadingDropdownMenu levels={[1, 2, 3, 4]} portal />
+              <ListDropdownMenu types={["bulletList", "orderedList", "taskList"]} portal />
+              <BlockquoteButton />
+              <CodeBlockButton />
+            </ToolbarGroup>
 
-        <ToolbarButton
-          active={editor.isActive("bulletList")}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          title="Bullet list"
-        >
-          <List size={15} />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("orderedList")}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          title="Ordered list"
-        >
-          <ListOrdered size={15} />
-        </ToolbarButton>
+            <ToolbarSeparator />
 
-        <span className="mx-1 h-4 w-px bg-[var(--color-border)]/20" />
+            <ToolbarGroup>
+              <MarkButton type="bold" />
+              <MarkButton type="italic" />
+              <MarkButton type="strike" />
+              <MarkButton type="code" />
+              <MarkButton type="underline" />
+              <ColorHighlightPopover />
+              <LinkPopover />
+            </ToolbarGroup>
 
-        {/* Font size */}
-        <select
-          value={editor.getAttributes("fontSize").size ?? ""}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val) editor.chain().focus().setFontSize(val).run();
-            else editor.chain().focus().unsetFontSize().run();
-          }}
-          className="cursor-pointer rounded border border-[var(--color-border)]/10 bg-transparent px-1 py-0.5 text-xs text-[var(--color-text-muted)] focus:outline-none"
-          title="Font size"
-        >
-          <option value="">Size</option>
-          {fontSizeOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+            <ToolbarSeparator />
 
-        <span className="mx-1 h-4 w-px bg-[var(--color-border)]/20" />
+            <ToolbarGroup>
+              <MarkButton type="superscript" />
+              <MarkButton type="subscript" />
+            </ToolbarGroup>
 
-        {/* Link */}
-        <div className="flex items-center gap-1">
-          <input
-            type="text"
-            value={linkURL}
-            onChange={(e) => setLinkURL(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addLink()}
-            placeholder="https://..."
-            className="w-28 rounded border border-[var(--color-border)]/10 bg-transparent px-1.5 py-0.5 text-xs text-[var(--color-text-muted)] placeholder:text-[var(--color-text-muted)]/40 focus:outline-none"
-          />
-          <ToolbarButton active={editor.isActive("link")} onClick={addLink} title="Add link">
-            <Link size={15} />
-          </ToolbarButton>
+            <ToolbarSeparator />
+
+            <ToolbarGroup>
+              <TextAlignButton align="left" />
+              <TextAlignButton align="center" />
+              <TextAlignButton align="right" />
+              <TextAlignButton align="justify" />
+            </ToolbarGroup>
+
+            <Spacer />
+
+            {toolbarRight && (
+              <div className="flex items-center gap-1">
+                {toolbarRight}
+              </div>
+            )}
+          </Toolbar>
         </div>
 
-        {onTransform && (
-          <>
-            <span className="mx-1 h-4 w-px bg-[var(--color-border)]/20" />
-            <span className="text-xs text-[var(--color-text-muted)]">AI</span>
-            <ToolbarButton
-              onClick={() => { setIsTransforming(true); onTransform("expand", editor); setTimeout(() => setIsTransforming(false), 2000); }}
-              title="Expand selected text"
-              disabled={isTransforming}
-            >
-              <Bot size={15} className={isTransforming ? "animate-pulse" : ""} />
-            </ToolbarButton>
-            <ToolbarButton
-              onClick={() => { setIsTransforming(true); onTransform("rewrite", editor); setTimeout(() => setIsTransforming(false), 2000); }}
-              title="Rewrite selected text"
-              disabled={isTransforming}
-            >
-              <Type size={15} className={isTransforming ? "animate-pulse" : ""} />
-            </ToolbarButton>
-          </>
-        )}
-      </div>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto">
+          {children}
 
-      {/* Editor content */}
-      <div className="px-4 py-3">
-        <EditorContent editor={editor} />
-      </div>
+          <EditorContent
+            editor={editor}
+            className="simple-editor-content"
+          />
+        </div>
+      </EditorContext.Provider>
     </div>
-  );
-}
-
-function ToolbarButton({
-  active,
-  onClick,
-  title,
-  disabled,
-  children,
-}: {
-  active?: boolean;
-  onClick: () => void;
-  title?: string;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      disabled={disabled}
-      className={`rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)] ${
-        active ? "bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]" : ""
-      } ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
-    >
-      {children}
-    </button>
   );
 }

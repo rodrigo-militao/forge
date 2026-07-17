@@ -37,6 +37,9 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 	contentRepo := postgres.NewContentRepository(cfg.Pool)
 	topicsRepo := postgres.NewTopicRepository(cfg.Pool)
 	editionsRepo := postgres.NewEditionRepository(cfg.Pool)
+	userRepo := postgres.NewUserRepository(cfg.Pool)
+	sourceRepo := postgres.NewSourceRepository(cfg.Pool)
+	interestsRepo := postgres.NewDigestInterestRepository(cfg.Pool)
 	rawLLM := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL)
 	llmClient := llm.NewLoggingWrapper(rawLLM)
 	rawCheap := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL)
@@ -49,8 +52,6 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				return fmt.Errorf("invalid user id: %w", err)
 			}
 
-			userRepo := postgres.NewUserRepository(cfg.Pool)
-			sourceRepo := postgres.NewSourceRepository(cfg.Pool)
 			configs, err := sourceRepo.ListByUser(ctx, id)
 			if err != nil {
 				return fmt.Errorf("fetching sources: %w", err)
@@ -64,7 +65,6 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			sources := buildContentSources(configs)
 
 			// Add DuckDuckGo searches from enabled interests
-			interestsRepo := postgres.NewDigestInterestRepository(cfg.Pool)
 			interestList, err := interestsRepo.ListByUser(ctx, id)
 			var interestLabels []string
 			if err == nil {

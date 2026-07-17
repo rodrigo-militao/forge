@@ -15,13 +15,15 @@ type SourceLinker interface {
 }
 
 // ContentService wraps ContentRepository with ownership verification and
-// delegates CRUD operations. Plan limit enforcement is handled by Plans.
+// delegates CRUD operations. Every mutation method verifies the requesting
+// user owns the content before proceeding. Plan limit enforcement is handled
+// by Plans.
 type ContentService struct {
-	reader     ports.ContentReader
-	writer     ports.ContentWriter
+	reader      ports.ContentReader
+	writer      ports.ContentWriter
 	categorizer ports.ContentCategorizer
-	tagger     ports.ContentTagger
-	source     SourceLinker
+	tagger      ports.ContentTagger
+	source      SourceLinker
 }
 
 // NewContentService creates a content service.
@@ -29,51 +31,81 @@ func NewContentService(reader ports.ContentReader, writer ports.ContentWriter, c
 	return &ContentService{reader: reader, writer: writer, categorizer: categorizer, tagger: tagger, source: source}
 }
 
-// GetOwnedContent fetches content and verifies the requesting user owns it.
-func (s *ContentService) GetOwnedContent(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*domain.GeneratedContent, error) {
+// requireOwnership fetches content and verifies the requesting user owns it.
+// Returns the content if owned, or wraps domain.ErrNotFound or domain.ErrNotOwned.
+func (s *ContentService) requireOwnership(ctx context.Context, id, userID uuid.UUID) (*domain.GeneratedContent, error) {
 	content, err := s.reader.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get content: %w", err)
 	}
 	if content.UserID != userID {
-		return nil, fmt.Errorf("not your content")
+		return nil, fmt.Errorf("%w: content %s", domain.ErrNotOwned, id)
 	}
 	return content, nil
+}
+
+// GetOwnedContent fetches content and verifies the requesting user owns it.
+func (s *ContentService) GetOwnedContent(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*domain.GeneratedContent, error) {
+	return s.requireOwnership(ctx, id, userID)
 }
 
 func (s *ContentService) ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
 	return s.reader.ListByUser(ctx, userID)
 }
 
-func (s *ContentService) UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error {
+func (s *ContentService) UpdateBody(ctx context.Context, id, userID uuid.UUID, title, bodyMarkdown *string) error {
+	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
+		return err
+	}
 	return s.writer.UpdateBody(ctx, id, title, bodyMarkdown)
 }
 
-func (s *ContentService) UpdateOutline(ctx context.Context, id uuid.UUID, outline *string) error {
+func (s *ContentService) UpdateOutline(ctx context.Context, id, userID uuid.UUID, outline *string) error {
+	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
+		return err
+	}
 	return s.writer.UpdateOutline(ctx, id, outline)
 }
 
-func (s *ContentService) LinkSource(ctx context.Context, contentID, sourceID uuid.UUID) error {
+func (s *ContentService) LinkSource(ctx context.Context, contentID, sourceID, userID uuid.UUID) error {
+	if _, err := s.requireOwnership(ctx, contentID, userID); err != nil {
+		return err
+	}
 	return s.source.SetContentSource(ctx, contentID, sourceID)
 }
 
-func (s *ContentService) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
+func (s *ContentService) UpdateStatus(ctx context.Context, id, userID uuid.UUID, status domain.ContentStatus) error {
+	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
+		return err
+	}
 	return s.writer.UpdateStatus(ctx, id, status)
 }
 
-func (s *ContentService) SoftDelete(ctx context.Context, id uuid.UUID) error {
+func (s *ContentService) SoftDelete(ctx context.Context, id, userID uuid.UUID) error {
+	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
+		return err
+	}
 	return s.writer.SoftDelete(ctx, id)
 }
 
-func (s *ContentService) AddCategory(ctx context.Context, id uuid.UUID, category string) error {
+func (s *ContentService) AddCategory(ctx context.Context, id, userID uuid.UUID, category string) error {
+	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
+		return err
+	}
 	return s.categorizer.AddCategory(ctx, id, category)
 }
 
-func (s *ContentService) RemoveCategory(ctx context.Context, id uuid.UUID, category string) error {
+func (s *ContentService) RemoveCategory(ctx context.Context, id, userID uuid.UUID, category string) error {
+	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
+		return err
+	}
 	return s.categorizer.RemoveCategory(ctx, id, category)
 }
 
-func (s *ContentService) SetCategories(ctx context.Context, id uuid.UUID, categories []string) error {
+func (s *ContentService) SetCategories(ctx context.Context, id, userID uuid.UUID, categories []string) error {
+	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
+		return err
+	}
 	return s.categorizer.SetCategories(ctx, id, categories)
 }
 
@@ -81,11 +113,17 @@ func (s *ContentService) ListCategories(ctx context.Context, userID uuid.UUID) (
 	return s.categorizer.ListUserCategories(ctx, userID)
 }
 
-func (s *ContentService) AddTag(ctx context.Context, id uuid.UUID, tag string) error {
+func (s *ContentService) AddTag(ctx context.Context, id, userID uuid.UUID, tag string) error {
+	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
+		return err
+	}
 	return s.tagger.AddTag(ctx, id, tag)
 }
 
-func (s *ContentService) RemoveTag(ctx context.Context, id uuid.UUID, tag string) error {
+func (s *ContentService) RemoveTag(ctx context.Context, id, userID uuid.UUID, tag string) error {
+	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
+		return err
+	}
 	return s.tagger.RemoveTag(ctx, id, tag)
 }
 

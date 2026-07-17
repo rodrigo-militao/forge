@@ -140,7 +140,7 @@ export function Sidebar() {
           </button>
 
           {createOpen && (
-            <div className="absolute bottom-full left-0 z-50 mb-1 w-56 overflow-hidden rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-surface-elevated)] shadow-lg">
+            <div className="absolute bottom-full left-0 z-50 mb-1 w-56 overflow-hidden rounded-lg border border-[var(--color-border)]/20 bg-[var(--color-bg-surface-elevated)] shadow-lg">
               {createOptions.map(({ to, label, icon: Icon }) => (
                 <Link
                   key={to}

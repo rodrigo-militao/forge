@@ -5,8 +5,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
 import { api, type ArticleRef, type NewsletterEdition } from "../../../api/client";
 import { queryKeys } from "../../../lib/queryKeys";
-
-type SortKey = "newest" | "oldest" | "title";
+import { sortItems, type SortKey } from "../../../lib/sort";
 
 export type { SortKey };
 
@@ -302,15 +301,7 @@ export function useNewslettersPage() {
     ? items
     : items.filter((i) => i.status === activeTab);
 
-  function sortItems(items: NewsletterEdition[], sort: SortKey) {
-    return [...items].sort((a, b) => {
-      if (sort === "newest") return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-      if (sort === "oldest") return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
-      return (a.title ?? "").localeCompare(b.title ?? "");
-    });
-  }
-
-  const sortedItems = sortItems(filteredByTab, sortBy);
+  const sortedItems = sortItems(filteredByTab, sortBy, "updated_at");
 
   const sortOptions = (["newest", "oldest", "title"] as const).map((key) => ({
     value: key,

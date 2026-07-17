@@ -11,6 +11,9 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
+// testUserID is a well-known user ID used in tests to match requireOwnership.
+var testUserID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+
 // --- mocks ---
 
 type mockContentRepo struct {
@@ -34,7 +37,11 @@ type mockContentRepo struct {
 }
 
 func (m *mockContentRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.GeneratedContent, error) {
-	return m.content, m.getByIDErr
+	if m.content != nil {
+		return m.content, m.getByIDErr
+	}
+	// Default so tests through requireOwnership pass with testUserID.
+	return &domain.GeneratedContent{ID: id, UserID: testUserID}, m.getByIDErr
 }
 
 func (m *mockContentRepo) Create(ctx context.Context, content *domain.GeneratedContent) error {
@@ -226,7 +233,7 @@ func TestUpdateBody(t *testing.T) {
 			&mockSourceLinker{})
 	title := "New Title"
 	body := "New Body"
-	err := svc.UpdateBody(context.Background(), uuid.New(), &title, &body)
+	err := svc.UpdateBody(context.Background(), uuid.New(), testUserID, &title, &body)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -234,7 +241,7 @@ func TestUpdateBody(t *testing.T) {
 
 func TestUpdateBody_error(t *testing.T) {
 	svc := NewContentService(&mockContentRepo{}, &mockContentRepo{updateBodyErr: errors.New("update failed")}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
-	err := svc.UpdateBody(context.Background(), uuid.New(), nil, nil)
+	err := svc.UpdateBody(context.Background(), uuid.New(), testUserID, nil, nil)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -247,7 +254,7 @@ func TestUpdateOutline(t *testing.T) {
 			&mockContentRepo{},
 			&mockSourceLinker{})
 	outline := "Some outline"
-	err := svc.UpdateOutline(context.Background(), uuid.New(), &outline)
+	err := svc.UpdateOutline(context.Background(), uuid.New(), testUserID, &outline)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -255,7 +262,7 @@ func TestUpdateOutline(t *testing.T) {
 
 func TestUpdateOutline_error(t *testing.T) {
 	svc := NewContentService(&mockContentRepo{}, &mockContentRepo{updateOutlineErr: errors.New("update failed")}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
-	err := svc.UpdateOutline(context.Background(), uuid.New(), nil)
+	err := svc.UpdateOutline(context.Background(), uuid.New(), testUserID, nil)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -267,7 +274,7 @@ func TestLinkSource(t *testing.T) {
 			&mockContentRepo{},
 			&mockContentRepo{},
 			&mockSourceLinker{})
-	err := svc.LinkSource(context.Background(), uuid.New(), uuid.New())
+	err := svc.LinkSource(context.Background(), uuid.New(), uuid.New(), testUserID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -275,7 +282,7 @@ func TestLinkSource(t *testing.T) {
 
 func TestLinkSource_error(t *testing.T) {
 	svc := NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{err: errors.New("link failed")})
-	err := svc.LinkSource(context.Background(), uuid.New(), uuid.New())
+	err := svc.LinkSource(context.Background(), uuid.New(), uuid.New(), testUserID)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -287,7 +294,7 @@ func TestUpdateStatus(t *testing.T) {
 			&mockContentRepo{},
 			&mockContentRepo{},
 			&mockSourceLinker{})
-	err := svc.UpdateStatus(context.Background(), uuid.New(), domain.ContentPublished)
+	err := svc.UpdateStatus(context.Background(), uuid.New(), testUserID, domain.ContentPublished)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -295,7 +302,7 @@ func TestUpdateStatus(t *testing.T) {
 
 func TestUpdateStatus_error(t *testing.T) {
 	svc := NewContentService(&mockContentRepo{}, &mockContentRepo{updateStatusErr: errors.New("update failed")}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
-	err := svc.UpdateStatus(context.Background(), uuid.New(), domain.ContentPublished)
+	err := svc.UpdateStatus(context.Background(), uuid.New(), testUserID, domain.ContentPublished)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -307,7 +314,7 @@ func TestSoftDelete(t *testing.T) {
 			&mockContentRepo{},
 			&mockContentRepo{},
 			&mockSourceLinker{})
-	err := svc.SoftDelete(context.Background(), uuid.New())
+	err := svc.SoftDelete(context.Background(), uuid.New(), testUserID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -315,7 +322,7 @@ func TestSoftDelete(t *testing.T) {
 
 func TestSoftDelete_error(t *testing.T) {
 	svc := NewContentService(&mockContentRepo{}, &mockContentRepo{softDeleteErr: errors.New("delete failed")}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
-	err := svc.SoftDelete(context.Background(), uuid.New())
+	err := svc.SoftDelete(context.Background(), uuid.New(), testUserID)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -327,7 +334,7 @@ func TestAddCategory(t *testing.T) {
 			&mockContentRepo{},
 			&mockContentRepo{},
 			&mockSourceLinker{})
-	err := svc.AddCategory(context.Background(), uuid.New(), "tech")
+	err := svc.AddCategory(context.Background(), uuid.New(), testUserID, "tech")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -339,7 +346,7 @@ func TestRemoveCategory(t *testing.T) {
 			&mockContentRepo{},
 			&mockContentRepo{},
 			&mockSourceLinker{})
-	err := svc.RemoveCategory(context.Background(), uuid.New(), "tech")
+	err := svc.RemoveCategory(context.Background(), uuid.New(), testUserID, "tech")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -351,7 +358,7 @@ func TestSetCategories(t *testing.T) {
 			&mockContentRepo{},
 			&mockContentRepo{},
 			&mockSourceLinker{})
-	err := svc.SetCategories(context.Background(), uuid.New(), []string{"tech", "ai"})
+	err := svc.SetCategories(context.Background(), uuid.New(), testUserID, []string{"tech", "ai"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -376,7 +383,7 @@ func TestAddTag(t *testing.T) {
 			&mockContentRepo{},
 			&mockContentRepo{},
 			&mockSourceLinker{})
-	err := svc.AddTag(context.Background(), uuid.New(), "golang")
+	err := svc.AddTag(context.Background(), uuid.New(), testUserID, "golang")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -388,7 +395,7 @@ func TestRemoveTag(t *testing.T) {
 			&mockContentRepo{},
 			&mockContentRepo{},
 			&mockSourceLinker{})
-	err := svc.RemoveTag(context.Background(), uuid.New(), "golang")
+	err := svc.RemoveTag(context.Background(), uuid.New(), testUserID, "golang")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

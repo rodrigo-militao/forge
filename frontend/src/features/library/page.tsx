@@ -8,12 +8,14 @@ import { api, type ContentItem } from "../../api/client";
 import { queryKeys } from "../../lib/queryKeys";
 import { ContentEditor } from "../../components/editor/ContentEditor";
 import { useAutosave } from "../../hooks/useAutosave";
+import { useAITransform } from "../../hooks/useAITransform";
 import { filterLibraryContent } from "./filter";
 
 export function LibraryPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { selected?: string };
+  const { handleTransform } = useAITransform();
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
@@ -75,20 +77,6 @@ export function LibraryPage() {
     enabled: !!selectedItem && (editBody.length > 0 || editTitle.length > 0),
   });
 
-  const handleTransform = useCallback(
-    async (action: "expand" | "rewrite", editor: import("@tiptap/react").Editor) => {
-      const { from, to } = editor.state.selection;
-      const selectedText = editor.state.doc.textBetween(from, to);
-      if (!selectedText.trim()) { toast.error("Select some text first"); return; }
-      try {
-        await api.compose.transform(selectedText, action);
-        toast.success("Transform queued");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Transform failed");
-      }
-    },
-    [],
-  );
 
   const handleAddTag = useCallback(async (tag: string) => {
     if (!selectedItem) return;
@@ -151,12 +139,6 @@ export function LibraryPage() {
           onTitleChange={setEditTitle}
           body={editBody}
           onBodyChange={setEditBody}
-          tags={selectedItem.tags ?? []}
-          onAddTag={handleAddTag}
-          onRemoveTag={handleRemoveTag}
-          availableTags={availableTags ?? []}
-          status={selectedItem.status}
-          onStatusChange={handleStatusChange}
           editorKey={selectedItem.id}
           onTransform={handleTransform}
           isSynced={isSynced}

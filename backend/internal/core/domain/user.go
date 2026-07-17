@@ -39,3 +39,22 @@ type User struct {
 	CreatedAt               time.Time       `json:"created_at"`
 	UpdatedAt               time.Time       `json:"updated_at"`
 }
+
+// QuotaRemaining returns the number of remaining monthly generations.
+// Returns (remaining, false) if within quota, (0, true) if exceeded.
+func (u *User) QuotaRemaining(used int) (int, bool) {
+	if used >= u.MaxMonthlyGenerations {
+		return 0, true
+	}
+	return u.MaxMonthlyGenerations - used, false
+}
+
+// CanEnableSource returns true if the user can enable another source.
+func (u *User) CanEnableSource(enabledCount int) bool {
+	return enabledCount < u.MaxActiveSources
+}
+
+// CanEnableInterest returns true if the user can enable another interest.
+func (u *User) CanEnableInterest(enabledCount int) bool {
+	return enabledCount < u.MaxActiveInterests
+}

@@ -8,6 +8,7 @@ import { api, type ArticleRef, type NewsletterEdition } from "../../api/client";
 import { queryKeys } from "../../lib/queryKeys";
 import { ContentEditor } from "../../components/editor/ContentEditor";
 import { useAutosave } from "../../hooks/useAutosave";
+import { useAITransform } from "../../hooks/useAITransform";
 
 type StepState = "done" | "active" | "pending";
 
@@ -37,6 +38,7 @@ export function NewsletterEditorPage() {
   const [editBody, setEditBody] = useState("");
   const [generating, setGenerating] = useState(false);
   const [bodyVersion, setBodyVersion] = useState(0);
+  const { handleTransform } = useAITransform();
   const [articles, setArticles] = useState<ArticleRef[]>([]);
   const [removingArticle, setRemovingArticle] = useState<string | null>(null);
   const [previewNewsletter, setPreviewNewsletter] = useState<NewsletterEdition | null>(null);
@@ -189,19 +191,6 @@ export function NewsletterEditorPage() {
     return () => clearInterval(interval);
   }, [generating, edition, t]);
 
-  const handleTransform = useCallback(
-    async (action: "expand" | "rewrite", editor: import("@tiptap/react").Editor) => {
-      const { from, to } = editor.state.selection;
-      const selectedText = editor.state.doc.textBetween(from, to);
-      if (!selectedText.trim()) { toast.error("Select some text first"); return; }
-      try {
-        await api.compose.transform(selectedText, action);
-        toast.success("Transform queued");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Transform failed");
-      }
-    }, []);
-
   const handleNextStep = useCallback(async () => {
     if (!edition) return;
     if (edition.status === "building") {
@@ -352,77 +341,13 @@ export function NewsletterEditorPage() {
         onTitleChange={setEditTitle}
         body={editBody}
         onBodyChange={setEditBody}
-        tags={edition.tags ?? []}
-        onAddTag={handleAddTag}
-        onRemoveTag={handleRemoveTag}
-        availableTags={availableTags ?? []}
-        status={edition.status}
-        onStatusChange={handleStatusChange}
         editorKey={`${edition.id}-v${bodyVersion}`}
         isSynced={isSynced}
         isSaving={isSaving}
         saveError={saveError}
         titlePlaceholder={t("newsletters.titlePlaceholder")}
         onTransform={handleTransform}
-      >
-        <div className="flex gap-2">
-          <button
-            onClick={handleGenerateIntro}
-            disabled={generating}
-            className="group cursor-pointer rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/10 px-4 py-2 text-sm font-medium text-[var(--color-accent-primary)] transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-accent-primary)]/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100"
-          >
-            {generating ? (
-              <span className="flex items-center gap-2">
-                <span className="flex items-center gap-1">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-current animate-[dotPulse_1.4s_ease-out_infinite]" />
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-current animate-[dotPulse_1.4s_ease-out_infinite_200ms]" />
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-current animate-[dotPulse_1.4s_ease-out_infinite_400ms]" />
-                </span>
-                {t("newsletters.generatingIntro")}
-              </span>
-            ) : t("newsletters.generateIntro")}
-          </button>
-        </div>
-
-        {articles.length > 0 && (
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-[var(--color-bg-surface)]">{t("newsletters.articles")}</label>
-            <div className="space-y-2">
-              {articles.map((a, idx) => (
-                <div
-                  key={a.content_id}
-                  style={{ animationDelay: `${idx * 40}ms` }}
-                  className="flex items-center justify-between rounded-lg bg-white/[0.04] px-3 py-2 opacity-0 animate-[fadeIn_300ms_ease-out_forwards] transition-all duration-[var(--duration-base)] hover:bg-white/[0.08]"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-[var(--color-bg-surface)]">{a.title || t("newsletters.noTitle")}</p>
-                    {a.body_markdown && <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">{a.body_markdown}</p>}
-                  </div>
-                  <button
-                    onClick={() => handleRemoveArticle(a.content_id)}
-                    disabled={removingArticle === a.content_id}
-                    className="ml-2 cursor-pointer shrink-0 rounded p-1 text-[var(--color-text-muted)] opacity-0 transition-all duration-[var(--duration-fast)] group-hover:opacity-100 hover:bg-[var(--color-accent-danger)]/20 hover:text-[var(--color-accent-danger)] disabled:opacity-50"
-                    style={removingArticle === a.content_id ? { opacity: 1 } : undefined}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <input
-            type="text"
-            defaultValue={edition.category ?? ""}
-            placeholder={t("newsletters.categoryPlaceholder")}
-            onBlur={(e) => handleCategoryChange(e.target.value || null)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleCategoryChange((e.target as HTMLInputElement).value || null); }}
-            className="w-full rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-1.5 text-xs text-[var(--color-bg-surface)] outline-none transition-all duration-[var(--duration-fast)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent-primary)] focus:ring-1 focus:ring-[var(--color-accent-primary)]/30"
-          />
-        </div>
-      </ContentEditor>
+      />
     </div>
   );
 }

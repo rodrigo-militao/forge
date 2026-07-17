@@ -12,6 +12,13 @@ import "./i18n/index";
 
 setOnUnauthorized(() => useAuth.getState().clearSession());
 
+// Template compatibility: add .dark class to body when not in light mode
+// The TipTap template uses .dark & selectors; Forge uses [data-theme="light"]
+const theme = document.documentElement.getAttribute("data-theme");
+if (theme !== "light") {
+  document.body.classList.add("dark");
+}
+
 const queryClient = new QueryClient();
 
 function Root() {

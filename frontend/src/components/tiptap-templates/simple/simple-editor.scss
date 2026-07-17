@@ -1,0 +1,61 @@
+/* --- Simple Editor layout — adapted for Forge --- */
+
+.simple-editor-wrapper {
+  width: 100%;
+}
+
+.simple-editor-content {
+  width: 100%;
+}
+
+.simple-editor-content .tiptap.ProseMirror.simple-editor {
+  padding: 0 1.5rem 20vh;
+  font-family: "DM Sans", sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+  font-kerning: normal;
+  font-optical-sizing: auto;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 48rem;
+  margin: 0 auto;
+  text-wrap: pretty;
+}
+
+.simple-editor-content .tiptap.ProseMirror.simple-editor p.is-editor-empty::before {
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+.simple-editor-content .tiptap.ProseMirror.simple-editor h1 {
+  font-family: var(--font-display), "Fraunces", serif;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.simple-editor-content .tiptap.ProseMirror.simple-editor h2 {
+  font-family: var(--font-display), "Fraunces", serif;
+  font-size: 1.375rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.simple-editor-content .tiptap.ProseMirror.simple-editor h3 {
+  font-family: var(--font-display), "Fraunces", serif;
+  font-size: 1.125rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+@media screen and (max-width: 480px) {
+  .simple-editor-content .tiptap.ProseMirror.simple-editor {
+    padding: 1rem 1rem 20vh;
+  }
+}

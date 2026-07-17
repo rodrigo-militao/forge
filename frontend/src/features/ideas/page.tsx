@@ -229,7 +229,7 @@ export function IdeasPage() {
       {/* Empty state */}
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="mb-4 rounded-full bg-[var(--color-surface-elevated)] p-4">
+          <div className="mb-4 rounded-full bg-[var(--color-bg-surface-elevated)] p-4">
             <Lightbulb size={32} className="text-[var(--color-accent-primary)]" />
           </div>
           <p className="text-sm text-[var(--color-text-muted)]">{t("ideas.empty")}</p>
