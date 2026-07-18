@@ -20,12 +20,12 @@ typography:
     fontWeight: 600
     lineHeight: 1.2
   body:
-    fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "0.9375rem"
+    fontFamily: "DM Sans, system-ui, sans-serif"
+    fontSize: "1rem"
     fontWeight: 400
-    lineHeight: 1.5
+    lineHeight: 1.6
   label:
-    fontFamily: "Inter, system-ui, sans-serif"
+    fontFamily: "DM Sans, system-ui, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1.4
@@ -79,7 +79,7 @@ components:
 
 Raw material flows in — RSS feeds, web searches, topic seeds — passes through the forge of LLM processing, and emerges as refined, publishable content. The interface is the pipeline control room: precise instruments, clear readouts, direct manipulation.
 
-The system is **editorial and tactile** — a dark canvas that evokes the quiet focus of a writer's workspace, not a glowing SaaS dashboard. Surfaces sit in tonal layers rather than floating on shadows. Typography carries the hierarchy: Fraunces serif for headings (authoritative, warm, editorial), Inter sans for body (clean, efficient, technical). The burnt orange accent is the single point of action — every time it appears, it means "do this thing."
+The system is **editorial and tactile** — a dark canvas that evokes the quiet focus of a writer's workspace, not a glowing SaaS dashboard. Surfaces sit in tonal layers rather than floating on shadows. Typography carries the hierarchy: Fraunces serif for headings (authoritative, warm, editorial), DM Sans for body (clean, approachable, contemporary). The burnt orange accent is the single point of action — every time it appears, it means "do this thing."
 
 Forge explicitly rejects the generic AI-tool aesthetic: no purple gradients, no glassmorphism, no cute robot illustrations, no sparkle-emoji overload. The interface is restrained because the content is the point. Motion is purposeful and state-communicating. The tool disappears; the writing remains.
 
@@ -120,21 +120,21 @@ A restrained palette of warm charcoal, warm off-white, and burnt orange. Neutral
 ## 3. Typography
 
 **Display Font:** Fraunces (with Georgia, serif fallback)
-**Body Font:** Inter (with system-ui, sans-serif fallback)
+**Body Font:** DM Sans (with system-ui, sans-serif fallback)
 **Label/Mono Font:** JetBrains Mono (with SF Mono, monospace fallback)
 
-**Character:** A pairing of authority and clarity. Fraunces brings editorial weight — its variable optical sizes make it feel typeset, not typed. Inter provides the clean, highly-legible reading experience needed for scanning lists of articles, metadata, and form labels. The contrast is deliberate: serif for the voice of the product, sans for the operational interface.
+**Character:** A pairing of authority and warmth. Fraunces brings editorial weight — its variable optical sizes make it feel typeset, not typed. DM Sans provides a clean, approachable reading experience for scanning lists of articles, metadata, and form labels while keeping a warm, slightly humanist character that contrasts with Fraunces's formality. The pairing reads as contemporary-editorial rather than technical-corporate.
 
 ### Hierarchy
 - **Display** (Fraunces 600, 2.25rem / 36px, 1.2): Page titles only. Appears once per screen at most.
 - **Headline** (Fraunces 600, 1.5rem / 24px, 1.3): Section headings within a page.
-- **Title** (Inter 500, 1rem / 16px, 1.4): Card titles, list item titles, dialog headings.
-- **Body** (Inter 400, 0.9375rem / 15px, 1.5): Paragraphs, descriptions, running text. Max line length 70ch.
-- **Label** (Inter 500, 0.8125rem / 13px, 1.4): Buttons, form labels, navigation items, table headers.
+- **Title** (DM Sans 500, 1rem / 16px, 1.4): Card titles, list item titles, dialog headings.
+- **Body** (DM Sans 400, 1rem / 16px, 1.6): Paragraphs, descriptions, running text. Max line length 70ch.
+- **Label** (DM Sans 500, 0.8125rem / 13px, 1.4): Buttons, form labels, navigation items, table headers.
 - **Mono** (JetBrains Mono 500, 0.8125rem / 13px, 1.4): Tags, timestamps, versions, code snippets, URLs.
 
 ### Named Rules
-**The One-Family Interface Rule.** Buttons, labels, navigation, body, and data use Inter exclusively. Fraunces is reserved for page and section titles only — never in buttons, never in form labels, never in navigation.
+**The One-Family Interface Rule.** Buttons, labels, navigation, body, and data use DM Sans exclusively. Fraunces is reserved for page and section titles only — never in buttons, never in form labels, never in navigation.
 
 ## 4. Elevation
 
@@ -183,7 +183,7 @@ No `box-shadow` on any surface at rest. No floating UI (no floating action butto
 ### Navigation (Sidebar)
 - **Style:** Vertical sidebar, full height, column layout.
 - **Background:** Matches page base (`#1D1F24`), no distinct panel.
-- **Item typography:** Inter 500, 0.875rem / 14px.
+- **Item typography:** DM Sans 500, 0.875rem / 14px.
 - **Default:** Muted secondary text.
 - **Hover:** Subtle background fill + brightens text.
 - **Active:** Brighter background + burnt orange text color.
@@ -198,7 +198,7 @@ No `box-shadow` on any surface at rest. No floating UI (no floating action butto
 ### Do:
 - **Do** use burnt orange for exactly one primary action per screen. Its rarity communicates importance.
 - **Do** prefer tonal layering over box shadows for depth.
-- **Do** use Fraunces for page titles (once per page) and Inter for everything else.
+- **Do** use Fraunces for page titles (once per page) and DM Sans for everything else.
 - **Do** keep body text at WCAG AA contrast (≥4.5:1 against background).
 - **Do** use skeleton screens (shimmer animation) for content loading in lists and cards.
 - **Do** use direct descriptive language in error messages — no apologies, no emoji, no "Oops!"

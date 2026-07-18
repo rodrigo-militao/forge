@@ -30,13 +30,8 @@ defaultInst.use(initReactI18next).init({
         "home.greetingMorning": "Good morning, {{name}}.",
         "home.greetingAfternoon": "Good afternoon, {{name}}.",
         "home.greetingEvening": "Good evening, {{name}}.",
-        "home.subtitle": "Let's turn ideas into great content.",
+        "home.subtitle": "Continue transforming ideas into something worth publishing.",
         "home.continueWriting": "Continue writing",
-        "home.quickActions": "Quick actions",
-        "home.writeArticle": "Write new article",
-        "home.createNewsletter": "Create newsletter",
-        "home.captureIdea": "Capture idea",
-        "home.findReferences": "Find references",
         "home.recentIdeas": "Your ideas",
         "home.lastPublished": "Last published",
         "home.viewAll": "View all",
@@ -50,8 +45,20 @@ defaultInst.use(initReactI18next).init({
         "home.open": "Open",
         "home.typeArticle": "Article",
         "home.typeNewsletter": "Newsletter",
-        "home.ideaPlaceholder": "Capture an idea…",
+        "home.ideaPlaceholder": "Quick idea…",
         "home.ideaSaved": "Idea captured",
+        "home.newButton": "New",
+        "home.newArticle": "Article",
+        "home.newArticleDesc": "Write a standalone piece",
+        "home.newNewsletter": "Newsletter",
+        "home.newNewsletterDesc": "Curate and compose an edition",
+        "home.newIdea": "Idea",
+        "home.newIdeaDesc": "Capture something for later",
+        "home.nextActionContinueWriting": "Continue writing",
+        "home.nextActionReviewDraft": "Review draft",
+        "home.nextActionReview": "Review",
+        "home.nextActionAddReferences": "Add references",
+        "home.nextActionPublish": "Publish",
         "nav.home": "Home",
         "newsletters.lastEdited": "Edited",
         "newsletters.building": "Building",
@@ -133,6 +140,7 @@ test("ContinueCard renders article item correctly", async () => {
       type: "article",
       status: "draft",
       updatedAt: "2025-01-02T00:00:00Z",
+      nextAction: "continue_writing",
     },
     onClick: () => { clicked = true; },
   }));
@@ -158,6 +166,7 @@ test("ContinueCard renders newsletter item with type and status", async () => {
       status: "ready",
       updatedAt: "2025-01-03T00:00:00Z",
       editionId: "n1",
+      nextAction: "review",
     },
     onClick: () => {},
   }));
@@ -178,6 +187,7 @@ test("ContinueCard shows Edited time", async () => {
       type: "article",
       status: "draft",
       updatedAt: new Date().toISOString(),
+      nextAction: "continue_writing",
     },
     onClick: () => {},
   }));
@@ -205,16 +215,16 @@ test("HomeEmpty renders welcome message and action buttons inside RouterProvider
     return createElement("div", null,
       createElement("h2", null, t("home.welcome")),
       createElement("p", null, t("home.welcomeDesc")),
-      createElement("a", { href: "/content/ideas" }, t("home.captureIdea")),
-      createElement("a", { href: "/discover" }, t("home.findReferences")),
+      createElement("p", null, t("home.welcomeCTA")),
+      createElement("span", null, t("home.newButton")),
     );
   }
   r2.render(createElement(TestEmptyWrapper));
   await new Promise((r) => setTimeout(r, 50));
   assert.ok(c2.textContent!.includes("Welcome to Forge"), "should show welcome");
   assert.ok(c2.textContent!.includes("Start with something"), "should show welcome desc");
-  assert.ok(c2.textContent!.includes("Capture idea"), "should show capture idea");
-  assert.ok(c2.textContent!.includes("Find references"), "should show find references");
+  assert.ok(c2.textContent!.includes("Or bring a reference"), "should show CTA");
+  assert.ok(c2.textContent!.includes("New"), "should show new button label");
   r2.unmount();
 });
 

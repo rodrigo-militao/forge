@@ -7,6 +7,8 @@ import { api, type ContentItem, type NewsletterEdition, type Idea, type DigestSo
 import { queryKeys } from "../../../lib/queryKeys";
 import { useAuth } from "../../../features/auth/store";
 
+export type NextAction = "continue_writing" | "review_draft" | "add_references" | "review" | "publish";
+
 export interface HomeItem {
   id: string;
   title: string;
@@ -15,6 +17,10 @@ export interface HomeItem {
   updatedAt: string;
   /** Only for newsletters: the edition id to navigate to */
   editionId?: string;
+  /** Body markdown for article items (used to derive nextAction) */
+  body?: string;
+  /** Suggested next action for this item */
+  nextAction: NextAction;
 }
 
 export interface HomeInsight {
@@ -24,7 +30,7 @@ export interface HomeInsight {
   /** Route to navigate to, or null if action is not a link */
   to: string;
   /** Icon type for the insight */
-  icon: "lightbulb" | "fileText" | "mail" | "sparkles";
+  icon: "lightbulb" | "fileText" | "mail" | "zap";
 }
 
 export function useHomePage() {
@@ -82,12 +88,15 @@ export function useHomePage() {
     for (const c of content) {
       if (c.status !== "draft") continue;
       if (c.product !== "compose" && c.product !== "newsletter") continue;
+      const hasBody = c.body_markdown && c.body_markdown.trim().length > 50;
       items.push({
         id: c.id,
         title: c.title || "(no title)",
         type: "article",
         status: c.status,
         updatedAt: c.updated_at,
+        body: c.body_markdown ?? "",
+        nextAction: hasBody ? "review_draft" : "continue_writing",
       });
     }
 
@@ -101,6 +110,7 @@ export function useHomePage() {
         status: n.status,
         updatedAt: n.updated_at,
         editionId: n.id,
+        nextAction: n.status === "ready" ? "review" : "continue_writing",
       });
     }
 
@@ -121,12 +131,6 @@ export function useHomePage() {
   const recentSources = useMemo((): DigestSource[] => {
     return (sourcesQuery.data ?? []).slice(0, 5);
   }, [sourcesQuery.data]);
-
-  /** Whether there are drafts with body content (eligible for AI analysis) */
-  const hasDraftsWithBody = useMemo((): boolean => {
-    const content = contentQuery.data ?? [];
-    return content.some((c) => c.status === "draft" && c.body_markdown && c.body_markdown.trim().length > 50);
-  }, [contentQuery.data]);
 
   /** Last published item */
   const lastPublished = useMemo((): ContentItem | NewsletterEdition | null => {
@@ -255,6 +259,14 @@ export function useHomePage() {
     return list;
   }, [ideasQuery.data, contentQuery.data, newslettersQuery.data, insightsQuery.data, t]);
 
+  /** Editorial attention: high-relevance insights that are actionable */
+  const editorialAttention = useMemo((): HomeInsight[] => {
+    return (insights ?? []).filter((i) => {
+      // Only show genuinely actionable, high-relevance insights
+      return i.id === "drafts-need-references" || i.id === "newsletter-overdue" || i.id === "ideas-worth-developing";
+    });
+  }, [insights]);
+
   const handleContinueWriting = useCallback(
     (item: HomeItem) => {
       if (item.type === "article") {
@@ -273,6 +285,14 @@ export function useHomePage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create newsletter");
     }
+  }, [navigate]);
+
+  const handleCreateArticle = useCallback(() => {
+    navigate({ to: "/content/articles" });
+  }, [navigate]);
+
+  const handleCreateIdea = useCallback(() => {
+    navigate({ to: "/content/ideas" });
   }, [navigate]);
 
   const handleCaptureIdea = useCallback(
@@ -303,12 +323,14 @@ export function useHomePage() {
     lastPublished,
     recentSources,
     insights,
-    hasDraftsWithBody,
+    editorialAttention,
     isLoading,
     isError,
     isEmpty,
     handleContinueWriting,
+    handleCreateArticle,
     handleCreateNewsletter,
+    handleCreateIdea,
     handleCaptureIdea,
     handleRetry,
   };
