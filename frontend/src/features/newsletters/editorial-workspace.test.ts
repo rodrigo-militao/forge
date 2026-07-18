@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 // Pure functions that don't need React rendering
 const { getEditorialSteps } = await import("./components/editorial-pipeline");
 const { useEditorChecklist } = await import("./hooks/use-editor-checklist");
+const { extractSubtitle } = await import("./hooks/use-editor-workspace");
 import type { NewsletterEdition, ArticleRef } from "../../api/client";
 
 // ---------------------------------------------------------------------------
@@ -39,7 +40,7 @@ test("getEditorialSteps: all steps pending for empty building edition", () => {
   const steps = getEditorialSteps(edition);
 
   assert.strictEqual(steps.length, 5);
-  assert.strictEqual(steps[0].label, "Discover");
+  assert.strictEqual(steps[0].labelKey, "newsletters.discover");
   assert.strictEqual(steps[0].state, "done"); // Discover always done
   assert.strictEqual(steps[1].state, "current"); // Select is current
   assert.strictEqual(steps[2].state, "pending"); // Compose is pending
@@ -142,6 +143,46 @@ test("useEditorChecklist: partial edition has mixed results", () => {
   assert.ok(edition.title.length > 0);
   assert.strictEqual(edition.body_html.length, 0);
   assert.strictEqual(edition.article_count, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Subtitle extraction
+// ---------------------------------------------------------------------------
+
+test("extractSubtitle: extracts subtitle from body_html", () => {
+  const [subtitle, body] = extractSubtitle('<p data-subtitle="">My subtitle</p><h2>Content</h2><p>Body here</p>');
+  assert.strictEqual(subtitle, "My subtitle");
+  assert.strictEqual(body, "<h2>Content</h2><p>Body here</p>");
+});
+
+test("extractSubtitle: returns empty when no subtitle", () => {
+  const [subtitle, body] = extractSubtitle("<h2>Just content</h2><p>No subtitle here</p>");
+  assert.strictEqual(subtitle, "");
+  assert.strictEqual(body, "<h2>Just content</h2><p>No subtitle here</p>");
+});
+
+test("extractSubtitle: handles whitespace before subtitle", () => {
+  const [subtitle, body] = extractSubtitle('  \n <p data-subtitle="">Spaced</p><p>Body</p>');
+  assert.strictEqual(subtitle, "Spaced");
+  assert.strictEqual(body, "<p>Body</p>");
+});
+
+test("extractSubtitle: handles empty subtitle body", () => {
+  const [subtitle, body] = extractSubtitle('<p data-subtitle=""></p><h2>Content</h2>');
+  assert.strictEqual(subtitle, "");
+  assert.strictEqual(body, "<h2>Content</h2>");
+});
+
+test("extractSubtitle: ignores extra attributes on p tag", () => {
+  const [subtitle, body] = extractSubtitle('<p class="test" data-subtitle="" id="x">Sub</p><p>Body</p>');
+  assert.strictEqual(subtitle, "Sub");
+  assert.strictEqual(body, "<p>Body</p>");
+});
+
+test("extractSubtitle: handles HTML entities in subtitle", () => {
+  const [subtitle, body] = extractSubtitle('<p data-subtitle="">AT&amp;T report</p><p>Body</p>');
+  assert.strictEqual(subtitle, "AT&amp;T report");
+  assert.strictEqual(body, "<p>Body</p>");
 });
 
 // ---------------------------------------------------------------------------

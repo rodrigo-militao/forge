@@ -185,9 +185,8 @@ export function NewslettersPage() {
       {/* Preview overlay */}
       {showPreview && previewItem && (
         <PreviewOverlay
-          item={previewItem}
+          edition={previewItem}
           onClose={() => { setShowPreview(false); setPreviewItem(null); }}
-          onEdit={(item) => handleEditNavigation(item)}
           onArchive={handleArchive}
         />
       )}

@@ -10,7 +10,25 @@ import { useAITransform } from "../../../hooks/useAITransform";
 
 export type SidebarTab = "ai" | "articles";
 
-const SUBTITLE_RE = /^<p data-subtitle="">([\s\S]*?)<\/p>/;
+const SUBTITLE_RE = /^\s*<p[^>]*?\bdata-subtitle\b[^>]*?>([\s\S]*?)<\/p>\s*/i;
+
+/** Extract subtitle from body_html, returns [subtitle, remainingBody] */
+export function extractSubtitle(bodyHtml: string): [string, string] {
+  const match = bodyHtml.match(SUBTITLE_RE);
+  if (match) {
+    return [match[1], bodyHtml.slice(match[0].length)];
+  }
+  return ["", bodyHtml];
+}
+
+/** Encode plain text to safe HTML, trimming whitespace */
+function htmlEncode(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 export function useEditorWorkspace(editionId: string) {
   const { t } = useTranslation();
@@ -61,14 +79,9 @@ export function useEditorWorkspace(editionId: string) {
   useEffect(() => {
     if (edition) {
       setEditTitle(edition.title);
-      const match = edition.body_html.match(SUBTITLE_RE);
-      if (match) {
-        setEditSubtitle(match[1]);
-        setEditBody(edition.body_html.slice(match[0].length));
-      } else {
-        setEditSubtitle("");
-        setEditBody(edition.body_html);
-      }
+      const [subtitle, body] = extractSubtitle(edition.body_html);
+      setEditSubtitle(subtitle);
+      setEditBody(body);
       setBodyVersion((v) => v + 1);
     }
   }, [edition?.id, edition?.body_html]);
@@ -84,7 +97,7 @@ export function useEditorWorkspace(editionId: string) {
   const handleSave = useCallback(async () => {
     if (!edition) return;
     const subtitleHtml = editSubtitle
-      ? `<p data-subtitle="">${editSubtitle}</p>`
+      ? `<p data-subtitle="">${htmlEncode(editSubtitle)}</p>`
       : "";
     await api.newsletters.updateBody(edition.id, {
       title: editTitle,

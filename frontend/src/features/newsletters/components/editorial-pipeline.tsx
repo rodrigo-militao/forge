@@ -1,8 +1,9 @@
 import { Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { NewsletterEdition } from "../../../api/client";
 
 interface PipelineStep {
-  label: string;
+  labelKey: string;
   state: "done" | "current" | "pending";
 }
 
@@ -12,16 +13,13 @@ export function getEditorialSteps(edition: NewsletterEdition): PipelineStep[] {
   const isPublished = edition.status === "published";
 
   return [
+    { labelKey: "newsletters.discover", state: "done" as const },
     {
-      label: "Discover",
-      state: "done" as const,
-    },
-    {
-      label: "Select",
+      labelKey: "newsletters.select",
       state: hasArticles ? ("done" as const) : ("current" as const),
     },
     {
-      label: "Compose",
+      labelKey: "newsletters.compose",
       state: isReady || isPublished
         ? ("done" as const)
         : hasArticles
@@ -29,7 +27,7 @@ export function getEditorialSteps(edition: NewsletterEdition): PipelineStep[] {
           : ("pending" as const),
     },
     {
-      label: "Review",
+      labelKey: "newsletters.review",
       state: isPublished
         ? ("done" as const)
         : isReady
@@ -37,19 +35,20 @@ export function getEditorialSteps(edition: NewsletterEdition): PipelineStep[] {
           : ("pending" as const),
     },
     {
-      label: "Ready",
+      labelKey: "newsletters.ready",
       state: isPublished ? ("done" as const) : ("pending" as const),
     },
   ];
 }
 
 export function EditorialPipeline({ edition }: { edition: NewsletterEdition }) {
+  const { t } = useTranslation();
   const steps = getEditorialSteps(edition);
 
   return (
     <div className="flex items-stretch gap-0 rounded-lg border border-[var(--color-border)]/10 bg-white/[0.02]" role="progressbar" aria-label="Editorial pipeline" aria-valuemin={0} aria-valuemax={100} aria-valuenow={steps.filter((s) => s.state === "done").length * 25}>
       {steps.map((step, i) => (
-        <div key={step.label} className="flex flex-1 items-center gap-2 px-3 py-2">
+        <div key={step.labelKey} className="flex flex-1 items-center gap-2 px-3 py-2">
           <div
             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium transition-all duration-[var(--duration-base)] ${
               step.state === "done"
@@ -75,7 +74,7 @@ export function EditorialPipeline({ edition }: { edition: NewsletterEdition }) {
                   : "text-[var(--color-text-muted)]"
             }`}
           >
-            {step.label}
+            {t(step.labelKey)}
           </span>
           {i < steps.length - 1 && (
             <div className="ml-auto">
