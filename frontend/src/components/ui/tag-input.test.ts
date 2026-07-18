@@ -17,23 +17,23 @@ const dom = new JSDOM('<!DOCTYPE html><html><body><div id="root"></div></body></
 (globalThis as any).Node = dom.window.Node;
 (globalThis as any).self = dom.window;
 
-// Setup minimal i18n instance
-const i18n = await import("i18next");
+// Setup i18n — use addResourceBundle so keys survive init across test files.
+// This avoids the "already initialized" silent rejection when other
+// test files have initialized the singleton before this one.
+const rawI18n = (await import("i18next")).default;
 const { initReactI18next } = await import("react-i18next");
-const defaultInst = i18n.default || i18n;
-defaultInst.use(initReactI18next).init({
-  lng: "en",
-  resources: {
-    en: {
-      translation: {
-        editor: {
-          addTag: "Add tag",
-        },
+if (!rawI18n.isInitialized) {
+  rawI18n.use(initReactI18next).init({
+    lng: "en",
+    resources: {
+      en: {
+        translation: {},
       },
     },
-  },
-  interpolation: { escapeValue: false },
-});
+    interpolation: { escapeValue: false },
+  });
+}
+rawI18n.addResourceBundle("en", "translation", { editor: { addTag: "Add tag" } }, true, true);
 
 const { createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");

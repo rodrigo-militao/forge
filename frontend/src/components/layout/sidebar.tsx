@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import {
   FileText,
@@ -12,6 +12,7 @@ import {
   Lightbulb,
   Plus,
   ChevronDown,
+  House,
 } from "lucide-react";
 import { useAuth } from "../../features/auth/store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -39,6 +40,8 @@ export function Sidebar() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const createRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const isHomeActive = location.pathname === "/home";
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, String(collapsed));
@@ -84,6 +87,14 @@ export function Sidebar() {
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1">
+        {/* Home */}
+        <Link to="/home" className={linkClass(isHomeActive)} title={collapsed ? t("nav.home") : undefined}>
+          <House size={18} className="shrink-0" />
+          {!collapsed && <span className="truncate">{t("nav.home")}</span>}
+        </Link>
+
+        <div className="my-1 border-t border-[var(--color-border)]/10" />
+
         {/* Discover */}
         <Link to="/discover" className={linkClass()} title={collapsed ? t("nav.discover") : undefined}>
           <FileText size={18} className="shrink-0" />

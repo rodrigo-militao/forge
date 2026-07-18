@@ -489,3 +489,14 @@ body {
     from, to { opacity: 1; transform: translateX(0); }
   }
 }
+
+/* ─── Staggered entrance for list items ─── */
+.stagger-item {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-item {
+    animation: none;
+  }
+}

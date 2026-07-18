@@ -15,6 +15,7 @@ import { SettingsPage } from "../features/settings/page";
 import { NewslettersPage } from "../features/newsletters/page";
 import { EditorialWorkspace } from "../features/newsletters/editorial-workspace";
 import { IdeasPage } from "../features/ideas/page";
+import { HomePage } from "../features/home/page";
 import { useAuth } from "../features/auth/store";
 
 const rootRoute = createRootRoute();
@@ -24,7 +25,7 @@ const indexRoute = createRoute({
   path: "/",
   beforeLoad: () => {
     const { user, loading } = useAuth.getState();
-    throw redirect({ to: loading || !user ? "/login" : "/discover" });
+    throw redirect({ to: loading || !user ? "/login" : "/home" });
   },
 });
 
@@ -56,6 +57,12 @@ const discoverRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "/discover",
   component: DigestPage,
+});
+
+const homeRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/home",
+  component: HomePage,
 });
 
 // Legacy redirect: /digest → /discover
@@ -125,6 +132,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   registerRoute,
   authLayout.addChildren([
+    homeRoute,
     discoverRoute,
     digestLegacyRoute,
     articlesRoute,

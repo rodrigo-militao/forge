@@ -12,6 +12,7 @@ export { digest } from "./digest";
 export { compose } from "./compose";
 export { newsletters } from "./newsletters";
 export { ideas } from "./ideas";
+export { home } from "./home";
 
 import { auth } from "./auth";
 import { content } from "./content";
@@ -19,6 +20,7 @@ import { digest } from "./digest";
 import { compose } from "./compose";
 import { newsletters } from "./newsletters";
 import { ideas } from "./ideas";
+import { home } from "./home";
 
 /** Aggregated API object for callers that prefer `api.content.list()` style. */
 export const api = {
@@ -28,4 +30,5 @@ export const api = {
   compose,
   newsletters,
   ideas,
+  home,
 };

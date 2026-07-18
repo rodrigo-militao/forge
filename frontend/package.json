@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "poku --ts src --sequential",
-    "coverage": "c8 --reporter=text --reporter=lcov --reporter=html poku --ts src",
+    "coverage": "c8 --reporter=text --reporter=lcov --reporter=html poku --ts src --sequential",
     "test:watch": "tsx --watch --test src/**/*.test.ts",
     "preview": "vite preview"
   },

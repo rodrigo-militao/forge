@@ -4,7 +4,7 @@ CREATE TABLE ideas (
     title      TEXT        NOT NULL,
     context    TEXT,
     notes      TEXT,
-    references TEXT,
+    "references" TEXT,
     priority   TEXT        NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
     status     TEXT        NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'used', 'archived')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

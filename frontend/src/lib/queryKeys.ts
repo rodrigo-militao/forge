@@ -18,4 +18,7 @@ export const queryKeys = {
     stats: ["digest", "stats"] as const,
     jobs: ["digest", "jobs"] as const,
   },
+  home: {
+    insights: ["home", "insights"] as const,
+  },
 } as const;

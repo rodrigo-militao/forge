@@ -141,6 +141,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			r.Delete("/{id}", sourcesH.Delete)
 		})
 
+		homeH := NewHomeHandler(cfg.ContentSvc, cfg.Editions, cfg.Ideas)
+		r.Get("/api/home/insights", homeH.Insights)
+
 		r.Get("/api/events", NewEventsHandler(cfg.Hub))
 	})
 

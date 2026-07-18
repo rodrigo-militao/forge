@@ -18,7 +18,7 @@ all: setup db migrate api
 # First-time project setup
 setup:
 	cd $(B) && go mod tidy
-	cd $(F) && npm install
+	cd $(F) && npm install --legacy-peer-deps
 
 # Start Postgres via Docker
 db:
@@ -82,7 +82,7 @@ run-dev:
 	sleep 1; \
 	echo "=== Step 1: Installing dependencies ==="; \
 	cd $(B) && go mod tidy; \
-	cd $(F) && npm install; \
+	cd $(F) && npm install --legacy-peer-deps; \
 	echo "=== Step 2: Starting Postgres ==="; \
 	cd $(B) && docker compose up -d postgres; \
 	sleep 3; \
