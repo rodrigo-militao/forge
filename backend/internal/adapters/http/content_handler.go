@@ -27,6 +27,8 @@ func contentOpError(w http.ResponseWriter, err error) bool {
 		writeError(w, http.StatusNotFound, "content not found")
 	} else if errors.Is(err, domain.ErrNotOwned) {
 		writeError(w, http.StatusForbidden, "not your content")
+	} else if errors.Is(err, domain.ErrInvalidInput) {
+		writeError(w, http.StatusBadRequest, err.Error())
 	} else {
 		slog.Error("content operation failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "operation failed")
@@ -246,16 +248,43 @@ func (h *ContentHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	status := domain.ContentStatus(req.Status)
-	switch status {
-	case domain.ContentDraft, domain.ContentPublished, domain.ContentDiscarded:
-	default:
-		writeError(w, http.StatusBadRequest, "invalid status: must be draft, published, or discarded")
-		return
-	}
-	if !contentOpError(w, h.svc.UpdateStatus(r.Context(), id, userID, status)) {
+	if !contentOpError(w, h.svc.TransitionStatus(r.Context(), id, userID, status)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+// Transition transitions content through the Sprint 1 lifecycle.
+// The body specifies the target status:
+//
+//	{"to": "review"}
+//
+// Only valid lifecycle transitions are accepted:
+//
+//	building → review
+//	review   → building | ready
+//	ready    → building | published
+//	published → building (deliberate reopen)
+func (h *ContentHandler) Transition(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
+		return
+	}
+	userID, _ := UserIDFromContext(r.Context())
+	var req struct {
+		To string `json:"to"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	target := domain.ContentStatus(req.To)
+	if !contentOpError(w, h.svc.TransitionStatus(r.Context(), id, userID, target)) {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "transitioned"})
 }
 
 func (h *ContentHandler) UpdateOutline(w http.ResponseWriter, r *http.Request) {

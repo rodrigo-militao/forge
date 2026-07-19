@@ -86,7 +86,7 @@ export function useHomePage() {
 
     const content = contentQuery.data ?? [];
     for (const c of content) {
-      if (c.status !== "draft") continue;
+      if (c.status !== "building" && c.status !== "draft") continue;
       if (c.product !== "compose" && c.product !== "newsletter") continue;
       const hasBody = c.body_markdown && c.body_markdown.trim().length > 50;
       items.push({
@@ -175,8 +175,9 @@ export function useHomePage() {
             break;
           }
           case "drafts-need-references": {
+            const isDraft = (s: string) => s === "building" || s === "draft";
             const count = content.filter(
-              (c) => c.status === "draft" && c.body_markdown && c.body_markdown.trim().length > 50,
+              (c) => isDraft(c.status) && c.body_markdown && c.body_markdown.trim().length > 50,
             ).length;
             text = t("home.insightDrafts", { count });
             actionLabel = t("home.reviewDrafts");
@@ -226,8 +227,9 @@ export function useHomePage() {
       });
     }
 
+    const isDraft = (s: string) => s === "building" || s === "draft";
     const draftsNeedingReferences = content.filter(
-      (c) => c.status === "draft" && c.body_markdown && c.body_markdown.trim().length > 50,
+      (c) => isDraft(c.status) && c.body_markdown && c.body_markdown.trim().length > 50,
     );
     if (draftsNeedingReferences.length > 0) {
       list.push({

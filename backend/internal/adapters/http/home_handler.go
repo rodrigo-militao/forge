@@ -76,7 +76,7 @@ func (h *HomeHandler) Insights(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		draftsWithBody := 0
 		for _, c := range content {
-			if c.Status == "draft" && c.BodyMarkdown != nil && len(*c.BodyMarkdown) > 50 {
+			if (c.Status == "building" || c.Status == "draft") && c.BodyMarkdown != nil && len(*c.BodyMarkdown) > 50 {
 				draftsWithBody++
 			}
 		}

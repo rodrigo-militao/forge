@@ -169,7 +169,7 @@ func (m *mockEditionRepo) ListUsedDestinations(ctx context.Context, userID uuid.
 	return m.usedDests, nil
 }
 
-func TestEditionHandler_UpdateStatus_BuildingToReady(t *testing.T) {
+func TestEditionHandler_UpdateStatus_BuildingToReview(t *testing.T) {
 	uid := uuid.New()
 	eid := uuid.New()
 	repo := &mockEditionRepo{
@@ -179,7 +179,7 @@ func TestEditionHandler_UpdateStatus_BuildingToReady(t *testing.T) {
 	}
 	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
 
-	body := `{"status":"ready"}`
+	body := `{"status":"review"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/status", strings.NewReader(body))
 	r = addChiURLParam(r, "id", eid.String())
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
@@ -191,7 +191,7 @@ func TestEditionHandler_UpdateStatus_BuildingToReady(t *testing.T) {
 	}
 }
 
-func TestEditionHandler_UpdateStatus_AnyCrossStatus(t *testing.T) {
+func TestEditionHandler_UpdateStatus_PublishedToBuilding(t *testing.T) {
 	uid := uuid.New()
 	eid := uuid.New()
 	repo := &mockEditionRepo{
@@ -201,7 +201,7 @@ func TestEditionHandler_UpdateStatus_AnyCrossStatus(t *testing.T) {
 	}
 	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
 
-	// All cross-status transitions are valid (free kanban movement).
+	// published → building is allowed as a deliberate reopen.
 	body := `{"status":"building"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/status", strings.NewReader(body))
 	r = addChiURLParam(r, "id", eid.String())

@@ -22,6 +22,7 @@ import { useOutsideClick } from "../../hooks/useOutsideClick";
 function statusLabel(status: string, t: (k: string) => string): string {
   if (status === "draft") return t("editor.draft");
   if (status === "building") return t("newsletters.building");
+  if (status === "review") return t("newsletters.review");
   if (status === "ready") return t("newsletters.ready");
   if (status === "published") return t("editor.published");
   return status;

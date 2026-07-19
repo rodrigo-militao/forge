@@ -117,15 +117,14 @@ func (r *IdeasRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]d
 }
 
 func (r *IdeasRepository) Update(ctx context.Context, idea *domain.Idea) error {
-	title := strPtr(idea.Title)
 	updated, err := r.q.UpdateIdea(ctx, UpdateIdeaParams{
 		ID:         uuidToPgtype(idea.ID),
-		Title:      title,
+		Title:      idea.Title,
 		Context:    idea.Context,
 		Notes:      idea.Notes,
 		References: idea.References,
-		Priority:   strPtr(string(idea.Priority)),
-		Status:     strPtr(string(idea.Status)),
+		Priority:   string(idea.Priority),
+		Status:     string(idea.Status),
 	})
 	if err != nil {
 		return err

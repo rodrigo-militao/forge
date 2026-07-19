@@ -483,7 +483,7 @@ func TestEditionHandler_UpdateStatus_RepoError(t *testing.T) {
 	}
 	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
 
-	body := `{"status":"ready"}`
+	body := `{"status":"review"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/status", strings.NewReader(body))
 	r = addChiURLParam(r, "id", eid.String())
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))

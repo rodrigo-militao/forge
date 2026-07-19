@@ -75,6 +75,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Post("/api/content/{id}/tags", contentH.AddTag)
 		r.Delete("/api/content/{id}/tags/{tag}", contentH.RemoveTag)
 		r.Post("/api/content/{id}/link-source", contentH.LinkSource)
+		r.Post("/api/content/{id}/transition", contentH.Transition)
 		r.Get("/api/content/tags", contentH.ListTags)
 
 		r.Mount("/api/ideas", ideasH.Routes())

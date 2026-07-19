@@ -18,5 +18,7 @@ sql:
             go_type: "github.com/rodrigo-militao/forge/internal/core/domain.ContentStatus"
           - column: "generated_content.product"
             go_type: "github.com/rodrigo-militao/forge/internal/core/domain.ContentProduct"
+          - column: "generated_content.content_type"
+            go_type: "github.com/rodrigo-militao/forge/internal/core/domain.ContentType"
           - column: "jobs.status"
             go_type: "github.com/rodrigo-militao/forge/internal/core/domain.JobStatus"

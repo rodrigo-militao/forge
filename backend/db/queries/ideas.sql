@@ -1,7 +1,7 @@
 -- Ideas
 
 -- name: CreateIdea :one
-INSERT INTO ideas (user_id, title, context, notes, references, priority, status)
+INSERT INTO ideas (user_id, title, context, notes, "references", priority, status)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
@@ -18,7 +18,7 @@ UPDATE ideas
 SET title = COALESCE($2, title),
     context = COALESCE($3, context),
     notes = COALESCE($4, notes),
-    references = COALESCE($5, references),
+    "references" = COALESCE($5, "references"),
     priority = COALESCE($6, priority),
     status = COALESCE($7, status),
     updated_at = now()

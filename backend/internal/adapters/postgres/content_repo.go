@@ -35,6 +35,7 @@ func (r *ContentRepository) Create(ctx context.Context, content *domain.Generate
 	c, err := r.q.CreateContent(ctx, CreateContentParams{
 		UserID:       uuidToPgtype(content.UserID),
 		Product:      content.Product,
+		ContentType:  content.Type,
 		Status:       content.Status,
 		SourceType:   content.SourceType,
 		Title:        content.Title,
@@ -256,6 +257,14 @@ func (r *ContentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 	return err
 }
 
+func (r *ContentRepository) UpdateStatusWithPublishedAt(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
+	_, err := r.q.UpdateContentStatusAndPublishedAt(ctx, UpdateContentStatusAndPublishedAtParams{
+		ID:     uuidToPgtype(id),
+		Status: status,
+	})
+	return err
+}
+
 func (r *ContentRepository) ListWithoutCategory(ctx context.Context, userID uuid.UUID, limit int) ([]domain.GeneratedContent, error) {
 	rows, err := r.q.ListContentWithoutCategory(ctx, ListContentWithoutCategoryParams{
 		UserID: uuidToPgtype(userID),
@@ -420,6 +429,7 @@ func contentFromModel(c GeneratedContent) *domain.GeneratedContent {
 	return &domain.GeneratedContent{
 		ID:           c.ID.Bytes,
 		UserID:       c.UserID.Bytes,
+		Type:         c.ContentType,
 		Product:      c.Product,
 		Status:       c.Status,
 		SourceType:   c.SourceType,

@@ -56,6 +56,7 @@ func (m *mockContentWriter) Create(_ context.Context, content *domain.GeneratedC
 func (m *mockContentWriter) UpdateBody(_ context.Context, _ uuid.UUID, _, _ *string) error  { return nil }
 func (m *mockContentWriter) UpdateOutline(_ context.Context, _ uuid.UUID, _ *string) error  { return nil }
 func (m *mockContentWriter) UpdateStatus(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error { return nil }
+func (m *mockContentWriter) UpdateStatusWithPublishedAt(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error { return nil }
 func (m *mockContentWriter) SoftDelete(_ context.Context, _ uuid.UUID) error   { return nil }
 
 type mockDigestQueries struct {

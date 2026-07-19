@@ -44,9 +44,10 @@ func (q *Queries) AddIdeaTag(ctx context.Context, arg AddIdeaTagParams) error {
 }
 
 const createIdea = `-- name: CreateIdea :one
-INSERT INTO ideas (user_id, title, context, notes, references, priority, status)
+
+INSERT INTO ideas (user_id, title, context, notes, "references", priority, status)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, user_id, title, context, notes, references, priority, status, created_at, updated_at
+RETURNING id, user_id, title, context, notes, "references", priority, status, created_at, updated_at, source_digest_article_id
 `
 
 type CreateIdeaParams struct {
@@ -59,6 +60,7 @@ type CreateIdeaParams struct {
 	Status     string
 }
 
+// Ideas
 func (q *Queries) CreateIdea(ctx context.Context, arg CreateIdeaParams) (Idea, error) {
 	row := q.db.QueryRow(ctx, createIdea,
 		arg.UserID,
@@ -81,6 +83,7 @@ func (q *Queries) CreateIdea(ctx context.Context, arg CreateIdeaParams) (Idea, e
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SourceDigestArticleID,
 	)
 	return i, err
 }
@@ -110,7 +113,7 @@ func (q *Queries) EnsureTagForIdea(ctx context.Context, arg EnsureTagForIdeaPara
 }
 
 const getIdeaByID = `-- name: GetIdeaByID :one
-SELECT * FROM ideas WHERE id = $1
+SELECT id, user_id, title, context, notes, "references", priority, status, created_at, updated_at, source_digest_article_id FROM ideas WHERE id = $1
 `
 
 func (q *Queries) GetIdeaByID(ctx context.Context, id pgtype.UUID) (Idea, error) {
@@ -127,6 +130,7 @@ func (q *Queries) GetIdeaByID(ctx context.Context, id pgtype.UUID) (Idea, error)
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SourceDigestArticleID,
 	)
 	return i, err
 }
@@ -225,7 +229,7 @@ func (q *Queries) ListIdeaTagsByIdeaIDs(ctx context.Context, dollar_1 []pgtype.U
 }
 
 const listIdeasByUser = `-- name: ListIdeasByUser :many
-SELECT * FROM ideas
+SELECT id, user_id, title, context, notes, "references", priority, status, created_at, updated_at, source_digest_article_id FROM ideas
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -250,6 +254,7 @@ func (q *Queries) ListIdeasByUser(ctx context.Context, userID pgtype.UUID) ([]Id
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SourceDigestArticleID,
 		); err != nil {
 			return nil, err
 		}
@@ -290,22 +295,22 @@ UPDATE ideas
 SET title = COALESCE($2, title),
     context = COALESCE($3, context),
     notes = COALESCE($4, notes),
-    references = COALESCE($5, references),
+    "references" = COALESCE($5, "references"),
     priority = COALESCE($6, priority),
     status = COALESCE($7, status),
     updated_at = now()
 WHERE id = $1
-RETURNING id, user_id, title, context, notes, references, priority, status, created_at, updated_at
+RETURNING id, user_id, title, context, notes, "references", priority, status, created_at, updated_at, source_digest_article_id
 `
 
 type UpdateIdeaParams struct {
 	ID         pgtype.UUID
-	Title      *string
+	Title      string
 	Context    *string
 	Notes      *string
 	References *string
-	Priority   *string
-	Status     *string
+	Priority   string
+	Status     string
 }
 
 func (q *Queries) UpdateIdea(ctx context.Context, arg UpdateIdeaParams) (Idea, error) {
@@ -330,6 +335,7 @@ func (q *Queries) UpdateIdea(ctx context.Context, arg UpdateIdeaParams) (Idea, e
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SourceDigestArticleID,
 	)
 	return i, err
 }

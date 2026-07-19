@@ -20,6 +20,8 @@ export const content = {
   listTags: () => request<string[]>("/content/tags"),
   updateStatus: (id: string, status: string) =>
     request<{ status: string }>(`/content/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+  transition: (id: string, to: string) =>
+    request<{ status: string }>(`/content/${id}/transition`, { method: "POST", body: JSON.stringify({ to }) }),
   updateOutline: (id: string, outline: string) =>
     request<{ status: string }>(`/content/${id}/outline`, { method: "PUT", body: JSON.stringify({ outline }) }),
 };

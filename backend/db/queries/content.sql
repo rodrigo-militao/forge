@@ -1,8 +1,8 @@
 -- Generated content
 
 -- name: CreateContent :one
-INSERT INTO generated_content (user_id, product, status, source_type, title, body_markdown, metadata, origin)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO generated_content (user_id, product, content_type, status, source_type, title, body_markdown, metadata, origin)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: GetContentByID :one
@@ -85,6 +85,12 @@ LIMIT $2;
 -- name: UpdateContentStatus :one
 UPDATE generated_content
 SET status = $2, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateContentStatusAndPublishedAt :one
+UPDATE generated_content
+SET status = $2, published_at = now(), updated_at = now()
 WHERE id = $1
 RETURNING *;
 

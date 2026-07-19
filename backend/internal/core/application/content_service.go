@@ -74,6 +74,26 @@ func (s *ContentService) LinkSource(ctx context.Context, contentID, sourceID, us
 	return s.source.SetContentSource(ctx, contentID, sourceID)
 }
 
+// TransitionStatus transitions content to the target status, validating the
+// transition against the Sprint 1 lifecycle rules.
+// If the target is "published", it also sets published_at.
+func (s *ContentService) TransitionStatus(ctx context.Context, id, userID uuid.UUID, target domain.ContentStatus) error {
+	content, err := s.requireOwnership(ctx, id, userID)
+	if err != nil {
+		return err
+	}
+	if err := content.Status.ValidateTransition(target); err != nil {
+		return err
+	}
+	// Set published_at on first publish
+	if target == domain.ContentPublished && content.Status != domain.ContentPublished {
+		return s.writer.UpdateStatusWithPublishedAt(ctx, id, target)
+	}
+	return s.writer.UpdateStatus(ctx, id, target)
+}
+
+// UpdateStatus updates content status directly.
+// Deprecated: use TransitionStatus for lifecycle-aware transitions.
 func (s *ContentService) UpdateStatus(ctx context.Context, id, userID uuid.UUID, status domain.ContentStatus) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err

@@ -45,6 +45,9 @@ func (m *mockContentWriter) UpdateOutline(_ context.Context, _ uuid.UUID, _ *str
 func (m *mockContentWriter) UpdateStatus(_ context.Context, _ uuid.UUID, _ coredomain.ContentStatus) error {
 	return nil
 }
+func (m *mockContentWriter) UpdateStatusWithPublishedAt(_ context.Context, _ uuid.UUID, _ coredomain.ContentStatus) error {
+	return nil
+}
 func (m *mockContentWriter) SoftDelete(_ context.Context, _ uuid.UUID) error { return nil }
 
 func TestTransformService_Run_expand(t *testing.T) {
@@ -209,6 +212,9 @@ func (e *errorContentWriter) Create(_ context.Context, _ *coredomain.GeneratedCo
 func (e *errorContentWriter) UpdateBody(_ context.Context, _ uuid.UUID, _, _ *string) error { return nil }
 func (e *errorContentWriter) UpdateOutline(_ context.Context, _ uuid.UUID, _ *string) error { return nil }
 func (e *errorContentWriter) UpdateStatus(_ context.Context, _ uuid.UUID, _ coredomain.ContentStatus) error {
+	return nil
+}
+func (e *errorContentWriter) UpdateStatusWithPublishedAt(_ context.Context, _ uuid.UUID, _ coredomain.ContentStatus) error {
 	return nil
 }
 func (e *errorContentWriter) SoftDelete(_ context.Context, _ uuid.UUID) error { return nil }

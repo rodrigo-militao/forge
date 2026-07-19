@@ -434,6 +434,9 @@ type errUpdateStatusContentRepo struct{ mockContentRepo }
 func (m *errUpdateStatusContentRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
 	return errors.New("update status error")
 }
+func (m *errUpdateStatusContentRepo) UpdateStatusWithPublishedAt(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
+	return errors.New("update status error")
+}
 
 func TestContentHandler_UpdateStatus_RepoError(t *testing.T) {
 	uid := uuid.New()
@@ -441,7 +444,7 @@ func TestContentHandler_UpdateStatus_RepoError(t *testing.T) {
 	repo := &errUpdateStatusContentRepo{
 		mockContentRepo: mockContentRepo{
 			items: []domain.GeneratedContent{
-				{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentDraft},
+				{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentReady},
 			},
 		},
 	}

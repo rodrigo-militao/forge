@@ -64,6 +64,10 @@ func (m *mockContentRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status
 	return m.updateStatusErr
 }
 
+func (m *mockContentRepo) UpdateStatusWithPublishedAt(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
+	return m.updateStatusErr
+}
+
 func (m *mockContentRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return m.softDeleteErr
 }
@@ -566,5 +570,56 @@ func TestLimitError_Code(t *testing.T) {
 	e := &LimitError{Name: "monthly_generation", Limit: 100, Current: 50}
 	if code := e.Code(); code != "plan_limit" {
 		t.Errorf("expected 'plan_limit', got %s", code)
+	}
+}
+
+// --- tests: TransitionStatus ---
+
+func TestTransitionStatus_ValidTransition(t *testing.T) {
+	cid := uuid.New()
+	svc := NewContentService(&mockContentRepo{
+		content: &domain.GeneratedContent{ID: cid, UserID: testUserID, Status: domain.ContentBuilding},
+	}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
+
+	err := svc.TransitionStatus(context.Background(), cid, testUserID, domain.ContentReview)
+	if err != nil {
+		t.Fatalf("building → review should be allowed, got: %v", err)
+	}
+}
+
+func TestTransitionStatus_InvalidTransition(t *testing.T) {
+	cid := uuid.New()
+	svc := NewContentService(&mockContentRepo{
+		content: &domain.GeneratedContent{ID: cid, UserID: testUserID, Status: domain.ContentBuilding},
+	}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
+
+	err := svc.TransitionStatus(context.Background(), cid, testUserID, domain.ContentReady)
+	if err == nil {
+		t.Fatal("building → ready should be rejected")
+	}
+}
+
+func TestTransitionStatus_OwnershipProtection(t *testing.T) {
+	cid := uuid.New()
+	otherUser := uuid.New()
+	svc := NewContentService(&mockContentRepo{
+		content: &domain.GeneratedContent{ID: cid, UserID: otherUser, Status: domain.ContentBuilding},
+	}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
+
+	err := svc.TransitionStatus(context.Background(), cid, testUserID, domain.ContentReview)
+	if err == nil {
+		t.Fatal("should reject transition for non-owned content")
+	}
+}
+
+func TestTransitionStatus_PublishedSetsPublishedAt(t *testing.T) {
+	cid := uuid.New()
+	svc := NewContentService(&mockContentRepo{
+		content: &domain.GeneratedContent{ID: cid, UserID: testUserID, Status: domain.ContentReady},
+	}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
+
+	err := svc.TransitionStatus(context.Background(), cid, testUserID, domain.ContentPublished)
+	if err != nil {
+		t.Fatalf("ready → published should be allowed, got: %v", err)
 	}
 }

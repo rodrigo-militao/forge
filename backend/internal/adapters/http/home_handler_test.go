@@ -150,6 +150,33 @@ func TestHomeInsights(t *testing.T) {
 		}
 	})
 
+	t.Run("returns drafts insight when building content with body exists", func(t *testing.T) {
+		body := "a sufficiently long body text that exceeds fifty characters easily"
+		w := homeRequest(homeHandler(
+			&mockHomeContent{contents: []domain.GeneratedContent{
+				{ID: uuid.New(), Status: "building", BodyMarkdown: &body},
+				{ID: uuid.New(), Status: "building", BodyMarkdown: nil},
+				{ID: uuid.New(), Status: "published"},
+			}},
+			&mockHomeEditions{},
+			&mockHomeIdeas{},
+		).Insights)
+
+		var insights []Insight
+		json.NewDecoder(w.Result().Body).Decode(&insights)
+
+		found := false
+		for _, ins := range insights {
+			if ins.ID == "drafts-need-references" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("expected drafts-need-references insight for building content")
+		}
+	})
+
 	t.Run("returns newsletter insight when >7 days since last published", func(t *testing.T) {
 		w := homeRequest(homeHandler(
 			&mockHomeContent{},

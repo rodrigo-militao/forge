@@ -48,8 +48,9 @@ export interface Idea {
 export interface ContentItem {
   id: string;
   user_id: string;
+  type: "article" | "newsletter";
   product: "digest" | "compose" | "newsletter";
-  status: "draft" | "published" | "discarded";
+  status: "building" | "review" | "ready" | "published" | "discarded";
   source_type: string | null;
   title: string | null;
   body_markdown: string | null;
@@ -76,7 +77,7 @@ export interface NewsletterEdition {
   title: string;
   body_html: string;
   category: string | null;
-  status: "building" | "ready" | "published" | "archived";
+  status: "building" | "review" | "ready" | "published" | "archived";
   destination: string | null;
   tags: string[];
   article_count: number;

@@ -6,34 +6,80 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	core "github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
-// EditionStatus tracks the lifecycle of a newsletter edition (ADR 0046).
+// EditionStatus tracks the lifecycle of a newsletter edition (Sprint 1 lifecycle).
+//
+// Canonical lifecycle (shared with ContentStatus):
+//
+//	BUILDING → REVIEW
+//	REVIEW   → BUILDING
+//	REVIEW   → READY
+//	READY    → BUILDING
+//	READY    → PUBLISHED
+//	PUBLISHED → BUILDING (deliberate reopen)
+//
+// Archived is a terminal state outside the active lifecycle — existing
+// data may be archived, but no forward transitions from archived are allowed.
 type EditionStatus string
 
 const (
-	EditionBuilding   EditionStatus = "building"
-	EditionReady      EditionStatus = "ready"
-	EditionPublished  EditionStatus = "published"
-	EditionArchived   EditionStatus = "archived"
+	EditionBuilding  EditionStatus = "building"
+	EditionReview    EditionStatus = "review"
+	EditionReady     EditionStatus = "ready"
+	EditionPublished EditionStatus = "published"
+	EditionArchived  EditionStatus = "archived" // cleanup state — published/ready → archived, archived → building
 )
 
-// CanTransitionTo returns true for any cross-status transition (free kanban movement).
+// CanTransitionTo returns true if the transition is allowed by the lifecycle rules.
+// Archived is a terminal cleanup state:
+//   - published → archived  (archive a published newsletter)
+//   - ready → archived      (archive a ready newsletter)
+//   - archived → building   (unarchive — reopen for editing)
 func (s EditionStatus) CanTransitionTo(target EditionStatus) bool {
-	return s != target
+	transitions := map[EditionStatus]map[EditionStatus]bool{
+		EditionBuilding: {
+			EditionReview: true,
+		},
+		EditionReview: {
+			EditionBuilding: true,
+			EditionReady:    true,
+		},
+		EditionReady: {
+			EditionBuilding:  true,
+			EditionPublished: true,
+			EditionArchived:  true,
+		},
+		EditionPublished: {
+			EditionBuilding: true, // deliberate reopen
+			EditionArchived: true, // archive
+		},
+		EditionArchived: {
+			EditionBuilding: true, // unarchive
+		},
+	}
+
+	if allowed, ok := transitions[s][target]; ok {
+		return allowed
+	}
+	return false
 }
 
 // ValidateTransition returns an error if the transition is not allowed.
 func (s EditionStatus) ValidateTransition(target EditionStatus) error {
 	if !s.CanTransitionTo(target) {
-		return fmt.Errorf("cannot transition from %q to %q", s, target)
+		return fmt.Errorf("%w: cannot transition from %q to %q", core.ErrInvalidInput, s, target)
 	}
 	return nil
 }
 
-// EditionValidStatuses returns all valid edition statuses.
+// EditionValidStatuses returns the active lifecycle statuses.
+// EditionArchived is excluded from valid statuses because archiving is a
+// cleanup action outside the main lifecycle, not a forward destination.
 func EditionValidStatuses() []EditionStatus {
-	return []EditionStatus{EditionBuilding, EditionReady, EditionPublished, EditionArchived}
+	return []EditionStatus{EditionBuilding, EditionReview, EditionReady, EditionPublished}
 }
 
 // Edition is a newsletter edition — a curated collection of digest articles

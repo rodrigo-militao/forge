@@ -40,45 +40,49 @@ type DigestInterest struct {
 }
 
 type GeneratedContent struct {
-	ID           pgtype.UUID
-	UserID       pgtype.UUID
-	Product      domain.ContentProduct
-	Status       domain.ContentStatus
-	SourceType   *string
-	Title        *string
-	BodyMarkdown *string
-	Metadata     []byte
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Origin       string
-	DeletedAt    pgtype.Timestamptz
-	Category     *string
-	Tags         []string
-	Categories   []string
-	Outline      *string
+	ID                    pgtype.UUID
+	UserID                pgtype.UUID
+	Product               domain.ContentProduct
+	Status                domain.ContentStatus
+	SourceType            *string
+	Title                 *string
+	BodyMarkdown          *string
+	Metadata              []byte
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Origin                string
+	DeletedAt             pgtype.Timestamptz
+	Category              *string
+	Tags                  []string
+	Categories            []string
+	Outline               *string
+	SourceDigestArticleID pgtype.UUID
+	ContentType           domain.ContentType
+	PublishedAt           pgtype.Timestamptz
 }
 
 type Idea struct {
-	ID         pgtype.UUID
-	UserID     pgtype.UUID
-	Title      string
-	Context    *string
-	Notes      *string
-	References *string
-	Priority   string
-	Status     string
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
-}
-
-type IdeaTag struct {
-	TagID  pgtype.UUID
-	IdeaID pgtype.UUID
+	ID                    pgtype.UUID
+	UserID                pgtype.UUID
+	Title                 string
+	Context               *string
+	Notes                 *string
+	References            *string
+	Priority              string
+	Status                string
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	SourceDigestArticleID pgtype.UUID
 }
 
 type IdeaArticle struct {
 	IdeaID    pgtype.UUID
 	ContentID pgtype.UUID
+}
+
+type IdeaTag struct {
+	TagID  pgtype.UUID
+	IdeaID pgtype.UUID
 }
 
 type Job struct {

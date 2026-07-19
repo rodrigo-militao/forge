@@ -94,6 +94,9 @@ func (m *mockContentRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status
 	}
 	return domain.ErrNotFound
 }
+func (m *mockContentRepo) UpdateStatusWithPublishedAt(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error {
+	return m.UpdateStatus(ctx, id, status)
+}
 func (m *mockContentRepo) ExistsByURL(ctx context.Context, userID uuid.UUID, url string) (bool, error) { return false, nil }
 func (m *mockContentRepo) ListWithoutCategory(ctx context.Context, userID uuid.UUID, limit int) ([]domain.GeneratedContent, error) { return nil, nil }
 func (m *mockContentRepo) ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error) { return nil, nil }
@@ -217,7 +220,7 @@ func TestContentHandler_UpdateStatus(t *testing.T) {
 	cid := uuid.New()
 	content := &mockContentRepo{
 		items: []domain.GeneratedContent{
-			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentDraft},
+			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentReady},
 		},
 	}
 	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
@@ -1026,6 +1029,121 @@ func TestContentHandler_LinkSource_InvalidSourceID(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+// --- Transition tests ---
+
+func TestContentHandler_Transition_Valid(t *testing.T) {
+	uid := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentBuilding},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+
+	body := `{"to":"review"}`
+	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/transition", strings.NewReader(body))
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.Transition(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestContentHandler_Transition_Invalid(t *testing.T) {
+	uid := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentBuilding},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+
+	body := `{"to":"ready"}`
+	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/transition", strings.NewReader(body))
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.Transition(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid transition, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestContentHandler_Transition_NotOwned(t *testing.T) {
+	uid := uuid.New()
+	otherID := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: otherID, Product: domain.ProductDigest, Status: domain.ContentBuilding},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+
+	body := `{"to":"review"}`
+	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/transition", strings.NewReader(body))
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.Transition(w, r)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestContentHandler_LegacyUpdateStatus_CannotBypassLifecycle(t *testing.T) {
+	uid := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentBuilding},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+
+	// Legacy endpoint sends building → ready (invalid in Sprint 1 lifecycle)
+	body := `{"status":"ready"}`
+	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/status", strings.NewReader(body))
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.UpdateStatus(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid transition through legacy endpoint, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestContentHandler_LegacyUpdateStatus_ValidTransitionWorks(t *testing.T) {
+	uid := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentBuilding},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+
+	// Legacy endpoint sends building → review (valid in Sprint 1 lifecycle)
+	body := `{"status":"review"}`
+	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/status", strings.NewReader(body))
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.UpdateStatus(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for valid transition through legacy endpoint, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
