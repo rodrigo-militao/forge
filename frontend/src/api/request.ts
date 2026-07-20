@@ -19,7 +19,7 @@ function friendlyError(status: number): string {
 
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 30000);
   const merged: RequestInit = {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...options?.headers },
