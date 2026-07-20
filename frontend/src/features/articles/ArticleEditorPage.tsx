@@ -547,7 +547,7 @@ export function ArticleEditorPage() {
           {lifecycleActions}
         </div>
       </div>
-      {/* AI Suggestion comparison modal */}
+    </div>      {/* AI Suggestion comparison modal */}
       {suggestion && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 pt-8 pb-8">
           <div className="mx-4 w-full max-w-2xl rounded-lg border border-[var(--tt-border-color-tint)] bg-[var(--color-bg-base)] shadow-lg">
