@@ -533,7 +533,6 @@ export function ArticleEditorPage() {
       </div>
 
       {/* Lifecycle actions footer */}
-      </div>{/* end editor+sidebar row */}
       <div className="shrink-0 flex items-center justify-between px-6 py-2 border-t border-[var(--tt-border-color-tint)]">
         <div className="text-xs text-[var(--tt-color-text-gray)]">
           {article && !suggestion && (
