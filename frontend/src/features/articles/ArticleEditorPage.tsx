@@ -49,7 +49,7 @@ export function ArticleEditorPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
 
-  useEffect(() => {
+  const [contentVersion, setContentVersion] = useState(0);  useEffect(() => {
     if (article) {
       setEditTitle(article.title ?? "");
       setEditBody(article.body_markdown ?? "");
@@ -191,6 +191,7 @@ export function ArticleEditorPage() {
       return;
     }
     setEditBody((prev) => prev.slice(0, idx) + suggestion.suggestion + prev.slice(idx + sentOriginal.length));
+    setContentVersion((v) => v + 1);
     setSuggestion(null);
     setSelection(null);
     setImproveInstruction("Improve clarity");
@@ -364,7 +365,7 @@ export function ArticleEditorPage() {
               body={editBody}
               onBodyChange={setEditBody}
               onSelectionChange={handleSelectionChange}
-              editorKey={article.id}
+              editorKey={`${article.id}-${contentVersion}`}
               onTransform={() => {}}
               isSynced={isSynced}
               isSaving={isSaving}
