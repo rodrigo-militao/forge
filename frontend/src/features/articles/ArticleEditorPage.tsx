@@ -15,7 +15,7 @@ export function ArticleEditorPage() {
   const { id } = useParams({ strict: false });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const t = useTranslation();
+  const { t } = useTranslation();
 
   const isNew = !id || id === "new";
 
@@ -336,7 +336,7 @@ export function ArticleEditorPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate({ to: "/content" })}
+          onClick={() => navigate({ to: "/library" })}
           className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] hover:underline"
         >
           <ArrowLeft size={16} /> {t("articles.back_to_library")}
