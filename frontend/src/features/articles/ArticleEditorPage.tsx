@@ -1,0 +1,582 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { api } from "../../api/client";
+import { ContentEditor } from "../../components/editor/ContentEditor";
+import { useAutosave } from "../../hooks/useAutosave";
+import { queryKeys } from "../../lib/queryKeys";
+import { useTranslation } from "react-i18next";
+import type { AIAnalysisResult, AITextSuggestion, ContentItem, Reference } from "../../api/types";
+import { AttachReferenceModal, ReferenceList } from "../references/ReferencesPage";
+
+export function ArticleEditorPage() {
+  const { id } = useParams({ strict: false });
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const t = useTranslation();
+
+  const isNew = !id || id === "new";
+
+  // --- Load existing article ---
+  const { data: article, isLoading: articleLoading, error: articleError } = useQuery({
+    queryKey: queryKeys.content.byId(id ?? ""),
+    queryFn: () => api.content.get(id!),
+    enabled: !isNew && !!id,
+  });
+
+  // --- Create article on /new ---
+  const [creating, setCreating] = useState(isNew);
+  useEffect(() => {
+    if (!isNew) return;
+    let cancelled = false;
+    api.content.create().then((created) => {
+      if (cancelled) return;
+      setCreating(false);
+      navigate({ to: `/content/articles/${created.id}/edit`, replace: true });
+    }).catch(() => {
+      if (cancelled) return;
+      setCreating(false);
+    });
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Edit state ---
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+
+  useEffect(() => {
+    if (article) {
+      setEditTitle(article.title ?? "");
+      setEditBody(article.body_markdown ?? "");
+    }
+  }, [article]);
+
+  // --- Autosave ---
+  const handleSave = useCallback(async () => {
+    if (!article) return;
+    await api.content.save(article.id, {
+      title: editTitle || undefined,
+      body_markdown: editBody || undefined,
+    });
+    queryClient.invalidateQueries({ queryKey: queryKeys.content.byId(article.id) });
+  }, [article, editTitle, editBody, queryClient]);
+
+  const { isSynced, isSaving, error: saveError } = useAutosave({
+    save: handleSave,
+    deps: [editBody, editTitle],
+    delay: 1500,
+  });
+
+  // --- Lifecycle transitions ---
+  const [transitioning, setTransitioning] = useState<string | null>(null);
+  const doTransition = useCallback(async (to: string) => {
+    if (!article) return;
+    setTransitioning(to);
+    try {
+      await api.content.transition(article.id, to);
+      queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.content.byId(article.id) });
+    } catch (err) {
+      console.error("transition failed", err);
+    } finally {
+      setTransitioning(null);
+    }
+  }, [article, queryClient]);
+
+  // --- References ---
+  const [showAttachRef, setShowAttachRef] = useState(false);
+  const { data: articleRefs = [] } = useQuery({
+    queryKey: queryKeys.references.byContent(article?.id ?? ""),
+    queryFn: () => api.references.listForContent(article!.id),
+    enabled: !!article,
+  });
+
+  const attachRefMut = useMutation({
+    mutationFn: (refId: string) => api.references.attachToContent(article!.id, refId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.references.byContent(article?.id ?? "") }),
+  });
+  const detachRefMut = useMutation({
+    mutationFn: (refId: string) => api.references.detachFromContent(article!.id, refId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.references.byContent(article?.id ?? "") }),
+  });
+
+  const handleAttachRef = useCallback(async (refId: string) => {
+    await attachRefMut.mutateAsync(refId);
+    setShowAttachRef(false);
+  }, [attachRefMut]);
+
+  const handleDetachRef = useCallback(async (refId: string) => {
+    await detachRefMut.mutateAsync(refId);
+  }, [detachRefMut]);
+
+  // --- AI Editorial Assistance ---
+  // Analyze
+  const { data: persistedAnalysis } = useQuery({
+    queryKey: queryKeys.ai.analysis(article?.id ?? ""),
+    queryFn: () => api.content.ai.analysis(article?.id ?? ""),
+    enabled: !!article,
+  });
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  const articleChangedSinceAnalysis = persistedAnalysis && article
+    ? new Date(article.updated_at).getTime() > new Date(persistedAnalysis.created_at).getTime()
+    : false;
+
+  const handleAnalyze = useCallback(async () => {
+    if (!article) return;
+    setAnalyzing(true);
+    setAnalysisError(null);
+    try {
+      await api.content.ai.analyze(article.id);
+      queryClient.invalidateQueries({ queryKey: queryKeys.ai.analysis(article.id) });
+    } catch (err: any) {
+      setAnalysisError(err instanceof Error ? err.message : "Analysis failed");
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [article, queryClient]);
+
+  // Selection state
+  const [selection, setSelection] = useState<{ text: string; from: number; to: number } | null>(null);
+  const handleSelectionChange = useCallback((text: string, from: number, to: number) => {
+    if (text.trim()) {
+      setSelection({ text, from, to });
+    } else {
+      setSelection(null);
+    }
+  }, []);
+
+  // Improve text (selection-based)
+  const [improveInstruction, setImproveInstruction] = useState("Improve clarity");
+  const [suggestion, setSuggestion] = useState<AITextSuggestion | null>(null);
+  const [improving, setImproving] = useState(false);
+  const [improveError, setImproveError] = useState<string | null>(null);
+  const [contentChanged, setContentChanged] = useState(false);
+
+  const handleImprove = useCallback(async () => {
+    if (!article || !selection) return;
+    setImproving(true);
+    setImproveError(null);
+    setSuggestion(null);
+    setContentChanged(false);
+    try {
+      const start = Math.max(0, selection.from - 100);
+      const end = Math.min(editBody.length, selection.to + 100);
+      const ctxBefore = editBody.slice(start, selection.from);
+      const ctxAfter = editBody.slice(selection.to, end);
+
+      const result = await api.content.ai.improve(
+        article.id, selection.text, improveInstruction, ctxBefore, ctxAfter,
+      );
+      setSuggestion(result);
+    } catch (err: any) {
+      setImproveError(err instanceof Error ? err.message : "Improvement failed");
+    } finally {
+      setImproving(false);
+    }
+  }, [article, selection, improveInstruction, editBody]);
+
+  const handleApplySuggestion = useCallback(async () => {
+    if (!selection || !suggestion) return;
+    const currentText = editBody.slice(selection.from, selection.to);
+    if (currentText !== suggestion.original) {
+      setContentChanged(true);
+      return;
+    }
+    setEditBody((prev) => prev.slice(0, selection.from) + suggestion.suggestion + prev.slice(selection.to));
+    setSuggestion(null);
+    setSelection(null);
+    setImproveInstruction("Improve clarity");
+  }, [selection, suggestion, editBody]);
+
+  const handleRejectSuggestion = useCallback(() => {
+    setSuggestion(null);
+    setSelection(null);
+    setImproveInstruction("Improve clarity");
+  }, []);
+
+  // Fallback textarea improve (sidebar)
+  const [fallbackText, setFallbackText] = useState("");
+  const handleFallbackImprove = useCallback(async () => {
+    if (!article || !fallbackText.trim()) return;
+    setImproving(true);
+    setImproveError(null);
+    setSuggestion(null);
+    try {
+      const result = await api.content.ai.improve(article.id, fallbackText, improveInstruction, "", "");
+      setSuggestion(result);
+    } catch (err: any) {
+      setImproveError(err instanceof Error ? err.message : "Improvement failed");
+    } finally {
+      setImproving(false);
+    }
+  }, [article, fallbackText, improveInstruction]);
+
+  // --- Lifecycle action buttons ---
+  const lifecycleActions = useMemo(() => {
+    if (!article) return null;
+    switch (article.status) {
+      case "building":
+        return (
+          <button
+            className="btn-primary"
+            onClick={() => doTransition("review")}
+            disabled={transitioning === "review"}
+          >
+            {transitioning === "review" ? "..." : t("articles.send_to_review")}
+          </button>
+        );
+      case "review":
+        return (
+          <div className="flex gap-2">
+            <button
+              className="btn-secondary"
+              onClick={() => doTransition("building")}
+              disabled={transitioning === "building"}
+            >
+              {transitioning === "building" ? "..." : t("articles.back_to_editing")}
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => doTransition("ready")}
+              disabled={transitioning === "ready"}
+            >
+              {transitioning === "ready" ? "..." : t("articles.mark_ready")}
+            </button>
+          </div>
+        );
+      case "ready":
+        return (
+          <div className="flex gap-2">
+            <button
+              className="btn-secondary"
+              onClick={() => doTransition("building")}
+              disabled={transitioning === "building"}
+            >
+              {transitioning === "building" ? "..." : t("articles.back_to_editing")}
+            </button>
+            <span className="inline-flex items-center rounded bg-[var(--color-accent-success)]/20 px-3 py-1 text-sm font-medium text-[var(--color-accent-success)]">
+              {t("articles.ready_to_publish")}
+            </span>
+          </div>
+        );
+      case "published":
+        return (
+          <span className="inline-flex items-center rounded bg-[var(--color-accent-primary)]/20 px-3 py-1 text-sm font-medium text-[var(--color-accent-primary)]">
+            {t("articles.published")}
+          </span>
+        );
+      default:
+        return <span className="text-sm text-[var(--color-text-tertiary)]">{article.status}</span>;
+    }
+  }, [article, transitioning, doTransition, t]);
+
+  // --- Status badge ---
+  const statusBadge = useMemo(() => {
+    if (!article) return null;
+    const labels: Record<string, string> = {
+      building: t("articles.status_building"),
+      review: t("articles.status_review"),
+      ready: t("articles.status_ready"),
+      published: t("articles.status_published"),
+    };
+    return (
+      <span className="inline-flex items-center rounded bg-[var(--color-surface-elevated)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)]">
+        {labels[article.status] ?? article.status}
+      </span>
+    );
+  }, [article, t]);
+
+  // --- Loading state (new article creating) ---
+  if (creating) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <div className="skeleton skeleton-title w-48 h-6 rounded" />
+        <div className="skeleton skeleton-card rounded-lg h-64" />
+      </div>
+    );
+  }
+
+  // --- Loading state (existing article) ---
+  if (articleLoading) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <div className="skeleton skeleton-title w-48 h-6 rounded" />
+        <div className="skeleton skeleton-card rounded-lg h-64" />
+      </div>
+    );
+  }
+
+  // --- Error state ---
+  if (articleError) {
+    return (
+      <div className="mx-auto max-w-3xl py-12">
+        <div className="rounded-lg border border-[var(--color-accent-danger)]/30 bg-[var(--color-accent-danger)]/10 p-4 text-center text-[var(--color-accent-danger)]">
+          {t("articles.load_error")}
+        </div>
+      </div>
+    );
+  }
+
+  // --- Not found ---
+  if (!isNew && !article) {
+    return (
+      <div className="mx-auto max-w-3xl py-12 text-center text-[var(--color-text-tertiary)]">
+        {t("articles.not_found")}
+      </div>
+    );
+  }
+
+  // --- Editor ---
+  return (
+    <div className="mx-auto max-w-5xl space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate({ to: "/content" })}
+          className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] hover:underline"
+        >
+          <ArrowLeft size={16} /> {t("articles.back_to_library")}
+        </button>
+        <div className="flex items-center gap-3">
+          {statusBadge}
+          {isSaving && <span className="text-xs text-[var(--color-text-tertiary)]">{t("articles.saving")}</span>}
+          {isSynced && <span className="text-xs text-[var(--color-accent-success)]">{t("articles.synced")}</span>}
+          {saveError && <span className="text-xs text-[var(--color-accent-danger)]">{t("articles.save_error")}</span>}
+        </div>
+      </div>
+
+      {/* Editor */}
+      <div className="flex gap-6">
+        <div className="flex-1 min-w-0">
+          {article && (
+            <ContentEditor
+              title={editTitle}
+              onTitleChange={setEditTitle}
+              body={editBody}
+              onBodyChange={setEditBody}
+              onSelectionChange={handleSelectionChange}
+              editorKey={article.id}
+              onTransform={() => {}}
+              isSynced={isSynced}
+              isSaving={isSaving}
+              saveError={saveError}
+              toolbarRight={selection ? (
+                <div className="flex items-center gap-1.5 ml-2">
+                  <select
+                    value={improveInstruction}
+                    onChange={(e) => setImproveInstruction(e.target.value)}
+                    className="rounded border border-[var(--color-border)]/10 bg-[var(--color-bg-primary)] px-1.5 py-1 text-xs text-[var(--color-text-primary)] outline-none cursor-pointer"
+                  >
+                    <option value="Improve clarity">{t("articles.improve_clarity")}</option>
+                    <option value="Make more concise">{t("articles.make_concise")}</option>
+                    <option value="Fix grammar">{t("articles.fix_grammar")}</option>
+                    <option value="Make more professional">{t("articles.make_professional")}</option>
+                    <option value="Expand explanation">{t("articles.expand_explanation")}</option>
+                  </select>
+                  <button
+                    onClick={handleImprove}
+                    disabled={improving}
+                    className="cursor-pointer rounded bg-[var(--color-accent-primary)] px-2 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    {improving ? t("articles.improving") : t("articles.improve_with_ai")}
+                  </button>
+                </div>
+              ) : undefined}
+            />
+          )}
+        </div>
+
+        {/* Right sidebar */}
+        <aside className="hidden lg:block w-72 shrink-0">
+          <div className="sticky top-4 space-y-4">
+            {/* AI Editorial Assistance */}
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 space-y-3">
+              <h3 className="text-sm font-medium text-[var(--color-text-secondary)]">
+                {t("articles.editorial_assistance")}
+              </h3>
+
+              {/* Analyze */}
+              <button
+                onClick={handleAnalyze}
+                disabled={analyzing}
+                className="w-full cursor-pointer rounded-lg bg-[var(--color-accent-primary)]/10 px-3 py-2 text-xs font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)]/20 disabled:opacity-50"
+              >
+                {analyzing ? t("articles.analyzing") : t("articles.analyze_article")}
+              </button>
+
+              {analysisError && (
+                <p className="text-xs text-[var(--color-accent-danger)]">{analysisError}</p>
+              )}
+
+              {analyzing && <p className="text-xs text-[var(--color-text-tertiary)] italic">{t("articles.analyzing")}</p>}
+
+              {persistedAnalysis && (
+                <div className="space-y-2 text-xs">
+                  {articleChangedSinceAnalysis && (
+                    <p className="text-xs text-[var(--color-accent-warning)]">{t("articles.article_changed_since_analysis")}</p>
+                  )}
+                  <p className="text-[var(--color-text-primary)]">{persistedAnalysis.summary}</p>
+                  {persistedAnalysis.strengths.length > 0 && (
+                    <div>
+                      <p className="font-medium text-[var(--color-accent-success)]">Strengths</p>
+                      <ul className="list-disc list-inside text-[var(--color-text-secondary)]">
+                        {persistedAnalysis.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {persistedAnalysis.improvements.length > 0 && (
+                    <div>
+                      <p className="font-medium text-[var(--color-accent-warning)]">Improvements</p>
+                      <ul className="list-disc list-inside text-[var(--color-text-secondary)]">
+                        {persistedAnalysis.improvements.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="text-[var(--color-text-tertiary)]">Score: {persistedAnalysis.score}/100</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    {t("articles.last_analyzed", { time: new Date(persistedAnalysis.created_at).toLocaleString() })}
+                  </p>
+                </div>
+              )}
+
+              {!persistedAnalysis && !analyzing && (
+                <p className="text-xs text-[var(--color-text-tertiary)]">{t("articles.analysis_unavailable")}</p>
+              )}
+
+              <hr className="border-[var(--color-border)]/10" />
+
+              {/* Fallback improve (sidebar) */}
+              <p className="text-xs text-[var(--color-text-tertiary)]">
+                {selection
+                  ? `${selection.text.slice(0, 50)}${selection.text.length > 50 ? "..." : ""}`
+                  : t("articles.select_text_to_improve")}
+              </p>
+              {!selection && (
+                <>
+                  <textarea
+                    value={fallbackText}
+                    onChange={(e) => setFallbackText(e.target.value)}
+                    placeholder={t("articles.select_text_to_improve")}
+                    rows={2}
+                    className="w-full rounded-lg border border-[var(--color-border)]/10 bg-[var(--color-bg-primary)] px-2 py-1.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent-primary)] resize-none"
+                  />
+                  <button
+                    onClick={handleFallbackImprove}
+                    disabled={improving || !fallbackText.trim()}
+                    className="w-full cursor-pointer rounded-lg bg-[var(--color-accent-primary)]/10 px-3 py-2 text-xs font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)]/20 disabled:opacity-50"
+                  >
+                    {improving ? t("articles.improving") : t("articles.improve_with_ai")}
+                  </button>
+                </>
+              )}
+
+              {improveError && !contentChanged && (
+                <p className="text-xs text-[var(--color-accent-danger)]">{improveError}</p>
+              )}
+
+              {contentChanged && (
+                <p className="text-xs text-[var(--color-accent-danger)]">{t("articles.content_changed")}</p>
+              )}
+            </div>
+
+            {/* References section */}
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-[var(--color-text-secondary)]">
+                  {t("references.title")}
+                </h3>
+                <button
+                  onClick={() => setShowAttachRef(true)}
+                  className="cursor-pointer text-xs text-[var(--color-accent-primary)] hover:underline"
+                >
+                  {t("references.add")}
+                </button>
+              </div>
+              <ReferenceList
+                references={articleRefs}
+                onRemove={handleDetachRef}
+                compact
+              />
+            </div>
+          </div>
+        </aside>
+
+        {showAttachRef && (
+          <AttachReferenceModal
+            existingReferences={articleRefs}
+            onAttach={handleAttachRef}
+            onDetach={handleDetachRef}
+            onClose={() => setShowAttachRef(false)}
+          />
+        )}
+      </div>
+
+      {/* Lifecycle actions footer */}
+      <div className="flex items-center justify-center gap-4 border-t border-[var(--color-border)] pt-4">
+        {lifecycleActions}
+      </div>
+
+      {/* AI Suggestion comparison modal */}
+      {suggestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-2xl rounded-lg bg-[var(--color-surface-elevated)] p-6 shadow-lg">
+            <h3 className="text-base font-medium text-[var(--color-text-primary)] mb-4">
+              {t("articles.improve_with_ai")}
+            </h3>
+
+            {contentChanged && (
+              <div className="rounded bg-[var(--color-accent-danger)]/10 p-3 mb-4 text-sm text-[var(--color-accent-danger)]">
+                {t("articles.content_changed")}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-xs font-medium text-[var(--color-text-tertiary)] uppercase mb-2">
+                  {t("articles.original")}
+                </p>
+                <div className="rounded border border-[var(--color-border)]/10 bg-[var(--color-bg-primary)] p-3 text-sm text-[var(--color-text-primary)]">
+                  {suggestion.original}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-[var(--color-text-tertiary)] uppercase mb-2">
+                  {t("articles.suggested")}
+                </p>
+                <div className="rounded border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/5 p-3 text-sm text-[var(--color-text-primary)]">
+                  {suggestion.suggestion}
+                </div>
+              </div>
+            </div>
+
+            {suggestion.explanation && (
+              <div className="mb-4 text-xs text-[var(--color-text-tertiary)]">
+                {suggestion.explanation}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={handleRejectSuggestion}
+                className="cursor-pointer rounded-lg border border-[var(--color-border)]/10 px-4 py-2 text-sm text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-muted)]/10"
+              >
+                {t("articles.reject_suggestion")}
+              </button>
+              <button
+                onClick={handleApplySuggestion}
+                disabled={contentChanged}
+                className="cursor-pointer rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {t("articles.apply_suggestion")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
