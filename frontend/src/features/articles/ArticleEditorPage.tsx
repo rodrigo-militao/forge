@@ -620,6 +620,7 @@ export function ArticleEditorPage() {
             </div>
           </div>
         </div>
+      </div>
       )}
   );
 }
