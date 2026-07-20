@@ -14,6 +14,7 @@ import (
 
 	handler "github.com/rodrigo-militao/forge/internal/adapters/http"
 	"github.com/rodrigo-militao/forge/internal/adapters/events"
+	"github.com/rodrigo-militao/forge/internal/adapters/llm"
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/wiring"
 )
@@ -46,27 +47,40 @@ func main() {
 		}
 	}()
 
+	// LLM client for AI features
+	llmAPIKey := env("LLM_API_KEY", "")
+	llmBaseURL := env("LLM_BASE_URL", "https://code.verboo.ai/router/v1")
+	rawLLM := llm.NewClient(llmAPIKey, llmBaseURL)
+	llmClient := llm.NewLoggingWrapper(rawLLM)
+
+	// AI service
+	aiSvc := application.NewAIService(llmClient, c.Content, c.References, c.AIAnalyses)
+
 	// Router
 	contentSvc := application.NewContentService(c.Content, c.Content, c.Content, c.Content, c.SourceTrack)
 	router := handler.NewRouter(handler.RouterConfig{
-		Users:       c.Users,
-		Usages:      c.Usages,
-		Content:     c.Content,
-		Jobs:        c.Jobs,
-		Interests:   c.Interests,
-		Sources:     c.Sources,
-		Editions:    c.Editions,
-		Hub:         c.Hub,
-		Plans:       c.Plans,
-		ContentSvc:  contentSvc,
-		Ideas:       c.Ideas,
-		SourceTrack: c.SourceTrack,
+		Users:         c.Users,
+		Usages:        c.Usages,
+		Content:       c.Content,
+		ContentReader: c.Content,
+		ContentWriter: c.Content,
+		Jobs:          c.Jobs,
+		Interests:     c.Interests,
+		Sources:       c.Sources,
+		Editions:      c.Editions,
+		Hub:           c.Hub,
+		Plans:         c.Plans,
+		ContentSvc:    contentSvc,
+		Ideas:         c.Ideas,
+		SourceTrack:   c.SourceTrack,
+		References:    c.References,
+		AISvc:         aiSvc,
 	})
 
 	srv := &http.Server{
 		Addr:         ":" + port,
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
+		ReadTimeout:  120 * time.Second,
 		WriteTimeout: 0, // SSE connections are long-lived
 		IdleTimeout:  60 * time.Second,
 	}
