@@ -156,7 +156,7 @@ export function ArticleEditorPage() {
   // Improve text (selection-based)
   const [improveInstruction, setImproveInstruction] = useState("Improve clarity");
   const [suggestion, setSuggestion] = useState<AITextSuggestion | null>(null);
-  const [improving, setImproving] = useState(false);
+  const [sentOriginal, setSentOriginal] = useState<string>("");  const [improving, setImproving] = useState(false);
   const [improveError, setImproveError] = useState<string | null>(null);
   const [contentChanged, setContentChanged] = useState(false);
 
@@ -165,7 +165,7 @@ export function ArticleEditorPage() {
     setImproving(true);
     setImproveError(null);
     setSuggestion(null);
-    setContentChanged(false);
+    setSentOriginal(selection?.text ?? "");    setContentChanged(false);
     try {
       const start = Math.max(0, selection.from - 100);
       const end = Math.min(editBody.length, selection.to + 100);
@@ -184,13 +184,13 @@ export function ArticleEditorPage() {
   }, [article, selection, improveInstruction, editBody]);
 
   const handleApplySuggestion = useCallback(async () => {
-    if (!suggestion) return;
-    const idx = editBody.indexOf(suggestion.original);
+    if (!suggestion || !sentOriginal) return;
+    const idx = editBody.indexOf(sentOriginal);
     if (idx === -1) {
       setContentChanged(true);
       return;
     }
-    setEditBody((prev) => prev.slice(0, idx) + suggestion.suggestion + prev.slice(idx + suggestion.original.length));
+    setEditBody((prev) => prev.slice(0, idx) + suggestion.suggestion + prev.slice(idx + sentOriginal.length));
     setSuggestion(null);
     setSelection(null);
     setImproveInstruction("Improve clarity");
