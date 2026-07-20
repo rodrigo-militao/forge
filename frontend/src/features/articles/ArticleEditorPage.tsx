@@ -401,7 +401,7 @@ export function ArticleEditorPage() {
         </div>
 
         {/* Right sidebar */}
-        <aside className="hidden lg:block w-72 shrink-0 border-l border-[var(--tt-border-color-tint)] overflow-y-auto">
+        <aside className="hidden md:block md:w-56 lg:w-72 shrink-0 border-l border-[var(--tt-border-color-tint)] overflow-y-auto">
           <div className="p-3 space-y-3">
             {/* AI Editorial Assistance */}
             <div className="rounded-lg border border-[var(--tt-border-color-tint)] bg-[var(--tt-card-bg-color)] p-3 space-y-2.5">
@@ -533,7 +533,7 @@ export function ArticleEditorPage() {
       </div>
 
       {/* Lifecycle actions footer */}
-      <div className="shrink-0 flex items-center justify-between px-6 py-2 border-t border-[var(--tt-border-color-tint)]">
+      <div className="flex-wrap gap-2 shrink-0 flex items-center justify-between px-3 md:px-6 py-2 border-t border-[var(--tt-border-color-tint)]">
         <div className="text-xs text-[var(--tt-color-text-gray)]">
           {article && !suggestion && (
             article.status === "building" ? t("articles.lifecycle_help_building") :
@@ -550,8 +550,8 @@ export function ArticleEditorPage() {
 
       {/* AI Suggestion comparison modal */}
       {suggestion && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-2xl rounded-lg bg-[var(--color-surface-elevated)] p-6 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in duration-200">
+          <div className="mx-4 w-full max-w-2xl rounded-lg bg-[var(--color-surface-elevated)] p-6 shadow-lg animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-medium text-[var(--color-text-primary)]">
                 {t("articles.improve_with_ai")}
