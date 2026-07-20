@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, EyeOff } from "lucide-react";
+import { ArrowLeft, ExternalLink, EyeOff } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import toast from "react-hot-toast";
 import { api, type ContentItem } from "../../api/client";
 import { queryKeys } from "../../lib/queryKeys";
@@ -14,6 +14,7 @@ import { filterLibraryContent } from "./filter";
 export function LibraryPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { selected?: string };
   const { handleTransform } = useAITransform();
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
@@ -275,6 +276,14 @@ export function LibraryPage() {
                 {(item.tags || []).map((tag) => <span key={tag} className="rounded bg-white/10 px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">#{tag}</span>)}
               </div>
             </div>
+            {item.type === "article" && (
+              <button
+                onClick={(e) => { e.stopPropagation(); navigate({ to: `/content/articles/${item.id}/edit` }); }}
+                className="ml-auto shrink-0 cursor-pointer rounded bg-[var(--color-accent-primary)]/10 px-2 py-1 text-xs font-medium text-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary)]/20"
+              >
+                <ExternalLink size={12} className="mr-0.5 inline" />Editor
+              </button>
+            )}
           </div>
         ))}
       </div>
