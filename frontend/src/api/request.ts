@@ -18,8 +18,47 @@ function friendlyError(status: number): string {
 }
 
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
+
+export async function longRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  const timeout = setTimeout(() => controller.abort(), 60000);
+  const merged: RequestInit = {
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    ...options,
+    signal: options?.signal || controller.signal,
+  };
+  let res: Response;
+  try {
+    res = await fetch(BASE + path, merged);
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Request timed out. Check your connection.");
+    }
+    throw new Error("Network error. Check your connection.");
+  }
+  clearTimeout(timeout);
+  if (res.status === 401) {
+    onUnauthorized?.();
+    const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
+    if (currentPath !== "/login" && currentPath !== "/register" && currentPath !== "/") {
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("redirectAfterLogin", currentPath);
+      }
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error ?? friendlyError(res.status));
+  }
+  if (res.status === 204) return undefined as unknown as Promise<T>;
+  return res.json();
+}  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
   const merged: RequestInit = {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...options?.headers },

@@ -1,7 +1,9 @@
-import { request } from "./request";
-import type { ContentItem } from "./types";
+import { request, longRequest } from "./request";
+import type { AIAnalysisResult, AITextSuggestion, ContentItem } from "./types";
 
 export const content = {
+  create: () => request<ContentItem>("/content", { method: "POST" }),
+  get: (id: string) => request<ContentItem>(`/content/${id}`),
   list: () => request<ContentItem[]>("/content"),
   delete: (id: string) => request<{ status: string }>("/content/" + id, { method: "DELETE" }),
   save: (id: string, data: { title?: string; body_markdown?: string }) =>
@@ -24,4 +26,13 @@ export const content = {
     request<{ status: string }>(`/content/${id}/transition`, { method: "POST", body: JSON.stringify({ to }) }),
   updateOutline: (id: string, outline: string) =>
     request<{ status: string }>(`/content/${id}/outline`, { method: "PUT", body: JSON.stringify({ outline }) }),
+  ai: {
+    analyze: (id: string) => longRequest<AIAnalysisResult>(`/content/${id}/ai/analyze`, { method: "POST" }),
+    analysis: (id: string) => longRequest<AIAnalysisResult>(`/content/${id}/ai/analysis`),
+    improve: (id: string, text: string, instruction: string, contextBefore?: string, contextAfter?: string) =>
+      longRequest<AITextSuggestion>(`/content/${id}/ai/improve`, {
+        method: "POST",
+        body: JSON.stringify({ text, instruction, context_before: contextBefore, context_after: contextAfter }),
+      }),
+  },
 };
