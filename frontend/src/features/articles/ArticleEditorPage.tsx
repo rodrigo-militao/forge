@@ -221,11 +221,13 @@ export function ArticleEditorPage() {
   // --- Lifecycle action buttons ---
   const lifecycleActions = useMemo(() => {
     if (!article) return null;
+    const btnPrimary = "text-xs font-medium rounded-lg bg-[var(--tt-brand-color-500)] text-white px-3 py-1.5 hover:opacity-90 disabled:opacity-50 transition-opacity";
+    const btnSecondary = "text-xs font-medium rounded-lg border border-[var(--tt-border-color-tint)] px-3 py-1.5 text-[var(--tt-theme-text)] hover:bg-[var(--tt-gray-dark-a-100)] disabled:opacity-50 transition-colors";
     switch (article.status) {
       case "building":
         return (
           <button
-            className="btn-primary"
+            className={btnPrimary}
             onClick={() => doTransition("review")}
             disabled={transitioning === "review"}
           >
@@ -236,14 +238,14 @@ export function ArticleEditorPage() {
         return (
           <div className="flex gap-2">
             <button
-              className="btn-secondary"
+              className={btnSecondary}
               onClick={() => doTransition("building")}
               disabled={transitioning === "building"}
             >
               {transitioning === "building" ? "..." : t("articles.back_to_editing")}
             </button>
             <button
-              className="btn-primary"
+              className={btnPrimary}
               onClick={() => doTransition("ready")}
               disabled={transitioning === "ready"}
             >
@@ -255,25 +257,25 @@ export function ArticleEditorPage() {
         return (
           <div className="flex gap-2">
             <button
-              className="btn-secondary"
+              className={btnSecondary}
               onClick={() => doTransition("building")}
               disabled={transitioning === "building"}
             >
               {transitioning === "building" ? "..." : t("articles.back_to_editing")}
             </button>
-            <span className="inline-flex items-center rounded bg-[var(--color-accent-success)]/20 px-3 py-1 text-sm font-medium text-[var(--color-accent-success)]">
+            <span className="inline-flex items-center rounded text-xs font-medium px-2.5 py-1 bg-[var(--tt-color-highlight-green-contrast)] text-[var(--tt-color-text-green)]">
               {t("articles.ready_to_publish")}
             </span>
           </div>
         );
       case "published":
         return (
-          <span className="inline-flex items-center rounded bg-[var(--color-accent-primary)]/20 px-3 py-1 text-sm font-medium text-[var(--color-accent-primary)]">
+          <span className="inline-flex items-center rounded text-xs font-medium px-2.5 py-1 bg-[var(--tt-brand-color-800)] text-[var(--tt-brand-color-200)]">
             {t("articles.published")}
           </span>
         );
       default:
-        return <span className="text-sm text-[var(--color-text-tertiary)]">{article.status}</span>;
+        return <span className="text-xs text-[var(--tt-color-text-gray)]">{article.status}</span>;
     }
   }, [article, transitioning, doTransition, t]);
 
@@ -287,7 +289,7 @@ export function ArticleEditorPage() {
       published: t("articles.status_published"),
     };
     return (
-      <span className="inline-flex items-center rounded bg-[var(--color-surface-elevated)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)]">
+      <span className="inline-flex items-center rounded text-xs font-medium px-1.5 py-0.5 border border-[var(--tt-border-color-tint)] text-[var(--tt-color-text-gray)]">
         {labels[article.status] ?? article.status}
       </span>
     );
@@ -335,26 +337,26 @@ export function ArticleEditorPage() {
 
   // --- Editor ---
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-6 py-2 border-b border-[var(--tt-border-color-tint)] shrink-0">
         <button
           onClick={() => navigate({ to: "/library" })}
-          className="cursor-pointer flex items-center gap-1 text-sm text-[var(--color-accent-primary)] hover:underline"
+          className="flex items-center gap-1 text-xs text-[var(--tt-color-text-gray)] hover:text-[var(--tt-theme-text)] transition-colors"
         >
-          <ArrowLeft size={16} /> {t("articles.back_to_library")}
+          <ArrowLeft size={14} /> {t("articles.back_to_library")}
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 text-xs">
           {statusBadge}
-          {isSaving && <span className="text-xs text-[var(--color-text-tertiary)]">{t("articles.saving")}</span>}
-          {isSynced && <span className="text-xs text-[var(--color-accent-success)]">{t("articles.synced")}</span>}
-          {saveError && <span className="text-xs text-[var(--color-accent-danger)]">{t("articles.save_error")}</span>}
+          {isSaving && <span className="text-[var(--tt-color-text-gray)]">{t("articles.saving")}</span>}
+          {isSynced && <span className="text-[var(--tt-color-text-gray)]">{t("articles.synced")}</span>}
+          {saveError && <span className="text-[var(--tt-color-text-red)]">{t("articles.save_error")}</span>}
         </div>
       </div>
 
-      {/* Editor */}
-      <div className="flex gap-6">
-        <div className="flex-1 min-w-0">
+      {/* Editor + Sidebar */}
+      <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+        <div className="flex-1 flex flex-col overflow-y-auto" style={{ minHeight: 0 }}>
           {article && contentLoaded && (
             <ContentEditor
               title={editTitle}
@@ -391,23 +393,25 @@ export function ArticleEditorPage() {
               ) : undefined}
             />
           )}
-        </div>
-
           {contentLoaded && !editTitle && !editBody && !articleLoading && (
             <p className="pt-2 text-center text-xs text-[var(--color-text-tertiary)]">
               {t("articles.start_writing_prompt")}
             </p>
-          )}        {/* Right sidebar */}
-        <aside className="hidden lg:block w-72 shrink-0">
-          <div className="sticky top-4 space-y-4">
+          )}
+        </div>
+
+        {/* Right sidebar */}
+        <aside className="hidden lg:block w-72 shrink-0 border-l border-[var(--tt-border-color-tint)] overflow-y-auto">
+          <div className="p-3 space-y-3">
             {/* AI Editorial Assistance */}
-            <div className="rounded-lg border border-[var(--color-accent-primary)]/10 bg-[var(--color-accent-primary)]/[0.03] p-4 space-y-3">
+            <div className="rounded-lg border border-[var(--tt-border-color-tint)] bg-[var(--tt-card-bg-color)] p-3 space-y-2.5">
+              <h3 className="text-xs font-medium text-[var(--tt-color-text-gray)] uppercase tracking-wider">
+                {t("articles.editorial_assistance")}
+              </h3>
               <button
                 onClick={handleAnalyze}
-              <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                {t("articles.editorial_assistance")}
-              </h3>                disabled={analyzing}
-                className="btn-secondary w-full"
+                disabled={analyzing}
+                className="w-full text-xs font-medium rounded-lg border border-[var(--tt-border-color-tint)] bg-[var(--tt-card-bg-color)] px-3 py-1.5 text-[var(--tt-theme-text)] hover:bg-[var(--tt-gray-dark-a-100)] disabled:opacity-50 transition-colors"
               >
                 {analyzing ? t("articles.analyzing") : t("articles.analyze_article")}
               </button>
@@ -420,7 +424,7 @@ export function ArticleEditorPage() {
 
               {persistedAnalysis && !articleChangedSinceAnalysis && (
                 <details className="group text-xs" open>
-                  <summary className="cursor-pointer text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+                  <summary className="cursor-pointer text-xs font-medium text-[var(--tt-color-text-gray)] hover:text-[var(--tt-theme-text)]">
                     Analysis · {persistedAnalysis.score}/100
                   </summary>
                   <div className="mt-2 space-y-2">
@@ -466,7 +470,7 @@ export function ArticleEditorPage() {
                 <>
                   <hr className="border-[var(--color-border)]/10" />
                   <details className="group text-xs">
-                    <summary className="cursor-pointer text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+                    <summary className="cursor-pointer text-xs font-medium text-[var(--tt-color-text-gray)] hover:text-[var(--tt-theme-text)]">
                       {t("articles.improve_text")}
                     </summary>
                     <div className="mt-2 space-y-2">
@@ -497,14 +501,14 @@ export function ArticleEditorPage() {
             </div>
 
             {/* References section */}
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4">
+            <div className="rounded-lg border border-[var(--tt-border-color-tint)] bg-[var(--tt-card-bg-color)] p-3">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium text-[var(--color-text-secondary)]">
+                <h3 className="text-xs font-medium text-[var(--tt-color-text-gray)] uppercase tracking-wider">
                   {t("references.title")}
                 </h3>
                 <button
                   onClick={() => setShowAttachRef(true)}
-                  className="cursor-pointer text-xs text-[var(--color-accent-primary)] hover:underline"
+                  className="text-xs font-medium text-[var(--tt-brand-color-500)] hover:underline transition-colors"
                 >
                   {t("references.add")}
                 </button>
@@ -529,18 +533,21 @@ export function ArticleEditorPage() {
       </div>
 
       {/* Lifecycle actions footer */}
-      <div className="flex items-center justify-center gap-4 border-t border-[var(--color-border)] pt-4">
-        {lifecycleActions}
-      
-      {/* Lifecycle help text */}
-      {article && !suggestion && (
-        <p className="text-center text-xs text-[var(--color-text-tertiary)]">
-          {article.status === "building" && t("articles.lifecycle_help_building")}
-          {article.status === "review" && t("articles.lifecycle_help_review")}
-          {article.status === "ready" && t("articles.lifecycle_help_ready")}
-          {article.status === "published" && t("articles.lifecycle_help_published")}
-        </p>
-      )}      </div>
+      </div>{/* end editor+sidebar row */}
+      <div className="shrink-0 flex items-center justify-between px-6 py-2 border-t border-[var(--tt-border-color-tint)]">
+        <div className="text-xs text-[var(--tt-color-text-gray)]">
+          {article && !suggestion && (
+            article.status === "building" ? t("articles.lifecycle_help_building") :
+            article.status === "review" ? t("articles.lifecycle_help_review") :
+            article.status === "ready" ? t("articles.lifecycle_help_ready") :
+            article.status === "published" ? t("articles.lifecycle_help_published") :
+            null
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {lifecycleActions}
+        </div>
+      </div>
 
       {/* AI Suggestion comparison modal */}
       {suggestion && (
