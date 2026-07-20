@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import toast from "react-hot-toast";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -43,6 +44,7 @@ export function ArticleEditorPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Edit state ---
+  const [contentLoaded, setContentLoaded] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
 
@@ -50,6 +52,7 @@ export function ArticleEditorPage() {
     if (article) {
       setEditTitle(article.title ?? "");
       setEditBody(article.body_markdown ?? "");
+      setContentLoaded(true);
     }
   }, [article]);
 
@@ -79,7 +82,7 @@ export function ArticleEditorPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.content.byId(article.id) });
     } catch (err) {
-      console.error("transition failed", err);
+      toast.error(err instanceof Error ? err.message : "Transition failed");
     } finally {
       setTransitioning(null);
     }
@@ -352,7 +355,7 @@ export function ArticleEditorPage() {
       {/* Editor */}
       <div className="flex gap-6">
         <div className="flex-1 min-w-0">
-          {article && (
+          {article && contentLoaded && (
             <ContentEditor
               title={editTitle}
               onTitleChange={setEditTitle}
@@ -390,20 +393,21 @@ export function ArticleEditorPage() {
           )}
         </div>
 
-        {/* Right sidebar */}
+          {contentLoaded && !editTitle && !editBody && !articleLoading && (
+            <p className="pt-2 text-center text-xs text-[var(--color-text-tertiary)]">
+              {t("articles.start_writing_prompt")}
+            </p>
+          )}        {/* Right sidebar */}
         <aside className="hidden lg:block w-72 shrink-0">
           <div className="sticky top-4 space-y-4">
             {/* AI Editorial Assistance */}
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-4 space-y-3">
-              <h3 className="text-sm font-medium text-[var(--color-text-secondary)]">
-                {t("articles.editorial_assistance")}
-              </h3>
-
-              {/* Analyze */}
+            <div className="rounded-lg border border-[var(--color-accent-primary)]/10 bg-[var(--color-accent-primary)]/[0.03] p-4 space-y-3">
               <button
                 onClick={handleAnalyze}
-                disabled={analyzing}
-                className="w-full cursor-pointer rounded-lg bg-[var(--color-accent-primary)]/10 px-3 py-2 text-xs font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)]/20 disabled:opacity-50"
+              <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                {t("articles.editorial_assistance")}
+              </h3>                disabled={analyzing}
+                className="btn-secondary w-full"
               >
                 {analyzing ? t("articles.analyzing") : t("articles.analyze_article")}
               </button>
@@ -414,32 +418,42 @@ export function ArticleEditorPage() {
 
               {analyzing && <p className="text-xs text-[var(--color-text-tertiary)] italic">{t("articles.analyzing")}</p>}
 
-              {persistedAnalysis && (
+              {persistedAnalysis && !articleChangedSinceAnalysis && (
+                <details className="group text-xs" open>
+                  <summary className="cursor-pointer text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+                    Analysis · {persistedAnalysis.score}/100
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-[var(--color-text-primary)]">{persistedAnalysis.summary}</p>
+                    {persistedAnalysis.strengths.length > 0 && (
+                      <div>
+                        <p className="font-medium text-[var(--color-accent-success)]">Strengths</p>
+                        <ul className="list-disc list-inside text-[var(--color-text-secondary)]">
+                          {persistedAnalysis.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {persistedAnalysis.improvements.length > 0 && (
+                      <div>
+                        <p className="font-medium text-[var(--color-accent-warning)]">Improvements</p>
+                        <ul className="list-disc list-inside text-[var(--color-text-secondary)]">
+                          {persistedAnalysis.improvements.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    <p className="text-[var(--color-text-muted)]">
+                      {t("articles.last_analyzed", { time: new Date(persistedAnalysis.created_at).toLocaleString() })}
+                    </p>
+                  </div>
+                </details>
+              )}
+
+              {persistedAnalysis && articleChangedSinceAnalysis && (
                 <div className="space-y-2 text-xs">
-                  {articleChangedSinceAnalysis && (
-                    <p className="text-xs text-[var(--color-accent-warning)]">{t("articles.article_changed_since_analysis")}</p>
-                  )}
-                  <p className="text-[var(--color-text-primary)]">{persistedAnalysis.summary}</p>
-                  {persistedAnalysis.strengths.length > 0 && (
-                    <div>
-                      <p className="font-medium text-[var(--color-accent-success)]">Strengths</p>
-                      <ul className="list-disc list-inside text-[var(--color-text-secondary)]">
-                        {persistedAnalysis.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                  {persistedAnalysis.improvements.length > 0 && (
-                    <div>
-                      <p className="font-medium text-[var(--color-accent-warning)]">Improvements</p>
-                      <ul className="list-disc list-inside text-[var(--color-text-secondary)]">
-                        {persistedAnalysis.improvements.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                  <p className="text-[var(--color-text-tertiary)]">Score: {persistedAnalysis.score}/100</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {t("articles.last_analyzed", { time: new Date(persistedAnalysis.created_at).toLocaleString() })}
-                  </p>
+                  <p className="text-xs text-[var(--color-accent-warning)]">{t("articles.article_changed_since_analysis")}</p>
+                  <button onClick={handleAnalyze} disabled={analyzing} className="btn-secondary w-full">
+                    {t("articles.analyze_article")}
+                  </button>
                 </div>
               )}
 
@@ -447,39 +461,38 @@ export function ArticleEditorPage() {
                 <p className="text-xs text-[var(--color-text-tertiary)]">{t("articles.analysis_unavailable")}</p>
               )}
 
-              <hr className="border-[var(--color-border)]/10" />
-
-              {/* Fallback improve (sidebar) */}
-              <p className="text-xs text-[var(--color-text-tertiary)]">
-                {selection
-                  ? `${selection.text.slice(0, 50)}${selection.text.length > 50 ? "..." : ""}`
-                  : t("articles.select_text_to_improve")}
-              </p>
+              {/* Improve — only shown as fallback when no selection */}
               {!selection && (
                 <>
-                  <textarea
-                    value={fallbackText}
-                    onChange={(e) => setFallbackText(e.target.value)}
-                    placeholder={t("articles.select_text_to_improve")}
-                    rows={2}
-                    className="w-full rounded-lg border border-[var(--color-border)]/10 bg-[var(--color-bg-primary)] px-2 py-1.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent-primary)] resize-none"
-                  />
-                  <button
-                    onClick={handleFallbackImprove}
-                    disabled={improving || !fallbackText.trim()}
-                    className="w-full cursor-pointer rounded-lg bg-[var(--color-accent-primary)]/10 px-3 py-2 text-xs font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-accent-primary)]/20 disabled:opacity-50"
-                  >
-                    {improving ? t("articles.improving") : t("articles.improve_with_ai")}
-                  </button>
+                  <hr className="border-[var(--color-border)]/10" />
+                  <details className="group text-xs">
+                    <summary className="cursor-pointer text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+                      {t("articles.improve_text")}
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        value={fallbackText}
+                        onChange={(e) => setFallbackText(e.target.value)}
+                        placeholder={t("articles.select_text_to_improve")}
+                        rows={2}
+                        className="w-full rounded-lg border border-[var(--color-border)]/10 bg-[var(--color-bg-primary)] px-2 py-1.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent-primary)] resize-none"
+                      />
+                      <button
+                        onClick={handleFallbackImprove}
+                        disabled={improving || !fallbackText.trim()}
+                        className="btn-secondary w-full"
+                      >
+                        {improving ? t("articles.improving") : t("articles.improve_with_ai")}
+                      </button>
+                      {improveError && !contentChanged && (
+                        <p className="text-xs text-[var(--color-accent-danger)]">{improveError}</p>
+                      )}
+                      {contentChanged && (
+                        <p className="text-xs text-[var(--color-accent-danger)]">{t("articles.content_changed")}</p>
+                      )}
+                    </div>
+                  </details>
                 </>
-              )}
-
-              {improveError && !contentChanged && (
-                <p className="text-xs text-[var(--color-accent-danger)]">{improveError}</p>
-              )}
-
-              {contentChanged && (
-                <p className="text-xs text-[var(--color-accent-danger)]">{t("articles.content_changed")}</p>
               )}
             </div>
 
@@ -518,15 +531,29 @@ export function ArticleEditorPage() {
       {/* Lifecycle actions footer */}
       <div className="flex items-center justify-center gap-4 border-t border-[var(--color-border)] pt-4">
         {lifecycleActions}
-      </div>
+      
+      {/* Lifecycle help text */}
+      {article && !suggestion && (
+        <p className="text-center text-xs text-[var(--color-text-tertiary)]">
+          {article.status === "building" && t("articles.lifecycle_help_building")}
+          {article.status === "review" && t("articles.lifecycle_help_review")}
+          {article.status === "ready" && t("articles.lifecycle_help_ready")}
+          {article.status === "published" && t("articles.lifecycle_help_published")}
+        </p>
+      )}      </div>
 
       {/* AI Suggestion comparison modal */}
       {suggestion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 w-full max-w-2xl rounded-lg bg-[var(--color-surface-elevated)] p-6 shadow-lg">
-            <h3 className="text-base font-medium text-[var(--color-text-primary)] mb-4">
-              {t("articles.improve_with_ai")}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-medium text-[var(--color-text-primary)]">
+                {t("articles.improve_with_ai")}
+              </h3>
+              <button onClick={handleRejectSuggestion} className="cursor-pointer text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]">
+                <span aria-label="Close">✕</span>
+              </button>
+            </div>
 
             {contentChanged && (
               <div className="rounded bg-[var(--color-accent-danger)]/10 p-3 mb-4 text-sm text-[var(--color-accent-danger)]">
