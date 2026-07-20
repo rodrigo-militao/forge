@@ -93,10 +93,7 @@ export function IdeasPage() {
   const handlePromote = useCallback(async (idea: Idea) => {
     try {
       const result = await api.ideas.promote(idea.id);
-      const params = new URLSearchParams();
-      if (result.title) params.set("title", result.title);
-      if (result.context) params.set("context", result.context);
-      navigate({ to: `/content/articles?${params.toString()}` });
+      navigate({ to: `/content/articles/${result.id}/edit` });
       toast.success(t("ideas.promoted"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");

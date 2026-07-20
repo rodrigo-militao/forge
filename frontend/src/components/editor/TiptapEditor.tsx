@@ -50,6 +50,7 @@ interface TiptapEditorProps {
   content?: string;
   placeholder?: string;
   onUpdate?: (html: string) => void;
+  onSelectionChange?: (text: string, from: number, to: number) => void;
   editable?: boolean;
   className?: string;
   toolbarRight?: React.ReactNode;
@@ -60,6 +61,7 @@ export function TiptapEditor({
   content = "",
   placeholder = "Start writing\u2026",
   onUpdate,
+  onSelectionChange,
   editable = true,
   className = "",
   toolbarRight,
@@ -97,6 +99,16 @@ export function TiptapEditor({
     ],
     onUpdate: ({ editor: ed }) => {
       onUpdate?.(ed.getHTML());
+    },
+    onSelectionUpdate: ({ editor: ed }) => {
+      if (!onSelectionChange) return;
+      const { from, to } = ed.state.selection;
+      if (from === to) {
+        onSelectionChange("", 0, 0);
+        return;
+      }
+      const text = ed.state.doc.textBetween(from, to, " ");
+      onSelectionChange(text, from, to);
     },
     editorProps: {
       attributes: {

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -72,6 +73,23 @@ func (s *ContentService) LinkSource(ctx context.Context, contentID, sourceID, us
 		return err
 	}
 	return s.source.SetContentSource(ctx, contentID, sourceID)
+}
+
+// CreateBlankArticle creates a new Article in BUILDING status.
+// Title and body are initially empty and set through UpdateBody.
+func (s *ContentService) CreateBlankArticle(ctx context.Context, userID uuid.UUID) (*domain.GeneratedContent, error) {
+	article := &domain.GeneratedContent{
+		UserID:   userID,
+		Type:     domain.ContentTypeArticle,
+		Product:  domain.ProductCompose,
+		Status:   domain.ContentBuilding,
+		Origin:   domain.OriginManual,
+		Metadata: json.RawMessage("{}"),
+	}
+	if err := s.writer.Create(ctx, article); err != nil {
+		return nil, fmt.Errorf("create article: %w", err)
+	}
+	return article, nil
 }
 
 // TransitionStatus transitions content to the target status, validating the

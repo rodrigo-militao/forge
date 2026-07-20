@@ -2,21 +2,24 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
 type IdeasHandler struct {
-	svc ports.IdeaRepository
+	svc      ports.IdeaRepository
+	ideasSvc *application.IdeasService
 }
 
-func NewIdeasHandler(svc ports.IdeaRepository) *IdeasHandler {
-	return &IdeasHandler{svc: svc}
+func NewIdeasHandler(svc ports.IdeaRepository, ideasSvc *application.IdeasService) *IdeasHandler {
+	return &IdeasHandler{svc: svc, ideasSvc: ideasSvc}
 }
 
 func (h *IdeasHandler) Routes() chi.Router {
@@ -209,16 +212,18 @@ func (h *IdeasHandler) Promote(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid idea id")
 		return
 	}
-	idea, err := h.svc.GetByID(r.Context(), id)
+	article, err := h.ideasSvc.PromoteToArticle(r.Context(), id, h.userID(r))
 	if err != nil {
-		writeError(w, http.StatusNotFound, "idea not found")
+		if errors.Is(err, domain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "idea not found")
+			return
+		}
+		if errors.Is(err, domain.ErrNotOwned) {
+			writeError(w, http.StatusForbidden, "not your idea")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to promote idea")
 		return
 	}
-	// Return the idea data so the frontend can open the compose flow pre-filled
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"idea_id": id,
-		"title":   idea.Title,
-		"context": idea.Context,
-		"notes":   idea.Notes,
-	})
+	writeJSON(w, http.StatusCreated, article)
 }

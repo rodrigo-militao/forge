@@ -27,6 +27,8 @@ type Container struct {
 	SourceTrack application.SourceLinker
 	Hub         *events.Hub
 	Plans       *application.Plans
+	References  *postgres.ReferenceRepository
+	AIAnalyses  *postgres.AIAnalysisRepository
 }
 
 // BuildContainer constructs all shared dependencies from a database pool.
@@ -44,5 +46,7 @@ func BuildContainer(pool *pgxpool.Pool) *Container {
 		SourceTrack: postgres.NewSourceTracking(pool),
 		Hub:         events.NewHub(),
 		Plans:       application.NewPlans(postgres.NewUserRepository(pool)),
+		References:  postgres.NewReferenceRepository(pool),
+		AIAnalyses:  postgres.NewAIAnalysisRepository(pool),
 	}
 }

@@ -12,10 +12,36 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
-	"github.com/rodrigo-militao/forge/internal/lib"
 )
+
+// mockContentWriter is a minimal ContentWriter stub for test Promote flows.
+type mockContentWriter struct {
+	ports.ContentWriter
+}
+
+var _ ports.ContentWriter = (*mockContentWriter)(nil)
+
+func (m *mockContentWriter) Create(ctx context.Context, content *domain.GeneratedContent) error {
+	content.ID = uuid.New()
+	return nil
+}
+func (m *mockContentWriter) SoftDelete(_ context.Context, _ uuid.UUID) error { return nil }
+func (m *mockContentWriter) UpdateStatus(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error {
+	return nil
+}
+func (m *mockContentWriter) UpdateStatusWithPublishedAt(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error {
+	return nil
+}
+func (m *mockContentWriter) UpdateBody(_ context.Context, _ uuid.UUID, _, _ *string) error { return nil }
+func (m *mockContentWriter) UpdateOutline(_ context.Context, _ uuid.UUID, _ *string) error { return nil }
+
+// newIdeasHandler creates an IdeasHandler with a mock IdeasService for tests.
+func newIdeasHandler(repo ports.IdeaRepository) *IdeasHandler {
+	return NewIdeasHandler(repo, application.NewIdeasService(repo, &mockContentWriter{}))
+}
 
 type mockIdeaRepo struct {
 	ideas     []domain.Idea
@@ -127,7 +153,7 @@ func TestIdeasHandler_List(t *testing.T) {
 			{ID: uuid.New(), UserID: uuid.New(), Title: "Not mine", Priority: domain.PriorityLow, Status: domain.IdeaStatusOpen},
 		},
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodGet, "/api/ideas", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
@@ -148,7 +174,7 @@ func TestIdeasHandler_List(t *testing.T) {
 
 func TestIdeasHandler_List_Error(t *testing.T) {
 	repo := &mockIdeaRepo{getErr: domain.ErrNotFound}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodGet, "/api/ideas", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uuid.New()))
@@ -172,7 +198,7 @@ func TestIdeasHandler_Get_Success(t *testing.T) {
 			{ID: ideaID, UserID: uid, Title: "My Idea", Priority: domain.PriorityMedium, Status: domain.IdeaStatusOpen},
 		},
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodGet, "/api/ideas/"+ideaID.String(), nil)
 	r = addChiURLParam(r, "ideaID", ideaID.String())
@@ -191,7 +217,7 @@ func TestIdeasHandler_Get_Success(t *testing.T) {
 }
 
 func TestIdeasHandler_Get_InvalidID(t *testing.T) {
-	h := NewIdeasHandler(&mockIdeaRepo{})
+	h := newIdeasHandler(&mockIdeaRepo{})
 
 	r := httptest.NewRequest(http.MethodGet, "/api/ideas/bad-id", nil)
 	r = addChiURLParam(r, "ideaID", "bad-id")
@@ -205,7 +231,7 @@ func TestIdeasHandler_Get_InvalidID(t *testing.T) {
 
 func TestIdeasHandler_Get_NotFound(t *testing.T) {
 	repo := &mockIdeaRepo{}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodGet, "/api/ideas/"+uuid.New().String(), nil)
 	r = addChiURLParam(r, "ideaID", uuid.New().String())
@@ -220,7 +246,7 @@ func TestIdeasHandler_Get_NotFound(t *testing.T) {
 func TestIdeasHandler_Create_Success(t *testing.T) {
 	uid := uuid.New()
 	repo := &mockIdeaRepo{}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"title":"New Idea","context":"some context","priority":"high"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas", strings.NewReader(body))
@@ -251,7 +277,7 @@ func TestIdeasHandler_Create_Success(t *testing.T) {
 }
 
 func TestIdeasHandler_Create_InvalidBody(t *testing.T) {
-	h := NewIdeasHandler(&mockIdeaRepo{})
+	h := newIdeasHandler(&mockIdeaRepo{})
 
 	body := `not json`
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas", strings.NewReader(body))
@@ -265,7 +291,7 @@ func TestIdeasHandler_Create_InvalidBody(t *testing.T) {
 }
 
 func TestIdeasHandler_Create_EmptyTitle(t *testing.T) {
-	h := NewIdeasHandler(&mockIdeaRepo{})
+	h := newIdeasHandler(&mockIdeaRepo{})
 
 	body := `{"title":""}`
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas", strings.NewReader(body))
@@ -281,7 +307,7 @@ func TestIdeasHandler_Create_EmptyTitle(t *testing.T) {
 func TestIdeasHandler_Create_InvalidPriorityDefaultsToMedium(t *testing.T) {
 	uid := uuid.New()
 	repo := &mockIdeaRepo{}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"title":"Idea","priority":"invalid"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas", strings.NewReader(body))
@@ -302,7 +328,7 @@ func TestIdeasHandler_Create_InvalidPriorityDefaultsToMedium(t *testing.T) {
 func TestIdeasHandler_Create_NoPriorityDefaultsToMedium(t *testing.T) {
 	uid := uuid.New()
 	repo := &mockIdeaRepo{}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"title":"Idea"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas", strings.NewReader(body))
@@ -328,7 +354,7 @@ func TestIdeasHandler_Update_Success(t *testing.T) {
 			{ID: ideaID, UserID: uid, Title: "Old Title", Priority: domain.PriorityLow, Status: domain.IdeaStatusOpen},
 		},
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"title":"Updated Title","priority":"high","notes":"some notes"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/ideas/"+ideaID.String(), strings.NewReader(body))
@@ -354,7 +380,7 @@ func TestIdeasHandler_Update_Success(t *testing.T) {
 }
 
 func TestIdeasHandler_Update_InvalidID(t *testing.T) {
-	h := NewIdeasHandler(&mockIdeaRepo{})
+	h := newIdeasHandler(&mockIdeaRepo{})
 
 	body := `{"title":"Updated"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/ideas/bad-id", strings.NewReader(body))
@@ -369,7 +395,7 @@ func TestIdeasHandler_Update_InvalidID(t *testing.T) {
 
 func TestIdeasHandler_Update_NotFound(t *testing.T) {
 	repo := &mockIdeaRepo{ideas: []domain.Idea{{ID: uuid.New(), UserID: uuid.New(), Title: "Existing"}}}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"title":"Updated"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/ideas/"+uuid.New().String(), strings.NewReader(body))
@@ -390,7 +416,7 @@ func TestIdeasHandler_Update_InvalidBody(t *testing.T) {
 			{ID: ideaID, UserID: uid, Title: "Old Title", Priority: domain.PriorityLow, Status: domain.IdeaStatusOpen},
 		},
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `not json`
 	r := httptest.NewRequest(http.MethodPut, "/api/ideas/"+ideaID.String(), strings.NewReader(body))
@@ -412,7 +438,7 @@ func TestIdeasHandler_Archive_Success(t *testing.T) {
 			{ID: ideaID, UserID: uid, Title: "To Archive", Priority: domain.PriorityMedium, Status: domain.IdeaStatusOpen},
 		},
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/ideas/"+ideaID.String(), nil)
 	r = addChiURLParam(r, "ideaID", ideaID.String())
@@ -436,7 +462,7 @@ func TestIdeasHandler_Archive_Success(t *testing.T) {
 }
 
 func TestIdeasHandler_Archive_InvalidID(t *testing.T) {
-	h := NewIdeasHandler(&mockIdeaRepo{})
+	h := newIdeasHandler(&mockIdeaRepo{})
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/ideas/bad-id", nil)
 	r = addChiURLParam(r, "ideaID", "bad-id")
@@ -450,7 +476,7 @@ func TestIdeasHandler_Archive_InvalidID(t *testing.T) {
 
 func TestIdeasHandler_Archive_RepoError(t *testing.T) {
 	repo := &mockIdeaRepo{}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/ideas/"+uuid.New().String(), nil)
 	r = addChiURLParam(r, "ideaID", uuid.New().String())
@@ -471,7 +497,7 @@ func TestIdeasHandler_AddTag_Success(t *testing.T) {
 			{ID: ideaID, UserID: uid, Title: "Idea", Priority: domain.PriorityMedium, Status: domain.IdeaStatusOpen},
 		},
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"label":"important"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas/"+ideaID.String()+"/tags", strings.NewReader(body))
@@ -495,7 +521,7 @@ func TestIdeasHandler_AddTag_Success(t *testing.T) {
 }
 
 func TestIdeasHandler_AddTag_InvalidID(t *testing.T) {
-	h := NewIdeasHandler(&mockIdeaRepo{})
+	h := newIdeasHandler(&mockIdeaRepo{})
 
 	body := `{"label":"important"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas/bad-id/tags", strings.NewReader(body))
@@ -510,7 +536,7 @@ func TestIdeasHandler_AddTag_InvalidID(t *testing.T) {
 
 func TestIdeasHandler_AddTag_InvalidBody(t *testing.T) {
 	repo := &mockIdeaRepo{}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `not json`
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas/"+uuid.New().String()+"/tags", strings.NewReader(body))
@@ -531,7 +557,7 @@ func TestIdeasHandler_RemoveTag_Success(t *testing.T) {
 			{ID: ideaID, UserID: uid, Title: "Idea", Priority: domain.PriorityMedium, Status: domain.IdeaStatusOpen, Tags: []string{"important", "other"}},
 		},
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/ideas/"+ideaID.String()+"/tags/important", nil)
 	// Build a single RouteContext with both params (addChiURLParam overwrites when called twice)
@@ -558,7 +584,7 @@ func TestIdeasHandler_RemoveTag_Success(t *testing.T) {
 }
 
 func TestIdeasHandler_RemoveTag_InvalidID(t *testing.T) {
-	h := NewIdeasHandler(&mockIdeaRepo{})
+	h := newIdeasHandler(&mockIdeaRepo{})
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/ideas/bad-id/tags/tag", nil)
 	r = addChiURLParam(r, "ideaID", "bad-id")
@@ -574,14 +600,12 @@ func TestIdeasHandler_RemoveTag_InvalidID(t *testing.T) {
 func TestIdeasHandler_Promote_Success(t *testing.T) {
 	uid := uuid.New()
 	ideaID := uuid.New()
-	ctx := lib.StrPtr("Some context")
-	notes := lib.StrPtr("Some notes")
 	repo := &mockIdeaRepo{
 		ideas: []domain.Idea{
-			{ID: ideaID, UserID: uid, Title: "Promotable Idea", Context: ctx, Notes: notes, Priority: domain.PriorityHigh, Status: domain.IdeaStatusOpen},
+			{ID: ideaID, UserID: uid, Title: "Promotable Idea", Priority: domain.PriorityHigh, Status: domain.IdeaStatusOpen},
 		},
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas/"+ideaID.String()+"/promote", nil)
 	r = addChiURLParam(r, "ideaID", ideaID.String())
@@ -589,21 +613,29 @@ func TestIdeasHandler_Promote_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Promote(w, r)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
-	var resp map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&resp)
-	if resp["idea_id"] != ideaID.String() {
-		t.Errorf("expected idea_id %s, got %v", ideaID.String(), resp["idea_id"])
+	var article domain.GeneratedContent
+	if err := json.NewDecoder(w.Body).Decode(&article); err != nil {
+		t.Fatalf("expected valid article JSON, got error: %v", err)
 	}
-	if resp["title"] != "Promotable Idea" {
-		t.Errorf("expected title 'Promotable Idea', got %v", resp["title"])
+	if article.ID == uuid.Nil {
+		t.Error("expected non-nil article ID")
+	}
+	if article.Type != domain.ContentTypeArticle {
+		t.Errorf("expected type article, got %s", article.Type)
+	}
+	if article.Product != domain.ProductCompose {
+		t.Errorf("expected product compose, got %s", article.Product)
+	}
+	if article.Status != domain.ContentBuilding {
+		t.Errorf("expected status building, got %s", article.Status)
 	}
 }
 
 func TestIdeasHandler_Promote_InvalidID(t *testing.T) {
-	h := NewIdeasHandler(&mockIdeaRepo{})
+	h := newIdeasHandler(&mockIdeaRepo{})
 
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas/bad-id/promote", nil)
 	r = addChiURLParam(r, "ideaID", "bad-id")
@@ -617,7 +649,7 @@ func TestIdeasHandler_Promote_InvalidID(t *testing.T) {
 
 func TestIdeasHandler_Promote_NotFound(t *testing.T) {
 	repo := &mockIdeaRepo{}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas/"+uuid.New().String()+"/promote", nil)
 	r = addChiURLParam(r, "ideaID", uuid.New().String())
@@ -633,7 +665,7 @@ func TestIdeasHandler_Promote_NotFound(t *testing.T) {
 
 func TestIdeasHandler_List_RepoError(t *testing.T) {
 	repo := &mockIdeaRepo{listErr: errors.New("repo error")}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	r := httptest.NewRequest(http.MethodGet, "/api/ideas", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uuid.New()))
@@ -655,7 +687,7 @@ func TestIdeasHandler_List_RepoError(t *testing.T) {
 func TestIdeasHandler_Create_RepoError(t *testing.T) {
 	uid := uuid.New()
 	repo := &mockIdeaRepo{createErr: errors.New("db error")}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"title":"New Idea"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/ideas", strings.NewReader(body))
@@ -679,7 +711,7 @@ func TestIdeasHandler_Update_RepoError(t *testing.T) {
 		},
 		updateErr: errors.New("update error"),
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"title":"Updated"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/ideas/"+ideaID.String(), strings.NewReader(body))
@@ -706,7 +738,7 @@ func TestIdeasHandler_Update_AllFields(t *testing.T) {
 			{ID: ideaID, UserID: uid, Title: "Old Title", Priority: domain.PriorityLow, Status: domain.IdeaStatusOpen},
 		},
 	}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"title":"New Title","context":"ctx","notes":"my notes","references":"refs","priority":"high","status":"in_progress"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/ideas/"+ideaID.String(), strings.NewReader(body))
@@ -746,7 +778,7 @@ func TestIdeasHandler_AddTag_RepoError(t *testing.T) {
 	uid := uuid.New()
 	// Empty repo — AddTag returns ErrNotFound for non-existent idea
 	repo := &mockIdeaRepo{}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	body := `{"label":"test"}`
 	ideaID := uuid.New()
@@ -771,7 +803,7 @@ func TestIdeasHandler_AddTag_RepoError(t *testing.T) {
 func TestIdeasHandler_RemoveTag_RepoError(t *testing.T) {
 	uid := uuid.New()
 	repo := &mockIdeaRepo{}
-	h := NewIdeasHandler(repo)
+	h := newIdeasHandler(repo)
 
 	ideaID := uuid.New()
 	r := httptest.NewRequest(http.MethodDelete, "/api/ideas/"+ideaID.String()+"/tags/mytag", nil)

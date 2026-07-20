@@ -1170,3 +1170,69 @@ func TestContentHandler_LinkSource_NotOwned(t *testing.T) {
 		t.Errorf("expected 403, got %d", w.Code)
 	}
 }
+
+// --- Create tests ---
+
+func TestContentHandler_Create_ReturnsDefaults(t *testing.T) {
+	uid := uuid.New()
+	content := &mockContentRepo{}
+	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+
+	r := httptest.NewRequest(http.MethodPost, "/api/content", nil)
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.Create(w, r)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var article domain.GeneratedContent
+	if err := json.NewDecoder(w.Body).Decode(&article); err != nil {
+		t.Fatalf("expected valid article JSON, got: %v", err)
+	}
+	if article.UserID != uid {
+		t.Errorf("expected user_id %s, got %s", uid, article.UserID)
+	}
+	if article.Type != domain.ContentTypeArticle {
+		t.Errorf("expected type article, got %s", article.Type)
+	}
+	if article.Product != domain.ProductCompose {
+		t.Errorf("expected product compose, got %s", article.Product)
+	}
+	if article.Status != domain.ContentBuilding {
+		t.Errorf("expected status building, got %s", article.Status)
+	}
+	if article.Origin != domain.OriginManual {
+		t.Errorf("expected origin manual, got %s", article.Origin)
+	}
+}
+
+// --- GetByID tests ---
+
+func TestContentHandler_GetByID_Success(t *testing.T) {
+	uid := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: uid, Product: domain.ProductCompose, Type: domain.ContentTypeArticle, Status: domain.ContentBuilding},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+
+	r := httptest.NewRequest(http.MethodGet, "/api/content/"+cid.String(), nil)
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.GetByID(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var article domain.GeneratedContent
+	if err := json.NewDecoder(w.Body).Decode(&article); err != nil {
+		t.Fatalf("expected valid content JSON, got: %v", err)
+	}
+	if article.ID != cid {
+		t.Errorf("expected id %s, got %s", cid, article.ID)
+	}
+}

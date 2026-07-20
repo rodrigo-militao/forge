@@ -192,11 +192,52 @@ export function ComposePage() {
             <button onClick={handleSave} disabled={saving} className="rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50 cursor-pointer">
               {saving ? t("editor.saving") : t("editor.save")}
             </button>
-            <select value={selectedItem.status} onChange={(e) => handleStatusChange(e.target.value)} className="rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-3 py-2 text-sm text-[var(--color-bg-surface)] outline-none cursor-pointer">
-              <option value="draft">{t("editor.draft")}</option>
-              <option value="published">{t("editor.published")}</option>
-              <option value="discarded">{t("editor.discarded")}</option>
-            </select>
+            {(() => {
+              const st = selectedItem.status;
+              if (st === "building") {
+                return (
+                  <button
+                    onClick={() => api.content.transition(selectedItem.id, "review")}
+                    className="rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 cursor-pointer"
+                  >
+                    Enviar para revisão
+                  </button>
+                );
+              }
+              if (st === "review") {
+                return (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => api.content.transition(selectedItem.id, "building")}
+                      className="rounded-lg border border-[var(--color-border)]/10 bg-white/5 px-4 py-2 text-sm font-medium text-[var(--color-bg-surface)] transition-colors hover:opacity-90 cursor-pointer"
+                    >
+                      Voltar para edição
+                    </button>
+                    <button
+                      onClick={() => api.content.transition(selectedItem.id, "ready")}
+                      className="rounded-lg bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 cursor-pointer"
+                    >
+                      Marcar como pronto
+                    </button>
+                  </div>
+                );
+              }
+              if (st === "ready") {
+                return (
+                  <span className="inline-flex items-center rounded bg-[var(--color-accent-success)]/20 px-3 py-1 text-sm font-medium text-[var(--color-accent-success)]">
+                    Pronto para publicar
+                  </span>
+                );
+              }
+              if (st === "published") {
+                return (
+                  <span className="inline-flex items-center rounded bg-[var(--color-accent-primary)]/20 px-3 py-1 text-sm font-medium text-[var(--color-accent-primary)]">
+                    Publicado
+                  </span>
+                );
+              }
+              return null;
+            })()}
           </div>
           <TagInput
             tags={selectedItem.tags}

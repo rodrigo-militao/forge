@@ -495,3 +495,41 @@ func TestContentHandler_UpdateOutline_RepoError(t *testing.T) {
 		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestGetByID_NotFound(t *testing.T) {
+	uid := uuid.New()
+	content := &mockContentRepo{}
+	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+
+	r := httptest.NewRequest(http.MethodGet, "/api/content/"+uuid.New().String(), nil)
+	r = addChiURLParam(r, "id", uuid.New().String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.GetByID(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetByID_NotOwned(t *testing.T) {
+	uid := uuid.New()
+	otherID := uuid.New()
+	cid := uuid.New()
+	content := &mockContentRepo{
+		items: []domain.GeneratedContent{
+			{ID: cid, UserID: otherID, Product: domain.ProductCompose},
+		},
+	}
+	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+
+	r := httptest.NewRequest(http.MethodGet, "/api/content/"+cid.String(), nil)
+	r = addChiURLParam(r, "id", cid.String())
+	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
+	w := httptest.NewRecorder()
+	h.GetByID(w, r)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+}

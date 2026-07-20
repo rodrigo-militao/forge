@@ -623,3 +623,28 @@ func TestTransitionStatus_PublishedSetsPublishedAt(t *testing.T) {
 		t.Fatalf("ready → published should be allowed, got: %v", err)
 	}
 }
+
+// --- tests: CreateBlankArticle ---
+
+func TestCreateBlankArticle_Defaults(t *testing.T) {
+	svc := NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
+	article, err := svc.CreateBlankArticle(context.Background(), testUserID)
+	if err != nil {
+		t.Fatalf("CreateBlankArticle failed: %v", err)
+	}
+	if article.UserID != testUserID {
+		t.Errorf("expected user_id %s, got %s", testUserID, article.UserID)
+	}
+	if article.Type != domain.ContentTypeArticle {
+		t.Errorf("expected type article, got %s", article.Type)
+	}
+	if article.Product != domain.ProductCompose {
+		t.Errorf("expected product compose, got %s", article.Product)
+	}
+	if article.Status != domain.ContentBuilding {
+		t.Errorf("expected status building, got %s", article.Status)
+	}
+	if article.Origin != domain.OriginManual {
+		t.Errorf("expected origin manual, got %s", article.Origin)
+	}
+}

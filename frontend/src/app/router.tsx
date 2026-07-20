@@ -14,6 +14,8 @@ import { LibraryPage } from "../features/library/page";
 import { SettingsPage } from "../features/settings/page";
 import { NewslettersPage } from "../features/newsletters/page";
 import { EditorialWorkspace } from "../features/newsletters/editorial-workspace";
+import { ArticleEditorPage } from "../features/articles/ArticleEditorPage";
+import { ReferencesPage } from "../features/references/ReferencesPage";
 import { IdeasPage } from "../features/ideas/page";
 import { HomePage } from "../features/home/page";
 import { useAuth } from "../features/auth/store";
@@ -80,6 +82,18 @@ const articlesRoute = createRoute({
   component: ComposePage,
 });
 
+const articleNewRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/content/articles/new",
+  component: ArticleEditorPage,
+});
+
+const articleEditRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/content/articles/$id/edit",
+  component: ArticleEditorPage,
+});
+
 const contentNewslettersRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "/content/newsletters",
@@ -90,6 +104,12 @@ const newsletterEditRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "/content/newsletters/$id/edit",
   component: EditorialWorkspace,
+});
+
+const referencesRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/references",
+  component: ReferencesPage,
 });
 
 const ideasRoute = createRoute({
@@ -136,8 +156,11 @@ const routeTree = rootRoute.addChildren([
     discoverRoute,
     digestLegacyRoute,
     articlesRoute,
+    articleNewRoute,
+    articleEditRoute,
     contentNewslettersRoute,
     newsletterEditRoute,
+    referencesRoute,
     ideasRoute,
     newslettersLegacyRoute,
     composeLegacyRoute,

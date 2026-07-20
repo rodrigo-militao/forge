@@ -9,6 +9,18 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
+type AiAnalysis struct {
+	ID           pgtype.UUID
+	UserID       pgtype.UUID
+	ContentID    pgtype.UUID
+	Summary      string
+	Strengths    []byte
+	Improvements []byte
+	Score        int32
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
 type ArticleCategory struct {
 	CategoryID pgtype.UUID
 	ArticleID  pgtype.UUID
@@ -19,6 +31,12 @@ type Category struct {
 	UserID    pgtype.UUID
 	Label     string
 	CreatedAt pgtype.Timestamptz
+}
+
+type ContentReference struct {
+	ContentID   pgtype.UUID
+	ReferenceID pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
 }
 
 type ContentTag struct {
@@ -80,6 +98,12 @@ type IdeaArticle struct {
 	ContentID pgtype.UUID
 }
 
+type IdeaReference struct {
+	IdeaID      pgtype.UUID
+	ReferenceID pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+}
+
 type IdeaTag struct {
 	TagID  pgtype.UUID
 	IdeaID pgtype.UUID
@@ -117,6 +141,18 @@ type NewsletterEdition struct {
 type NewsletterEditionTag struct {
 	EditionID pgtype.UUID
 	TagID     pgtype.UUID
+}
+
+type Reference struct {
+	ID            pgtype.UUID
+	UserID        pgtype.UUID
+	Url           string
+	Title         *string
+	Description   *string
+	SourceName    *string
+	ReferenceType domain.ReferenceType
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
 }
 
 type Source struct {

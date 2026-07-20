@@ -15,18 +15,22 @@ import (
 // RouterConfig wires the HTTP router. Passed as a struct to avoid
 // the 10-positional-parameter trap.
 type RouterConfig struct {
-	Users      ports.UserRepository
-	Usages     ports.UsageCounterRepository
-	Content    ports.ContentDigestReader
-	Jobs       ports.JobRepository
-	Interests  digest.DigestInterestRepository
-	Sources    digest.SourceRepository
-	Editions   digest.EditionRepository
-	Hub        ports.EventBus
-	Plans      *application.Plans
-	ContentSvc *application.ContentService
-	Ideas      ports.IdeaRepository
-	SourceTrack application.SourceLinker
+	Users        ports.UserRepository
+	Usages       ports.UsageCounterRepository
+	Content      ports.ContentDigestReader
+	ContentReader ports.ContentReader
+	ContentWriter ports.ContentWriter
+	Jobs         ports.JobRepository
+	Interests    digest.DigestInterestRepository
+	Sources      digest.SourceRepository
+	Editions     digest.EditionRepository
+	Hub          ports.EventBus
+	Plans        *application.Plans
+	ContentSvc   *application.ContentService
+	Ideas        ports.IdeaRepository
+	SourceTrack  application.SourceLinker
+	References   ports.ReferenceRepository
+	AISvc        *application.AIService
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {
@@ -48,7 +52,11 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	digestH := NewDigestHandler(cfg.Content, cfg.Editions, cfg.Jobs)
 	interestsH := NewInterestsHandler(cfg.Interests, cfg.Plans)
 	sourcesH := NewSourcesHandler(cfg.Sources, cfg.Plans)
-	ideasH := NewIdeasHandler(cfg.Ideas)
+	ideasSvc := application.NewIdeasService(cfg.Ideas, cfg.ContentWriter)
+	ideasH := NewIdeasHandler(cfg.Ideas, ideasSvc)
+	refSvc := application.NewReferenceService(cfg.References, cfg.Ideas, cfg.ContentReader)
+	refH := NewReferenceHandler(refSvc)
+	aiH := NewAIHandler(cfg.AISvc)
 
 	r.Route("/api/auth", func(r chi.Router) {
 		r.Post("/register", authH.Register)
@@ -63,7 +71,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Put("/api/auth/restrict-search", authH.UpdateRestrictSearch)
 		r.Put("/api/auth/theme", authH.UpdateThemePreference)
 
+		r.Post("/api/content", contentH.Create)
 		r.Get("/api/content", contentH.List)
+		r.Get("/api/content/{id}", contentH.GetByID)
 		r.Put("/api/content/{id}", contentH.Save)
 		r.Delete("/api/content/{id}", contentH.Delete)
 		r.Put("/api/content/{id}/categories", contentH.UpdateCategories)
@@ -144,6 +154,26 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 		homeH := NewHomeHandler(cfg.ContentSvc, cfg.Editions, cfg.Ideas)
 		r.Get("/api/home/insights", homeH.Insights)
+
+		r.Route("/api/references", func(r chi.Router) {
+			r.Post("/", refH.Create)
+			r.Get("/", refH.List)
+			r.Get("/{id}", refH.GetByID)
+			r.Put("/{id}", refH.Update)
+			r.Delete("/{id}", refH.Delete)
+		})
+
+		r.Post("/api/ideas/{ideaID}/references/{referenceId}", refH.AttachToIdea)
+		r.Get("/api/ideas/{ideaID}/references", refH.ListIdeaReferences)
+		r.Delete("/api/ideas/{ideaID}/references/{referenceId}", refH.DetachFromIdea)
+
+		r.Post("/api/content/{id}/references/{referenceId}", refH.AttachToContent)
+		r.Get("/api/content/{id}/references", refH.ListContentReferences)
+		r.Delete("/api/content/{id}/references/{referenceId}", refH.DetachFromContent)
+
+		r.Post("/api/content/{id}/ai/analyze", aiH.Analyze)
+		r.Get("/api/content/{id}/ai/analysis", aiH.GetAnalysis)
+		r.Post("/api/content/{id}/ai/improve", aiH.ImproveText)
 
 		r.Get("/api/events", NewEventsHandler(cfg.Hub))
 	})

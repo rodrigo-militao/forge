@@ -102,3 +102,34 @@ export interface DigestJob {
   created_at: string;
   updated_at: string;
 }
+
+export type ReferenceType = "article" | "video" | "podcast" | "social_post" | "document" | "website" | "other";
+
+export interface Reference {
+  id: string;
+  user_id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  source_name: string | null;
+  reference_type: ReferenceType;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AIAnalysisResult {
+  id: string;
+  user_id: string;
+  content_id: string;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  score: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AITextSuggestion {
+  original: string;
+  suggestion: string;
+}

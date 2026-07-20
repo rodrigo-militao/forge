@@ -7,6 +7,7 @@ interface ContentEditorProps {
   onSubtitleChange?: (subtitle: string) => void;
   body: string;
   onBodyChange: (html: string) => void;
+  onSelectionChange?: (text: string, from: number, to: number) => void;
   editorKey?: string;
   titlePlaceholder?: string;
   subtitlePlaceholder?: string;
@@ -21,6 +22,7 @@ export function ContentEditor({
   onSubtitleChange,
   body,
   onBodyChange,
+  onSelectionChange,
   editorKey,
   titlePlaceholder = "Title",
   subtitlePlaceholder = "Subtitle",
@@ -33,6 +35,7 @@ export function ContentEditor({
         key={editorKey}
         content={body}
         onUpdate={onBodyChange}
+        onSelectionChange={onSelectionChange}
         className="flex min-h-0 flex-1 flex-col"
         toolbarRight={toolbarRight}
       >

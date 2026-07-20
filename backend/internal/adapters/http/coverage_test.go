@@ -17,7 +17,7 @@ func TestNewContentHandler(t *testing.T) {
 }
 
 func TestIdeasHandler_Routes(t *testing.T) {
-	h := NewIdeasHandler(nil)
+	h := NewIdeasHandler(nil, nil)
 	r := h.Routes()
 	if r == nil {
 		t.Error("expected non-nil router")

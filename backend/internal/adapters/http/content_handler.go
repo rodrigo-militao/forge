@@ -45,6 +45,34 @@ func NewContentHandler(svc *application.ContentService, source application.Sourc
 	return &ContentHandler{svc: svc, source: source}
 }
 
+// Create creates a new blank Article in BUILDING status.
+func (h *ContentHandler) Create(w http.ResponseWriter, r *http.Request) {
+	userID, _ := UserIDFromContext(r.Context())
+	article, err := h.svc.CreateBlankArticle(r.Context(), userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create article")
+		return
+	}
+	writeJSON(w, http.StatusCreated, article)
+}
+
+// GetByID returns a single content item by ID, enforcing ownership.
+func (h *ContentHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid content id")
+		return
+	}
+	userID, _ := UserIDFromContext(r.Context())
+	content, err := h.svc.GetOwnedContent(r.Context(), id, userID)
+	if err != nil {
+		contentOpError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, content)
+}
+
 func (h *ContentHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID, _ := UserIDFromContext(r.Context())
 	items, err := h.svc.ListByUser(r.Context(), userID)

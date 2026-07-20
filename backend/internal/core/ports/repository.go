@@ -92,3 +92,26 @@ type UserRepository interface {
 	UpdateRestrictSearch(ctx context.Context, userID uuid.UUID, restrict bool) error
 	UpdateThemePreference(ctx context.Context, userID uuid.UUID, theme domain.ThemePreference) error
 }
+
+// ReferenceRepository persists editorial References (Sprint 3).
+type ReferenceRepository interface {
+	Create(ctx context.Context, ref *domain.Reference) error
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Reference, error)
+	ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.Reference, error)
+	Update(ctx context.Context, ref *domain.Reference) error
+	Delete(ctx context.Context, id uuid.UUID) error
+
+	AttachToIdea(ctx context.Context, ideaID, referenceID uuid.UUID) error
+	DetachFromIdea(ctx context.Context, ideaID, referenceID uuid.UUID) error
+	ListByIdea(ctx context.Context, ideaID uuid.UUID) ([]domain.Reference, error)
+
+	AttachToContent(ctx context.Context, contentID, referenceID uuid.UUID) error
+	DetachFromContent(ctx context.Context, contentID, referenceID uuid.UUID) error
+	ListByContent(ctx context.Context, contentID uuid.UUID) ([]domain.Reference, error)
+}
+
+// AIAnalysisRepository persists and retrieves AI analysis results.
+type AIAnalysisRepository interface {
+	Create(ctx context.Context, analysis *domain.AIAnalysis) error
+	GetLatestByContentID(ctx context.Context, contentID, userID uuid.UUID) (*domain.AIAnalysis, error)
+}
