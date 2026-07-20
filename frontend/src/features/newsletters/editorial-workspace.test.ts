@@ -218,20 +218,24 @@ test("parseHeadings: strips inner tags from heading text", () => {
 // Status transitions
 // ---------------------------------------------------------------------------
 
-test("Building → Ready transition is valid", () => {
+test("Building → Review → Ready lifecycle", () => {
   const edition = makeEdition({
     status: "building",
     article_count: 3,
     body_html: "<p>Content</p>",
   });
-  // Building can transition to ready when it has articles and body
+  // Building transitions to review (Sprint 1 lifecycle)
   assert.strictEqual(edition.status, "building");
   assert.ok(edition.article_count > 0);
   assert.ok(edition.body_html.length > 0);
 
-  // After transition
-  const updated = { ...edition, status: "ready" as const };
-  assert.strictEqual(updated.status, "ready");
+  // Step 1: building → review
+  const reviewed = { ...edition, status: "review" as const };
+  assert.strictEqual(reviewed.status, "review");
+
+  // Step 2: review → ready
+  const ready = { ...reviewed, status: "ready" as const };
+  assert.strictEqual(ready.status, "ready");
 });
 
 test("Ready → Published transition is valid", () => {

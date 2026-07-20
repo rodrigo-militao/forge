@@ -62,7 +62,7 @@ export function DetailPanelCta({
       if (allChecksPass && !generating) {
         return (
           <button
-            onClick={() => onStatusChange("ready")}
+            onClick={() => onStatusChange("review")}
             className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--color-accent-success)] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[var(--color-accent-success)]/20 transition-all hover:bg-[var(--color-accent-success)]/90 hover:shadow-lg hover:shadow-[var(--color-accent-success)]/25 active:scale-[0.97]"
           >
             <ClipboardList size={16} />

@@ -101,7 +101,7 @@ export function WorkspaceHeader({
       <div className="flex shrink-0 items-center gap-1.5">
         {needsReview && (
           <button
-            onClick={() => onStatusChange("ready")}
+            onClick={() => onStatusChange("review")}
             className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-primary)]/15 px-3 py-1.5 text-xs font-medium text-[var(--color-accent-primary)] transition-all hover:scale-[1.02] hover:bg-[var(--color-accent-primary)]/25 active:scale-[0.97]"
           >
             <Send size={13} />
