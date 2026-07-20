@@ -3,7 +3,15 @@
 // and enable type-safe cache invalidation.
 export const queryKeys = {
   ideas: { all: ["ideas"] as const },
-  content: { all: ["content"] as const },
+  content: { all: ["content"] as const, byId: (id: string) => ["content", id] as const },
+  references: {
+    all: ["references"] as const,
+    byIdea: (id: string) => ["references", "idea", id] as const,
+    byContent: (id: string) => ["references", "content", id] as const,
+  },
+  ai: {
+    analysis: (id: string) => ["ai", "analysis", id] as const,
+  },
   tags: { all: ["tags"] as const },
   digestInterests: { all: ["digest-interests"] as const },
   digestSources: { all: ["digest-sources"] as const },
