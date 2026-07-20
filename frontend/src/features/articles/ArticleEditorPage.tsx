@@ -336,7 +336,7 @@ export function ArticleEditorPage() {
   }
 
   // --- Editor ---
-  return (
+  return (<>
     <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-2 border-b border-[var(--tt-border-color-tint)] shrink-0">
@@ -622,5 +622,6 @@ export function ArticleEditorPage() {
         </div>
       </div>
       )}
+</>
   );
 }
