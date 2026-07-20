@@ -336,7 +336,7 @@ export function ArticleEditorPage() {
   }
 
   // --- Editor ---
-  return (<>
+  return (
     <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-2 border-b border-[var(--tt-border-color-tint)] shrink-0">
@@ -547,7 +547,7 @@ export function ArticleEditorPage() {
           {lifecycleActions}
         </div>
       </div>
-    </div>      {/* AI Suggestion comparison modal */}
+      {/* AI Suggestion comparison modal */}
       {suggestion && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 pt-8 pb-8">
           <div className="mx-4 w-full max-w-2xl rounded-lg border border-[var(--tt-border-color-tint)] bg-[var(--color-bg-base)] shadow-lg">
@@ -622,6 +622,5 @@ export function ArticleEditorPage() {
         </div>
       </div>
       )}
-</>
-  );
+    </div>  );
 }
