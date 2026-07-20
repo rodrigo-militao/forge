@@ -184,18 +184,17 @@ export function ArticleEditorPage() {
   }, [article, selection, improveInstruction, editBody]);
 
   const handleApplySuggestion = useCallback(async () => {
-    if (!selection || !suggestion) return;
-    const currentText = editBody.slice(selection.from, selection.to);
-    if (currentText !== suggestion.original) {
+    if (!suggestion) return;
+    const idx = editBody.indexOf(suggestion.original);
+    if (idx === -1) {
       setContentChanged(true);
       return;
     }
-    setEditBody((prev) => prev.slice(0, selection.from) + suggestion.suggestion + prev.slice(selection.to));
+    setEditBody((prev) => prev.slice(0, idx) + suggestion.suggestion + prev.slice(idx + suggestion.original.length));
     setSuggestion(null);
     setSelection(null);
     setImproveInstruction("Improve clarity");
-  }, [selection, suggestion, editBody]);
-
+  }, [suggestion, editBody]);
   const handleRejectSuggestion = useCallback(() => {
     setSuggestion(null);
     setSelection(null);
