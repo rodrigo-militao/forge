@@ -457,6 +457,7 @@
     "apply_suggestion": "Apply",
     "reject_suggestion": "Reject",
     "content_changed": "Content changed while the suggestion was being generated.",
+    "why_label": "Why this suggestion?",
     "analysis_unavailable": "Analysis unavailable",
     "last_analyzed": "Last analyzed: {{time}}",
     "article_changed_since_analysis": "Article changed since last analysis.",
