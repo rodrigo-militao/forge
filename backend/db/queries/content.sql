@@ -149,10 +149,6 @@ JOIN categories c ON c.id = ac.category_id
 WHERE ac.article_id = $1
 ORDER BY c.label;
 
--- name: ListAllCategoriesByUser :many
-SELECT DISTINCT label FROM categories
-WHERE user_id = $1
-ORDER BY label;
 
 -- name: ListUserCategories :many
 SELECT label FROM categories

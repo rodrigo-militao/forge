@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { api } from "../../../api/client";
 import { useAuth } from "../../auth/store";
+import { applyTheme } from "../../../lib/theme";
 
 export function PreferencesSection() {
   const { t, i18n } = useTranslation();
@@ -43,9 +44,7 @@ export function PreferencesSection() {
                 key={theme}
                 onClick={async () => {
                   await api.auth.updateTheme(theme);
-                  if (typeof document !== "undefined") {
-                    document.documentElement.dataset.theme = theme;
-                  }
+                  applyTheme(theme);
                   const updated = await api.auth.me();
                   useAuth.setState({ user: updated });
                   toast.success(t("settings.themeUpdated"));

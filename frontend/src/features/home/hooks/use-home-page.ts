@@ -1,11 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { api, type ContentItem, type NewsletterEdition, type Idea, type DigestSource } from "../../../api/client";
 import { queryKeys } from "../../../lib/queryKeys";
-import { useAuth } from "../../../features/auth/store";
+import { useHomeQueries } from "./use-home-queries";
 
 export type NextAction = "continue_writing" | "review_draft" | "add_references" | "review" | "publish";
 
@@ -15,11 +15,8 @@ export interface HomeItem {
   type: "article" | "newsletter";
   status: string;
   updatedAt: string;
-  /** Only for newsletters: the edition id to navigate to */
   editionId?: string;
-  /** Body markdown for article items (used to derive nextAction) */
   body?: string;
-  /** Suggested next action for this item */
   nextAction: NextAction;
 }
 
@@ -27,9 +24,7 @@ export interface HomeInsight {
   id: string;
   text: string;
   actionLabel: string;
-  /** Route to navigate to, or null if action is not a link */
   to: string;
-  /** Icon type for the insight */
   icon: "lightbulb" | "fileText" | "mail" | "zap";
 }
 
@@ -37,54 +32,24 @@ export function useHomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const user = useAuth((s) => s.user);
+  const q = useHomeQueries();
 
-  /* ───── Data fetching ───── */
-
-  const contentQuery = useQuery({
-    queryKey: queryKeys.content.all,
-    queryFn: api.content.list,
-  });
-
-  const ideasQuery = useQuery({
-    queryKey: queryKeys.ideas.all,
-    queryFn: api.ideas.list,
-  });
-
-  const newslettersQuery = useQuery({
-    queryKey: queryKeys.editions.all,
-    queryFn: api.newsletters.list,
-  });
-
-  const sourcesQuery = useQuery({
-    queryKey: queryKeys.digestSources.all,
-    queryFn: api.digest.sources.list,
-  });
-
-  const insightsQuery = useQuery({
-    queryKey: queryKeys.home.insights,
-    queryFn: api.home.insights,
-    staleTime: 5 * 60 * 1000, // 5 min — insights don't change every second
-  });
-
-  /* ───── Derived data ───── */
-
-  const isLoading = contentQuery.isLoading || ideasQuery.isLoading || newslettersQuery.isLoading;
-  const isError = contentQuery.isError || ideasQuery.isError || newslettersQuery.isError;
+  /* ───── Greeting ───── */
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    const name = user?.name ?? "";
+    const name = q.user?.name ?? "";
     if (hour < 12) return t("home.greetingMorning", { name });
     if (hour < 18) return t("home.greetingAfternoon", { name });
     return t("home.greetingEvening", { name });
-  }, [user, t]);
+  }, [q.user, t]);
 
-  /** Ongoing work: draft articles + building/ready newsletters, sorted by updated_at */
+  /* ───── Derived data ───── */
+
   const continueWriting = useMemo((): HomeItem[] => {
     const items: HomeItem[] = [];
 
-    const content = contentQuery.data ?? [];
+    const content = q.content;
     for (const c of content) {
       if (c.status !== "building" && c.status !== "draft") continue;
       if (c.product !== "compose" && c.product !== "newsletter") continue;
@@ -100,7 +65,7 @@ export function useHomePage() {
       });
     }
 
-    const newsletters = newslettersQuery.data ?? [];
+    const newsletters = q.newsletters;
     for (const n of newsletters) {
       if (n.status !== "building" && n.status !== "ready") continue;
       items.push({
@@ -116,56 +81,48 @@ export function useHomePage() {
 
     items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return items.slice(0, 6);
-  }, [contentQuery.data, newslettersQuery.data]);
+  }, [q.content, q.newsletters]);
 
-  /** Open ideas, sorted by updated_at */
   const recentIdeas = useMemo((): Idea[] => {
-    const ideas = ideasQuery.data ?? [];
-    return ideas
+    return q.ideas
       .filter((i) => i.status === "open")
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, 5);
-  }, [ideasQuery.data]);
+  }, [q.ideas]);
 
-  /** Recent sources, sorted by latest */
-  const recentSources = useMemo((): DigestSource[] => {
-    return (sourcesQuery.data ?? []).slice(0, 5);
-  }, [sourcesQuery.data]);
+  const recentSources = useMemo((): DigestSource[] => (q.sources ?? []).slice(0, 5), [q.sources]);
 
-  /** Last published item */
   const lastPublished = useMemo((): ContentItem | NewsletterEdition | null => {
-    const content = contentQuery.data ?? [];
-    const published = content.filter((c) => c.status === "published");
+    const published = q.content.filter((c) => c.status === "published");
     if (published.length > 0) {
       return published.sort(
         (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
       )[0];
     }
-    const newsletters = newslettersQuery.data ?? [];
-    const pubNl = newsletters.filter((n) => n.status === "published");
+    const pubNl = q.newsletters.filter((n) => n.status === "published");
     if (pubNl.length > 0) {
       return pubNl.sort(
         (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
       )[0];
     }
     return null;
-  }, [contentQuery.data, newslettersQuery.data]);
+  }, [q.content, q.newsletters]);
 
-  const isEmpty = !isLoading && !isError && continueWriting.length === 0 && recentIdeas.length === 0 && !lastPublished;
+  const isEmpty = !q.isLoading && !q.isError && continueWriting.length === 0 && recentIdeas.length === 0 && !lastPublished;
 
-  /** AI insights — tries API first, falls back to client-side derivation */
+  /* ───── AI insights ───── */
+
   const insights = useMemo((): HomeInsight[] => {
     const list: HomeInsight[] = [];
 
-    // API response takes precedence
-    const apiInsights = insightsQuery.data;
+    const apiInsights = q.insights;
     if (apiInsights && apiInsights.length > 0) {
       for (const dto of apiInsights) {
         let text = "";
         let actionLabel = "";
-        const ideas = ideasQuery.data ?? [];
-        const content = contentQuery.data ?? [];
-        const newsletters = newslettersQuery.data ?? [];
+        const ideas = q.ideas ?? [];
+        const content = q.content ?? [];
+        const newsletters = q.newsletters ?? [];
 
         switch (dto.id) {
           case "ideas-worth-developing": {
@@ -211,12 +168,8 @@ export function useHomePage() {
       return list;
     }
 
-    // Fallback: client-side derivation (used when API is unreachable)
-    const ideas = ideasQuery.data ?? [];
-    const content = contentQuery.data ?? [];
-    const newsletters = newslettersQuery.data ?? [];
-
-    const openIdeas = ideas.filter((i) => i.status === "open");
+    // Fallback
+    const openIdeas = q.ideas.filter((i) => i.status === "open");
     if (openIdeas.length > 0) {
       list.push({
         id: "ideas-worth-developing",
@@ -227,9 +180,9 @@ export function useHomePage() {
       });
     }
 
-    const isDraft = (s: string) => s === "building" || s === "draft";
-    const draftsNeedingReferences = content.filter(
-      (c) => isDraft(c.status) && c.body_markdown && c.body_markdown.trim().length > 50,
+    const isDraftStatus = (s: string) => s === "building" || s === "draft";
+    const draftsNeedingReferences = q.content.filter(
+      (c) => isDraftStatus(c.status) && c.body_markdown && c.body_markdown.trim().length > 50,
     );
     if (draftsNeedingReferences.length > 0) {
       list.push({
@@ -241,7 +194,7 @@ export function useHomePage() {
       });
     }
 
-    const publishedNl = newsletters
+    const publishedNl = q.newsletters
       .filter((n) => n.status === "published")
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
     if (publishedNl.length > 0) {
@@ -259,15 +212,15 @@ export function useHomePage() {
     }
 
     return list;
-  }, [ideasQuery.data, contentQuery.data, newslettersQuery.data, insightsQuery.data, t]);
+  }, [q.ideas, q.content, q.newsletters, q.insights, t]);
 
-  /** Editorial attention: high-relevance insights that are actionable */
   const editorialAttention = useMemo((): HomeInsight[] => {
     return (insights ?? []).filter((i) => {
-      // Only show genuinely actionable, high-relevance insights
       return i.id === "drafts-need-references" || i.id === "newsletter-overdue" || i.id === "ideas-worth-developing";
     });
   }, [insights]);
+
+  /* ───── Actions ───── */
 
   const handleContinueWriting = useCallback(
     (item: HomeItem) => {
@@ -311,29 +264,23 @@ export function useHomePage() {
     [queryClient, t],
   );
 
-  const handleRetry = useCallback(() => {
-    contentQuery.refetch();
-    ideasQuery.refetch();
-    newslettersQuery.refetch();
-  }, [contentQuery, ideasQuery, newslettersQuery]);
-
   return {
     greeting,
-    user,
+    user: q.user,
     continueWriting,
     recentIdeas,
     lastPublished,
     recentSources,
     insights,
     editorialAttention,
-    isLoading,
-    isError,
+    isLoading: q.isLoading,
+    isError: q.isError,
     isEmpty,
     handleContinueWriting,
     handleCreateArticle,
     handleCreateNewsletter,
     handleCreateIdea,
     handleCaptureIdea,
-    handleRetry,
+    handleRetry: q.refetchAll,
   };
 }

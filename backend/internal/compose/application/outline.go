@@ -13,12 +13,12 @@ import (
 // OutlineGeneratorService generates article outlines via LLM.
 type OutlineGeneratorService struct {
 	llm     ports.LLMClient
-	content ports.ContentWriter
+	content contentCreator
 	userID  uuid.UUID
 }
 
 // NewOutlineGeneratorService creates an outline generator service.
-func NewOutlineGeneratorService(llm ports.LLMClient, content ports.ContentWriter, userID uuid.UUID) *OutlineGeneratorService {
+func NewOutlineGeneratorService(llm ports.LLMClient, content contentCreator, userID uuid.UUID) *OutlineGeneratorService {
 	return &OutlineGeneratorService{
 		llm:     llm,
 		content: content,
@@ -61,7 +61,7 @@ func (s *OutlineGeneratorService) Generate(ctx context.Context, params OutlinePa
 		ID:          contentID,
 		UserID:      s.userID,
 		Product:     coredomain.ProductCompose,
-		Status:      coredomain.ContentDraft,
+		Status:      coredomain.ContentBuilding,
 		SourceType:  lib.StrPtr("topic"),
 		Title:       &title,
 		Outline:     &outline,

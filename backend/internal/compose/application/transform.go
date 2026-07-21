@@ -19,12 +19,12 @@ type TransformOptions struct {
 // TransformService transforms text via LLM (expand, rewrite, etc.).
 type TransformService struct {
 	llm     ports.LLMClient
-	content ports.ContentWriter
+	content contentCreator
 	userID  uuid.UUID
 }
 
 // NewTransformService creates a transform service.
-func NewTransformService(llm ports.LLMClient, content ports.ContentWriter, userID uuid.UUID) *TransformService {
+func NewTransformService(llm ports.LLMClient, content contentCreator, userID uuid.UUID) *TransformService {
 	return &TransformService{llm: llm, content: content, userID: userID}
 }
 
@@ -54,7 +54,7 @@ func (s *TransformService) Run(ctx context.Context, opts TransformOptions) error
 	if err := s.content.Create(ctx, &coredomain.GeneratedContent{
 		UserID:       s.userID,
 		Product:      coredomain.ProductCompose,
-		Status:       coredomain.ContentDraft,
+		Status:       coredomain.ContentBuilding,
 		SourceType:   lib.StrPtr(opts.Action),
 		Title:        &title,
 		BodyMarkdown: &resp.Content,

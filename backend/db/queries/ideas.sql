@@ -60,9 +60,3 @@ INSERT INTO idea_articles (idea_id, content_id)
 VALUES ($1, $2)
 ON CONFLICT DO NOTHING;
 
--- name: ListIdeaArticles :many
-SELECT gc.id, gc.title, gc.body_markdown
-FROM idea_articles ia
-JOIN generated_content gc ON gc.id = ia.content_id
-WHERE ia.idea_id = $1
-ORDER BY gc.created_at DESC;

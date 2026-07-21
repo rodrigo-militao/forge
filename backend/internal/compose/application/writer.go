@@ -11,15 +11,19 @@ import (
 	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
+type contentCreator interface {
+	Create(ctx context.Context, content *coredomain.GeneratedContent) error
+}
+
 // WriterService generates complete articles via LLM using voice routing.
 type WriterService struct {
 	llm     ports.LLMClient
-	content ports.ContentWriter
+	content contentCreator
 	userID  uuid.UUID
 }
 
 // NewWriterService creates a writer service.
-func NewWriterService(llm ports.LLMClient, content ports.ContentWriter, userID uuid.UUID) *WriterService {
+func NewWriterService(llm ports.LLMClient, content contentCreator, userID uuid.UUID) *WriterService {
 	return &WriterService{
 		llm:     llm,
 		content: content,
@@ -76,7 +80,7 @@ func (s *WriterService) Generate(ctx context.Context, params GenerateParams) (*W
 		ID:           contentID,
 		UserID:       s.userID,
 		Product:      coredomain.ProductCompose,
-		Status:       coredomain.ContentDraft,
+		Status:       coredomain.ContentBuilding,
 		SourceType:   lib.StrPtr("topic"),
 		Title:        &title,
 		BodyMarkdown: &body,

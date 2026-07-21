@@ -1,226 +1,32 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import toast from "react-hot-toast";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
-import { api } from "../../api/client";
-import { ContentEditor } from "../../components/editor/ContentEditor";
-import { useAutosave } from "../../hooks/useAutosave";
-import { queryKeys } from "../../lib/queryKeys";
 import { useTranslation } from "react-i18next";
-import type { AIAnalysisResult, AITextSuggestion, ContentItem, Reference } from "../../api/types";
+import { ContentEditor } from "../../components/editor/ContentEditor";
 import { AttachReferenceModal, ReferenceList } from "../references/ReferencesPage";
 import { SuggestionModal } from "./SuggestionModal";
+import { useArticleEditor } from "./hooks/use-article-editor";
 
 export function ArticleEditorPage() {
-  const { id } = useParams({ strict: false });
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { t } = useTranslation();
-
-  const isNew = !id || id === "new";
-
-  // --- Load existing article ---
-  const { data: article, isLoading: articleLoading, error: articleError } = useQuery({
-    queryKey: queryKeys.content.byId(id ?? ""),
-    queryFn: () => api.content.get(id!),
-    enabled: !isNew && !!id,
-  });
-
-  // --- Create article on /new ---
-  const [creating, setCreating] = useState(isNew);
-  useEffect(() => {
-    if (!isNew) return;
-    let cancelled = false;
-    api.content.create().then((created) => {
-      if (cancelled) return;
-      setCreating(false);
-      navigate({ to: `/content/articles/${created.id}/edit`, replace: true });
-    }).catch(() => {
-      if (cancelled) return;
-      setCreating(false);
-    });
-    return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // --- Edit state ---
-  const [contentLoaded, setContentLoaded] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editBody, setEditBody] = useState("");
-
-  const [contentVersion, setContentVersion] = useState(0);  useEffect(() => {
-    if (article) {
-      setEditTitle(article.title ?? "");
-      setEditBody(article.body_markdown ?? "");
-      setContentLoaded(true);
-    }
-  }, [article]);
-
-  // --- Autosave ---
-  const handleSave = useCallback(async () => {
-    if (!article) return;
-    await api.content.save(article.id, {
-      title: editTitle || undefined,
-      body_markdown: editBody || undefined,
-    });
-    queryClient.invalidateQueries({ queryKey: queryKeys.content.byId(article.id) });
-  }, [article, editTitle, editBody, queryClient]);
-
-  const { isSynced, isSaving, error: saveError } = useAutosave({
-    save: handleSave,
-    deps: [editBody, editTitle],
-    delay: 1500,
-  });
-
-  // --- Lifecycle transitions ---
-  const [transitioning, setTransitioning] = useState<string | null>(null);
-  const doTransition = useCallback(async (to: string) => {
-    if (!article) return;
-    setTransitioning(to);
-    try {
-      await api.content.transition(article.id, to);
-      queryClient.invalidateQueries({ queryKey: queryKeys.content.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.content.byId(article.id) });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Transition failed");
-    } finally {
-      setTransitioning(null);
-    }
-  }, [article, queryClient]);
-
-  // --- References ---
-  const [showAttachRef, setShowAttachRef] = useState(false);
-  const { data: articleRefs = [] } = useQuery({
-    queryKey: queryKeys.references.byContent(article?.id ?? ""),
-    queryFn: () => api.references.listForContent(article!.id),
-    enabled: !!article,
-  });
-
-  const attachRefMut = useMutation({
-    mutationFn: (refId: string) => api.references.attachToContent(article!.id, refId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.references.byContent(article?.id ?? "") }),
-  });
-  const detachRefMut = useMutation({
-    mutationFn: (refId: string) => api.references.detachFromContent(article!.id, refId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.references.byContent(article?.id ?? "") }),
-  });
-
-  const handleAttachRef = useCallback(async (refId: string) => {
-    await attachRefMut.mutateAsync(refId);
-    setShowAttachRef(false);
-  }, [attachRefMut]);
-
-  const handleDetachRef = useCallback(async (refId: string) => {
-    await detachRefMut.mutateAsync(refId);
-  }, [detachRefMut]);
-
-  // --- AI Editorial Assistance ---
-  // Analyze
-  const { data: persistedAnalysis } = useQuery({
-    queryKey: queryKeys.ai.analysis(article?.id ?? ""),
-    queryFn: () => api.content.ai.analysis(article?.id ?? ""),
-    enabled: !!article,
-  });
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
-
-  const articleChangedSinceAnalysis = persistedAnalysis && article
-    ? new Date(article.updated_at).getTime() > new Date(persistedAnalysis.created_at).getTime()
-    : false;
-
-  const handleAnalyze = useCallback(async () => {
-    if (!article) return;
-    setAnalyzing(true);
-    setAnalysisError(null);
-    try {
-      await api.content.ai.analyze(article.id);
-      queryClient.invalidateQueries({ queryKey: queryKeys.ai.analysis(article.id) });
-    } catch (err: any) {
-      setAnalysisError(err instanceof Error ? err.message : "Analysis failed");
-    } finally {
-      setAnalyzing(false);
-    }
-  }, [article, queryClient]);
-
-  // Selection state
-  const [selection, setSelection] = useState<{ text: string; from: number; to: number } | null>(null);
-  const handleSelectionChange = useCallback((text: string, from: number, to: number) => {
-    if (text.trim()) {
-      setSelection({ text, from, to });
-    } else {
-      setSelection(null);
-    }
-  }, []);
-
-  // Improve text (selection-based)
-  const [improveInstruction, setImproveInstruction] = useState("Improve clarity");
-  const [suggestion, setSuggestion] = useState<AITextSuggestion | null>(null);
-  const [sentOriginal, setSentOriginal] = useState<string>("");  const [improving, setImproving] = useState(false);
-  const [improveError, setImproveError] = useState<string | null>(null);
-  const [contentChanged, setContentChanged] = useState(false);
-
-  const handleImprove = useCallback(async () => {
-    if (!article || !selection) return;
-    setImproving(true);
-    setImproveError(null);
-    setSuggestion(null);
-    setSentOriginal(selection?.text ?? "");    setContentChanged(false);
-    try {
-      const start = Math.max(0, selection.from - 100);
-      const end = Math.min(editBody.length, selection.to + 100);
-      const ctxBefore = editBody.slice(start, selection.from);
-      const ctxAfter = editBody.slice(selection.to, end);
-
-      const result = await api.content.ai.improve(
-        article.id, selection.text, improveInstruction, ctxBefore, ctxAfter,
-      );
-      setSuggestion(result);
-    } catch (err: any) {
-      setImproveError(err instanceof Error ? err.message : "Improvement failed");
-    } finally {
-      setImproving(false);
-    }
-  }, [article, selection, improveInstruction, editBody]);
-
-  const handleApplySuggestion = useCallback(async () => {
-    if (!suggestion || !sentOriginal) return;
-    const idx = editBody.indexOf(sentOriginal);
-    if (idx === -1) {
-      setContentChanged(true);
-      return;
-    }
-    setEditBody((prev) => prev.slice(0, idx) + suggestion.suggestion + prev.slice(idx + sentOriginal.length));
-    setContentVersion((v) => v + 1);
-    setSuggestion(null);
-    setSelection(null);
-    setImproveInstruction("Improve clarity");
-  }, [suggestion, editBody]);
-  const handleRejectSuggestion = useCallback(() => {
-    setSuggestion(null);
-    setSelection(null);
-    setImproveInstruction("Improve clarity");
-  }, []);
-
-  // Fallback textarea improve (sidebar)
-  const [fallbackText, setFallbackText] = useState("");
-  const handleFallbackImprove = useCallback(async () => {
-    if (!article || !fallbackText.trim()) return;
-    setImproving(true);
-    setImproveError(null);
-    setSuggestion(null);
-    try {
-      const result = await api.content.ai.improve(article.id, fallbackText, improveInstruction, "", "");
-      setSuggestion(result);
-    } catch (err: any) {
-      setImproveError(err instanceof Error ? err.message : "Improvement failed");
-    } finally {
-      setImproving(false);
-    }
-  }, [article, fallbackText, improveInstruction]);
+  const {
+    article, articleLoading, articleError, isNew, creating,
+    editTitle, setEditTitle, editBody, setEditBody,
+    contentLoaded, contentVersion,
+    isSynced, isSaving, saveError,
+    transitioning, doTransition,
+    showAttachRef, setShowAttachRef, articleRefs,
+    handleAttachRef, handleDetachRef,
+    persistedAnalysis, analyzing, analysisError,
+    articleChangedSinceAnalysis, handleAnalyze,
+    selection, handleSelectionChange,
+    improveInstruction, setImproveInstruction,
+    suggestion, improving, improveError, contentChanged,
+    handleImprove, handleApplySuggestion, handleRejectSuggestion,
+    fallbackText, setFallbackText, handleFallbackImprove,
+    navigate,
+  } = useArticleEditor();
 
   // --- Lifecycle action buttons ---
-  const lifecycleActions = useMemo(() => {
+  const lifecycleActions = (() => {
     if (!article) return null;
     const btnPrimary = "text-xs font-medium rounded-lg bg-[var(--tt-brand-color-500)] text-white px-3 py-1.5 hover:opacity-90 disabled:opacity-50 transition-opacity";
     const btnSecondary = "text-xs font-medium rounded-lg border border-[var(--tt-border-color-tint)] px-3 py-1.5 text-[var(--tt-theme-text)] hover:bg-[var(--tt-gray-dark-a-100)] disabled:opacity-50 transition-colors";
@@ -238,18 +44,10 @@ export function ArticleEditorPage() {
       case "review":
         return (
           <div className="flex gap-2">
-            <button
-              className={btnSecondary}
-              onClick={() => doTransition("building")}
-              disabled={transitioning === "building"}
-            >
+            <button className={btnSecondary} onClick={() => doTransition("building")} disabled={transitioning === "building"}>
               {transitioning === "building" ? "..." : t("articles.back_to_editing")}
             </button>
-            <button
-              className={btnPrimary}
-              onClick={() => doTransition("ready")}
-              disabled={transitioning === "ready"}
-            >
+            <button className={btnPrimary} onClick={() => doTransition("ready")} disabled={transitioning === "ready"}>
               {transitioning === "ready" ? "..." : t("articles.mark_ready")}
             </button>
           </div>
@@ -257,11 +55,7 @@ export function ArticleEditorPage() {
       case "ready":
         return (
           <div className="flex gap-2">
-            <button
-              className={btnSecondary}
-              onClick={() => doTransition("building")}
-              disabled={transitioning === "building"}
-            >
+            <button className={btnSecondary} onClick={() => doTransition("building")} disabled={transitioning === "building"}>
               {transitioning === "building" ? "..." : t("articles.back_to_editing")}
             </button>
             <span className="inline-flex items-center rounded text-xs font-medium px-2.5 py-1 bg-[var(--tt-color-highlight-green-contrast)] text-[var(--tt-color-text-green)]">
@@ -278,10 +72,10 @@ export function ArticleEditorPage() {
       default:
         return <span className="text-xs text-[var(--tt-color-text-gray)]">{article.status}</span>;
     }
-  }, [article, transitioning, doTransition, t]);
+  })();
 
   // --- Status badge ---
-  const statusBadge = useMemo(() => {
+  const statusBadge = (() => {
     if (!article) return null;
     const labels: Record<string, string> = {
       building: t("articles.status_building"),
@@ -294,9 +88,9 @@ export function ArticleEditorPage() {
         {labels[article.status] ?? article.status}
       </span>
     );
-  }, [article, t]);
+  })();
 
-  // --- Loading state (new article creating) ---
+  // --- Loading / Error / Empty states ---
   if (creating) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -306,7 +100,6 @@ export function ArticleEditorPage() {
     );
   }
 
-  // --- Loading state (existing article) ---
   if (articleLoading) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -316,7 +109,6 @@ export function ArticleEditorPage() {
     );
   }
 
-  // --- Error state ---
   if (articleError) {
     return (
       <div className="mx-auto max-w-3xl py-12">
@@ -327,7 +119,6 @@ export function ArticleEditorPage() {
     );
   }
 
-  // --- Not found ---
   if (!isNew && !article) {
     return (
       <div className="mx-auto max-w-3xl py-12 text-center text-[var(--color-text-tertiary)]">
@@ -420,7 +211,6 @@ export function ArticleEditorPage() {
               {analysisError && (
                 <p className="text-xs text-[var(--color-accent-danger)]">{analysisError}</p>
               )}
-
               {analyzing && <p className="text-xs text-[var(--color-text-tertiary)] italic">{t("articles.analyzing")}</p>}
 
               {persistedAnalysis && !articleChangedSinceAnalysis && (
@@ -466,7 +256,7 @@ export function ArticleEditorPage() {
                 <p className="text-xs text-[var(--color-text-tertiary)]">{t("articles.analysis_unavailable")}</p>
               )}
 
-              {/* Improve — only shown as fallback when no selection */}
+              {/* Fallback improve */}
               {!selection && (
                 <>
                   <hr className="border-[var(--color-border)]/10" />
@@ -514,11 +304,7 @@ export function ArticleEditorPage() {
                   {t("references.add")}
                 </button>
               </div>
-              <ReferenceList
-                references={articleRefs}
-                onRemove={handleDetachRef}
-                compact
-              />
+              <ReferenceList references={articleRefs} onRemove={handleDetachRef} compact />
             </div>
           </div>
         </aside>
@@ -548,7 +334,7 @@ export function ArticleEditorPage() {
           {lifecycleActions}
         </div>
       </div>
-      {/* AI Suggestion comparison modal */}
+
       {suggestion && (
         <SuggestionModal
           suggestion={suggestion}
@@ -557,5 +343,6 @@ export function ArticleEditorPage() {
           onApply={handleApplySuggestion}
         />
       )}
-    </div>  );
+    </div>
+  );
 }

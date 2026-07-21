@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 
 import { AppRouter } from "./app/router";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useAuth } from "./features/auth/store";
 import { setOnUnauthorized } from "./api/client";
 
@@ -31,7 +32,9 @@ function Root() {
   return (
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <AppRouter />
+        <ErrorBoundary>
+          <AppRouter />
+        </ErrorBoundary>
         <Toaster
           position="bottom-right"
           toastOptions={{

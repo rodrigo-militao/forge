@@ -11,7 +11,7 @@ import (
 )
 
 type mockWriterContent struct {
-	ports.ContentWriter
+	ports.ContentRepository
 	created []*coredomain.GeneratedContent
 }
 
@@ -22,6 +22,22 @@ func (m *mockWriterContent) Create(ctx context.Context, content *coredomain.Gene
 func (m *mockWriterContent) UpdateBody(ctx context.Context, id uuid.UUID, title, body *string) error { return nil }
 func (m *mockWriterContent) SoftDelete(ctx context.Context, id uuid.UUID) error { return nil }
 func (m *mockWriterContent) UpdateCategory(ctx context.Context, id uuid.UUID, cat *string) error { return nil }
+func (m *mockWriterContent) UpdateOutline(_ context.Context, _ uuid.UUID, _ *string) error { return nil }
+func (m *mockWriterContent) UpdateStatus(_ context.Context, _ uuid.UUID, _ coredomain.ContentStatus) error { return nil }
+func (m *mockWriterContent) UpdateStatusWithPublishedAt(_ context.Context, _ uuid.UUID, _ coredomain.ContentStatus) error { return nil }
+func (m *mockWriterContent) GetByID(_ context.Context, _ uuid.UUID) (*coredomain.GeneratedContent, error) { return nil, nil }
+func (m *mockWriterContent) ListByUser(_ context.Context, _ uuid.UUID) ([]coredomain.GeneratedContent, error) { return nil, nil }
+func (m *mockWriterContent) ListByUserFiltered(_ context.Context, _ uuid.UUID, _, _ *string) ([]coredomain.GeneratedContent, error) { return nil, nil }
+func (m *mockWriterContent) AddCategory(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockWriterContent) RemoveCategory(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockWriterContent) SetCategories(_ context.Context, _ uuid.UUID, _ []string) error { return nil }
+func (m *mockWriterContent) ListUserCategories(_ context.Context, _ uuid.UUID) ([]string, error) { return nil, nil }
+func (m *mockWriterContent) ExistsByURL(_ context.Context, _ uuid.UUID, _ string) (bool, error) { return false, nil }
+func (m *mockWriterContent) ListWithoutCategory(_ context.Context, _ uuid.UUID, _ int) ([]coredomain.GeneratedContent, error) { return nil, nil }
+func (m *mockWriterContent) GetDigestStats(_ context.Context, _ uuid.UUID) (*ports.DigestStats, error) { return nil, nil }
+func (m *mockWriterContent) AddTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockWriterContent) RemoveTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockWriterContent) ListUserTags(_ context.Context, _ uuid.UUID) ([]string, error) { return nil, nil }
 
 type mockLLMTest struct {
 	response string

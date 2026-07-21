@@ -9,28 +9,28 @@ import (
 
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/ports"
+	digestapp "github.com/rodrigo-militao/forge/internal/digest/application"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
 // RouterConfig wires the HTTP router. Passed as a struct to avoid
 // the 10-positional-parameter trap.
 type RouterConfig struct {
-	Users        ports.UserRepository
-	Usages       ports.UsageCounterRepository
-	Content      ports.ContentDigestReader
-	ContentReader ports.ContentReader
-	ContentWriter ports.ContentWriter
-	Jobs         ports.JobRepository
-	Interests    digest.DigestInterestRepository
-	Sources      digest.SourceRepository
-	Editions     digest.EditionRepository
-	Hub          ports.EventBus
-	Plans        *application.Plans
-	ContentSvc   *application.ContentService
-	Ideas        ports.IdeaRepository
-	SourceTrack  application.SourceLinker
-	References   ports.ReferenceRepository
-	AISvc        *application.AIService
+	Users       ports.UserRepository
+	Usages      ports.UsageCounterRepository
+	Content     ports.ContentRepository
+	Jobs        ports.JobRepository
+	Interests   digest.DigestInterestRepository
+	Sources     digest.SourceRepository
+	Editions    digest.EditionRepository
+	EditionSvc  *digestapp.EditionService
+	Hub         ports.EventBus
+	Plans       *application.Plans
+	ContentSvc  *application.ContentService
+	Ideas       ports.IdeaRepository
+	SourceTrack application.SourceLinker
+	References  ports.ReferenceRepository
+	AISvc       *application.AIService
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {
@@ -52,9 +52,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	digestH := NewDigestHandler(cfg.Content, cfg.Editions, cfg.Jobs)
 	interestsH := NewInterestsHandler(cfg.Interests, cfg.Plans)
 	sourcesH := NewSourcesHandler(cfg.Sources, cfg.Plans)
-	ideasSvc := application.NewIdeasService(cfg.Ideas, cfg.ContentWriter)
-	ideasH := NewIdeasHandler(cfg.Ideas, ideasSvc)
-	refSvc := application.NewReferenceService(cfg.References, cfg.Ideas, cfg.ContentReader)
+	ideasSvc := application.NewIdeasService(cfg.Ideas, cfg.Content)
+	ideasH := NewIdeasHandler(ideasSvc)
+	refSvc := application.NewReferenceService(cfg.References, cfg.Ideas, cfg.Content)
 	refH := NewReferenceHandler(refSvc)
 	aiH := NewAIHandler(cfg.AISvc)
 
@@ -119,7 +119,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		r.Post("/api/compose/transform", enqueueJob(cfg.Jobs, cfg.Usages, "compose_transform", true, cfg.Plans))
 		r.Post("/api/compose/write", enqueueJob(cfg.Jobs, cfg.Usages, "compose_write", true, cfg.Plans))
 
-		editionH := NewEditionHandler(cfg.Editions, cfg.Jobs, cfg.Usages, cfg.Plans)
+		editionH := NewEditionHandler(cfg.EditionSvc)
 		r.Route("/api/editions", func(r chi.Router) {
 			r.Get("/", editionH.List)
 			r.Post("/", editionH.Create)

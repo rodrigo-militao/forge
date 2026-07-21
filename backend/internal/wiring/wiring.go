@@ -45,12 +45,18 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 	rawCheap := llm.NewClient(cfg.LLMAPIKey, cfg.LLMBaseURL)
 	cheapLLM := llm.NewLoggingWrapper(rawCheap)
 
-	return map[string]worker.Handler{
-		"curate_digest": func(ctx context.Context, userID string, payload []byte) error {
+	parseUserID := func(fn func(context.Context, uuid.UUID, []byte) error) worker.Handler {
+		return func(ctx context.Context, userID string, payload []byte) error {
 			id, err := uuid.Parse(userID)
 			if err != nil {
 				return fmt.Errorf("invalid user id: %w", err)
 			}
+			return fn(ctx, id, payload)
+		}
+	}
+
+	return map[string]worker.Handler{
+		"curate_digest": parseUserID(func(ctx context.Context, id uuid.UUID, payload []byte) error {
 
 			configs, err := sourceRepo.ListByUser(ctx, id)
 			if err != nil {
@@ -89,33 +95,25 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				}
 			}
 
-			svc := digestApp.NewDiscoveryService(llmClient, sources, contentRepo, contentRepo, id, interestLabels)
+			svc := digestApp.NewDiscoveryService(llmClient, sources, contentRepo, id, interestLabels)
 			if _, err := svc.Run(ctx, time.Now()); err != nil {
 				return fmt.Errorf("digest run: %w", err)
 			}
 
 			// Categorize inline after discovery so articles appear with categories
-			catSvc := digestApp.NewCategorizeService(cheapLLM, contentRepo, contentRepo, id)
+			catSvc := digestApp.NewCategorizeService(cheapLLM, contentRepo, id)
 			if err := catSvc.Run(ctx); err != nil {
 				slog.Warn("inline categorization failed", "error", err)
 			}
 			return nil
-		},
+		}),
 
-		"categorize_batch": func(ctx context.Context, userID string, payload []byte) error {
-			id, err := uuid.Parse(userID)
-			if err != nil {
-				return fmt.Errorf("invalid user id: %w", err)
-			}
-			svc := digestApp.NewCategorizeService(cheapLLM, contentRepo, contentRepo, id)
+		"categorize_batch": parseUserID(func(ctx context.Context, id uuid.UUID, payload []byte) error {
+			svc := digestApp.NewCategorizeService(cheapLLM, contentRepo, id)
 			return svc.Run(ctx)
-		},
+		}),
 
-		"generate_topic": func(ctx context.Context, userID string, payload []byte) error {
-			id, err := uuid.Parse(userID)
-			if err != nil {
-				return fmt.Errorf("invalid user id: %w", err)
-			}
+		"generate_topic": parseUserID(func(ctx context.Context, id uuid.UUID, payload []byte) error {
 			svc := composeApp.NewTopicGeneratorService(llmClient, topicsRepo, id)
 			result, err := svc.Generate(ctx)
 			if err != nil {
@@ -125,7 +123,7 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			if err := contentRepo.Create(ctx, &coredomain.GeneratedContent{
 				UserID:       id,
 				Product:      coredomain.ProductCompose,
-				Status:       coredomain.ContentDraft,
+				Status:       coredomain.ContentBuilding,
 				SourceType:   lib.StrPtr("topic"),
 				Title:        &title,
 				BodyMarkdown: &result.Topic.OneLinePitch,
@@ -133,13 +131,9 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				return fmt.Errorf("persisting topic: %w", err)
 			}
 			return nil
-		},
+		}),
 
-		"compose_generate_draft": func(ctx context.Context, userID string, payload []byte) error {
-			id, err := uuid.Parse(userID)
-			if err != nil {
-				return fmt.Errorf("invalid user id: %w", err)
-			}
+		"compose_generate_draft": parseUserID(func(ctx context.Context, id uuid.UUID, payload []byte) error {
 			var req struct {
 				Theme   string `json:"theme"`
 				Outline string `json:"outline"`
@@ -170,13 +164,9 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			}
 			_ = result
 			return nil
-		},
+		}),
 
-		"compose_generate_outline": func(ctx context.Context, userID string, payload []byte) error {
-			id, err := uuid.Parse(userID)
-			if err != nil {
-				return fmt.Errorf("invalid user id: %w", err)
-			}
+		"compose_generate_outline": parseUserID(func(ctx context.Context, id uuid.UUID, payload []byte) error {
 			var req struct {
 				Theme string `json:"theme"`
 			}
@@ -184,14 +174,14 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				return fmt.Errorf("invalid payload: theme required")
 			}
 			svc := composeApp.NewOutlineGeneratorService(llmClient, contentRepo, id)
-			_, err = svc.Generate(ctx, composeApp.OutlineParams{Theme: req.Theme})
+			_, err := svc.Generate(ctx, composeApp.OutlineParams{Theme: req.Theme})
 			if err != nil {
 				return fmt.Errorf("outline generation: %w", err)
 			}
 			return nil
-		},
+		}),
 
-		"compose_transform": func(ctx context.Context, userID string, payload []byte) error {
+		"compose_transform": parseUserID(func(ctx context.Context, id uuid.UUID, payload []byte) error {
 			var req struct {
 				Text   string `json:"text"`
 				Action string `json:"action"`
@@ -199,23 +189,15 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 			if err := json.Unmarshal(payload, &req); err != nil || req.Text == "" {
 				return fmt.Errorf("invalid payload: text required")
 			}
-			id, err := uuid.Parse(userID)
-			if err != nil {
-				return fmt.Errorf("invalid user id: %w", err)
-			}
 			svc := composeApp.NewTransformService(llmClient, contentRepo, id)
 			return svc.Run(ctx, composeApp.TransformOptions{Text: req.Text, Action: req.Action})
-		},
+		}),
 
 		"compose_write": func(ctx context.Context, userID string, payload []byte) error {
 			return fmt.Errorf("compose_write handler not yet implemented")
 		},
 
-		"generate_edition_intro": func(ctx context.Context, userID string, payload []byte) error {
-			id, err := uuid.Parse(userID)
-			if err != nil {
-				return fmt.Errorf("invalid user id: %w", err)
-			}
+		"generate_edition_intro": parseUserID(func(ctx context.Context, id uuid.UUID, payload []byte) error {
 			var req struct {
 				EditionID string `json:"edition_id"`
 			}
@@ -265,7 +247,7 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 
 			slog.Info("edition intro generated", "edition_id", editionID)
 			return nil
-		},
+		}),
 	}
 }
 

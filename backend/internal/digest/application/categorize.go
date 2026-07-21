@@ -27,20 +27,19 @@ const categorizeBatchSize = 20
 
 // CategorizeService processes a batch of uncategorized digest articles using a cheap LLM.
 type CategorizeService struct {
-	cheapLLM      ports.LLMClient
-	categorizer   ports.ContentCategorizer
-	digestQueries ports.ContentDigestReader
-	userID        uuid.UUID
+	cheapLLM ports.LLMClient
+	content  ports.ContentRepository
+	userID   uuid.UUID
 }
 
 // NewCategorizeService creates a categorizer.
-func NewCategorizeService(cheapLLM ports.LLMClient, categorizer ports.ContentCategorizer, digestQueries ports.ContentDigestReader, userID uuid.UUID) *CategorizeService {
-	return &CategorizeService{cheapLLM: cheapLLM, categorizer: categorizer, digestQueries: digestQueries, userID: userID}
+func NewCategorizeService(cheapLLM ports.LLMClient, content ports.ContentRepository, userID uuid.UUID) *CategorizeService {
+	return &CategorizeService{cheapLLM: cheapLLM, content: content, userID: userID}
 }
 
 // Run categorizes all uncategorized digest articles for the user in batches.
 func (s *CategorizeService) Run(ctx context.Context) error {
-	articles, err := s.digestQueries.ListWithoutCategory(ctx, s.userID, categorizeBatchSize)
+	articles, err := s.content.ListWithoutCategory(ctx, s.userID, categorizeBatchSize)
 	if err != nil {
 		return fmt.Errorf("list uncategorized: %w", err)
 	}
@@ -49,7 +48,7 @@ func (s *CategorizeService) Run(ctx context.Context) error {
 	}
 
 	// Fetch existing categories for vocabulary guidance
-	existingCategories, err := s.categorizer.ListUserCategories(ctx, s.userID)
+	existingCategories, err := s.content.ListUserCategories(ctx, s.userID)
 	if err != nil {
 		slog.Warn("categorize: failed to list existing categories, proceeding without vocabulary", "error", err)
 		existingCategories = nil
@@ -84,7 +83,7 @@ func (s *CategorizeService) Run(ctx context.Context) error {
 			if cat == "" {
 				continue
 			}
-			if err := s.categorizer.AddCategory(ctx, article.ID, cat); err != nil {
+			if err := s.content.AddCategory(ctx, article.ID, cat); err != nil {
 				slog.Warn("categorize: failed to add category", "article_id", article.ID, "category", cat, "error", err)
 			}
 		}

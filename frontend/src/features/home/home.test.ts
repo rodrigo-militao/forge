@@ -3,41 +3,24 @@ import assert from "node:assert/strict";
 
 /* ───── Setup JSDOM ───── */
 
-const ReactMod = await import("react");
-(globalThis as any).React = ReactMod.default || ReactMod;
+import { setupTestEnvironment, setupTestI18n } from "../../test/setup";
 
-const { JSDOM } = await import("jsdom");
-const dom = new JSDOM('<!DOCTYPE html><html><body><div id="root"></div></body></html>', {
-  url: "http://localhost",
-  pretendToBeVisual: true,
-});
-(globalThis as any).document = dom.window.document;
-(globalThis as any).window = dom.window;
-(globalThis as any).HTMLElement = dom.window.HTMLHtmlElement;
-(globalThis as any).Node = dom.window.Node;
-(globalThis as any).self = dom.window;
+const dom = await setupTestEnvironment();
 
 /* ───── Setup i18n ───── */
 
-const i18n = await import("i18next");
-const { initReactI18next } = await import("react-i18next");
-const defaultInst = i18n.default || i18n;
-defaultInst.use(initReactI18next).init({
-  lng: "en",
-  resources: {
-    en: {
-      translation: {
-        "home.greetingMorning": "Good morning, {{name}}.",
-        "home.greetingAfternoon": "Good afternoon, {{name}}.",
-        "home.greetingEvening": "Good evening, {{name}}.",
-        "home.subtitle": "Continue transforming ideas into something worth publishing.",
-        "home.continueWriting": "Continue writing",
-        "home.recentIdeas": "Your ideas",
-        "home.lastPublished": "Last published",
-        "home.viewAll": "View all",
-        "home.noContent": "No recent content.",
-        "home.noIdeas": "No ideas yet.",
-        "home.welcome": "Welcome to Forge.",
+await setupTestI18n({
+  "home.greetingMorning": "Good morning, {{name}}.",
+  "home.greetingAfternoon": "Good afternoon, {{name}}.",
+  "home.greetingEvening": "Good evening, {{name}}.",
+  "home.subtitle": "Continue transforming ideas into something worth publishing.",
+  "home.continueWriting": "Continue writing",
+  "home.recentIdeas": "Your ideas",
+  "home.lastPublished": "Last published",
+  "home.viewAll": "View all",
+  "home.noContent": "No recent content.",
+  "home.noIdeas": "No ideas yet.",
+  "home.welcome": "Welcome to Forge.",
         "home.welcomeDesc": "Start with something you already have in mind.",
         "home.welcomeCTA": "Or bring a reference to explore.",
         "home.tryAgain": "Try again",
@@ -66,10 +49,6 @@ defaultInst.use(initReactI18next).init({
         "editor.draft": "Draft",
         "editor.published": "Published",
         "editor.add": "Add",
-      },
-    },
-  },
-  interpolation: { escapeValue: false },
 });
 
 const { createElement } = await import("react");

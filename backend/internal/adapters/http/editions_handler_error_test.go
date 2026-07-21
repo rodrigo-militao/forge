@@ -13,6 +13,7 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/lib"
 	digest "github.com/rodrigo-militao/forge/internal/digest/domain"
+	digestapp "github.com/rodrigo-militao/forge/internal/digest/application"
 )
 
 // --- List error path ---
@@ -26,7 +27,7 @@ func (m *errListByUserFilteredRepo) ListByUserFiltered(ctx context.Context, user
 func TestEditionHandler_List_RepoError(t *testing.T) {
 	uid := uuid.New()
 	repo := &errListByUserFilteredRepo{}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodGet, "/api/editions", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
@@ -49,7 +50,7 @@ func (m *errCreateEditionRepo) Create(ctx context.Context, edition *digest.Editi
 func TestEditionHandler_Create_RepoError(t *testing.T) {
 	uid := uuid.New()
 	repo := &errCreateEditionRepo{}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	body := `{"title":"My Newsletter"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/editions", strings.NewReader(body))
@@ -81,7 +82,7 @@ func TestEditionHandler_UpdateBody_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	body := `{"title":"New","body_html":"<p>Hi</p>"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/body", strings.NewReader(body))
@@ -105,7 +106,7 @@ func TestEditionHandler_UpdateCategory_InvalidBody(t *testing.T) {
 			{ID: eid, UserID: uid, Title: "Test", Status: digest.EditionBuilding},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/category", strings.NewReader("not json"))
 	r = addChiURLParam(r, "id", eid.String())
@@ -134,7 +135,7 @@ func TestEditionHandler_UpdateCategory_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	body := `{"category":"tech"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/category", strings.NewReader(body))
@@ -166,7 +167,7 @@ func TestEditionHandler_AddTag_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodPost, "/api/editions/"+eid.String()+"/tags/golang", nil)
 	r = addChiURLParam(r, "id", eid.String())
@@ -198,7 +199,7 @@ func TestEditionHandler_RemoveTag_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/editions/"+eid.String()+"/tags/golang", nil)
 	r = addChiURLParam(r, "id", eid.String())
@@ -225,7 +226,7 @@ func TestEditionHandler_GenerateIntro_JobCreateError(t *testing.T) {
 	jobs := &mockHelpersJobRepo{createErr: errors.New("db error")}
 	usages := &mockUsageRepo{usage: 0}
 	plans := plansWithMaxGenerations(uid, 10)
-	h := NewEditionHandler(repo, jobs, usages, plans)
+	h := NewEditionHandler(digestapp.NewEditionService(repo, jobs, usages, plans))
 
 	r := httptest.NewRequest(http.MethodPost, "/api/editions/"+eid.String()+"/generate-intro", nil)
 	r = addChiURLParam(r, "id", eid.String())
@@ -256,7 +257,7 @@ func TestEditionHandler_ListArticles_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodGet, "/api/editions/"+eid.String()+"/articles", nil)
 	r = addChiURLParam(r, "id", eid.String())
@@ -288,7 +289,7 @@ func TestEditionHandler_RemoveArticle_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/editions/"+eid.String()+"/articles/"+cid.String(), nil)
 	r = addChiURLParam(r, "id", eid.String())
@@ -320,7 +321,7 @@ func TestEditionHandler_Duplicate_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodPost, "/api/editions/"+eid.String()+"/duplicate", nil)
 	r = addChiURLParam(r, "id", eid.String())
@@ -343,7 +344,7 @@ func TestEditionHandler_UpdateDestination_InvalidBody(t *testing.T) {
 			{ID: eid, UserID: uid, Title: "Test", Status: digest.EditionBuilding},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/destination", strings.NewReader("not json"))
 	r = addChiURLParam(r, "id", eid.String())
@@ -364,7 +365,7 @@ func TestEditionHandler_UpdateDestination_EmptyBecomesNil(t *testing.T) {
 			{ID: eid, UserID: uid, Title: "Test", Status: digest.EditionBuilding, Destination: lib.StrPtr("old")},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	body := `{"destination":""}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/destination", strings.NewReader(body))
@@ -398,7 +399,7 @@ func TestEditionHandler_UpdateDestination_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	body := `{"destination":"Substack"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/destination", strings.NewReader(body))
@@ -430,7 +431,7 @@ func TestEditionHandler_UpdateStatus_InvalidBody(t *testing.T) {
 			{ID: eid, UserID: uid, Title: "Test", Status: digest.EditionBuilding},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/status", strings.NewReader("not json"))
 	r = addChiURLParam(r, "id", eid.String())
@@ -451,7 +452,7 @@ func TestEditionHandler_UpdateStatus_SameStatusTransitionFails(t *testing.T) {
 			{ID: eid, UserID: uid, Title: "Test", Status: digest.EditionBuilding},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	body := `{"status":"building"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/status", strings.NewReader(body))
@@ -481,7 +482,7 @@ func TestEditionHandler_UpdateStatus_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	body := `{"status":"review"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/editions/"+eid.String()+"/status", strings.NewReader(body))
@@ -514,7 +515,7 @@ func TestEditionHandler_AddArticle_RepoError(t *testing.T) {
 			},
 		},
 	}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	body := `{"content_id":"` + cid.String() + `"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/editions/"+eid.String()+"/articles", strings.NewReader(body))
@@ -531,7 +532,7 @@ func TestEditionHandler_AddArticle_RepoError(t *testing.T) {
 func TestEditionHandler_ListDestinations_RepoError(t *testing.T) {
 	uid := uuid.New()
 	repo := &errListUsedDestinationsRepo{}
-	h := NewEditionHandler(repo, nil, nil, &application.Plans{})
+	h := NewEditionHandler(digestapp.NewEditionService(repo, nil, nil, &application.Plans{}))
 
 	r := httptest.NewRequest(http.MethodGet, "/api/editions/destinations", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))

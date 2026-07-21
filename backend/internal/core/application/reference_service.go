@@ -14,10 +14,10 @@ import (
 type ReferenceService struct {
 	refs    ports.ReferenceRepository
 	ideas   ports.IdeaRepository
-	content ports.ContentReader
+	content ports.ContentRepository
 }
 
-func NewReferenceService(refs ports.ReferenceRepository, ideas ports.IdeaRepository, content ports.ContentReader) *ReferenceService {
+func NewReferenceService(refs ports.ReferenceRepository, ideas ports.IdeaRepository, content ports.ContentRepository) *ReferenceService {
 	return &ReferenceService{refs: refs, ideas: ideas, content: content}
 }
 
@@ -47,14 +47,9 @@ func (s *ReferenceService) CreateReference(ctx context.Context, userID uuid.UUID
 }
 
 func (s *ReferenceService) GetReference(ctx context.Context, id, userID uuid.UUID) (*domain.Reference, error) {
-	ref, err := s.refs.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if ref.UserID != userID {
-		return nil, fmt.Errorf("%w: reference %s", domain.ErrNotOwned, id)
-	}
-	return ref, nil
+	return domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.Reference, error) {
+		return s.refs.GetByID(ctx, id)
+	}, userID)
 }
 
 func (s *ReferenceService) ListReferences(ctx context.Context, userID uuid.UUID) ([]domain.Reference, error) {
@@ -87,12 +82,10 @@ func (s *ReferenceService) UpdateReference(ctx context.Context, id, userID uuid.
 }
 
 func (s *ReferenceService) DeleteReference(ctx context.Context, id, userID uuid.UUID) error {
-	ref, err := s.refs.GetByID(ctx, id)
-	if err != nil {
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.Reference, error) {
+		return s.refs.GetByID(ctx, id)
+	}, userID); err != nil {
 		return err
-	}
-	if ref.UserID != userID {
-		return fmt.Errorf("%w: reference %s", domain.ErrNotOwned, id)
 	}
 	return s.refs.Delete(ctx, id)
 }
@@ -100,48 +93,38 @@ func (s *ReferenceService) DeleteReference(ctx context.Context, id, userID uuid.
 // --- Idea relationships ---
 
 func (s *ReferenceService) AttachReferenceToIdea(ctx context.Context, ideaID, referenceID, userID uuid.UUID) error {
-	idea, err := s.ideas.GetByID(ctx, ideaID)
-	if err != nil {
-		return fmt.Errorf("get idea: %w", err)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.Idea, error) {
+		return s.ideas.GetByID(ctx, ideaID)
+	}, userID); err != nil {
+		return err
 	}
-	if idea.UserID != userID {
-		return fmt.Errorf("%w: idea %s", domain.ErrNotOwned, ideaID)
-	}
-	ref, err := s.refs.GetByID(ctx, referenceID)
-	if err != nil {
-		return fmt.Errorf("get reference: %w", err)
-	}
-	if ref.UserID != userID {
-		return fmt.Errorf("%w: reference %s", domain.ErrNotOwned, referenceID)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.Reference, error) {
+		return s.refs.GetByID(ctx, referenceID)
+	}, userID); err != nil {
+		return err
 	}
 	return s.refs.AttachToIdea(ctx, ideaID, referenceID)
 }
 
 func (s *ReferenceService) DetachReferenceFromIdea(ctx context.Context, ideaID, referenceID, userID uuid.UUID) error {
-	idea, err := s.ideas.GetByID(ctx, ideaID)
-	if err != nil {
-		return fmt.Errorf("get idea: %w", err)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.Idea, error) {
+		return s.ideas.GetByID(ctx, ideaID)
+	}, userID); err != nil {
+		return err
 	}
-	if idea.UserID != userID {
-		return fmt.Errorf("%w: idea %s", domain.ErrNotOwned, ideaID)
-	}
-	ref, err := s.refs.GetByID(ctx, referenceID)
-	if err != nil {
-		return fmt.Errorf("get reference: %w", err)
-	}
-	if ref.UserID != userID {
-		return fmt.Errorf("%w: reference %s", domain.ErrNotOwned, referenceID)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.Reference, error) {
+		return s.refs.GetByID(ctx, referenceID)
+	}, userID); err != nil {
+		return err
 	}
 	return s.refs.DetachFromIdea(ctx, ideaID, referenceID)
 }
 
 func (s *ReferenceService) ListIdeaReferences(ctx context.Context, ideaID, userID uuid.UUID) ([]domain.Reference, error) {
-	idea, err := s.ideas.GetByID(ctx, ideaID)
-	if err != nil {
-		return nil, fmt.Errorf("get idea: %w", err)
-	}
-	if idea.UserID != userID {
-		return nil, fmt.Errorf("%w: idea %s", domain.ErrNotOwned, ideaID)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.Idea, error) {
+		return s.ideas.GetByID(ctx, ideaID)
+	}, userID); err != nil {
+		return nil, err
 	}
 	return s.refs.ListByIdea(ctx, ideaID)
 }
@@ -149,51 +132,42 @@ func (s *ReferenceService) ListIdeaReferences(ctx context.Context, ideaID, userI
 // --- Article relationships ---
 
 func (s *ReferenceService) AttachReferenceToArticle(ctx context.Context, contentID, referenceID, userID uuid.UUID) error {
-	content, err := s.content.GetByID(ctx, contentID)
+	content, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.GeneratedContent, error) {
+		return s.content.GetByID(ctx, contentID)
+	}, userID)
 	if err != nil {
-		return fmt.Errorf("get content: %w", err)
-	}
-	if content.UserID != userID {
-		return fmt.Errorf("%w: content %s", domain.ErrNotOwned, contentID)
+		return err
 	}
 	if content.Type != domain.ContentTypeArticle {
 		return fmt.Errorf("%w: content %s is not an article", domain.ErrInvalidInput, contentID)
 	}
-	ref, err := s.refs.GetByID(ctx, referenceID)
-	if err != nil {
-		return fmt.Errorf("get reference: %w", err)
-	}
-	if ref.UserID != userID {
-		return fmt.Errorf("%w: reference %s", domain.ErrNotOwned, referenceID)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.Reference, error) {
+		return s.refs.GetByID(ctx, referenceID)
+	}, userID); err != nil {
+		return err
 	}
 	return s.refs.AttachToContent(ctx, contentID, referenceID)
 }
 
 func (s *ReferenceService) DetachReferenceFromArticle(ctx context.Context, contentID, referenceID, userID uuid.UUID) error {
-	content, err := s.content.GetByID(ctx, contentID)
-	if err != nil {
-		return fmt.Errorf("get content: %w", err)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.GeneratedContent, error) {
+		return s.content.GetByID(ctx, contentID)
+	}, userID); err != nil {
+		return err
 	}
-	if content.UserID != userID {
-		return fmt.Errorf("%w: content %s", domain.ErrNotOwned, contentID)
-	}
-	ref, err := s.refs.GetByID(ctx, referenceID)
-	if err != nil {
-		return fmt.Errorf("get reference: %w", err)
-	}
-	if ref.UserID != userID {
-		return fmt.Errorf("%w: reference %s", domain.ErrNotOwned, referenceID)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.Reference, error) {
+		return s.refs.GetByID(ctx, referenceID)
+	}, userID); err != nil {
+		return err
 	}
 	return s.refs.DetachFromContent(ctx, contentID, referenceID)
 }
 
 func (s *ReferenceService) ListArticleReferences(ctx context.Context, contentID, userID uuid.UUID) ([]domain.Reference, error) {
-	content, err := s.content.GetByID(ctx, contentID)
-	if err != nil {
-		return nil, fmt.Errorf("get content: %w", err)
-	}
-	if content.UserID != userID {
-		return nil, fmt.Errorf("%w: content %s", domain.ErrNotOwned, contentID)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.GeneratedContent, error) {
+		return s.content.GetByID(ctx, contentID)
+	}, userID); err != nil {
+		return nil, err
 	}
 	return s.refs.ListByContent(ctx, contentID)
 }

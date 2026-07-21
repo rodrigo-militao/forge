@@ -12,45 +12,51 @@ import (
 	"github.com/rodrigo-militao/forge/internal/lib"
 )
 
-// --- Mocks (shared with discovery_test) ---
-
-type mockCategorizer struct {
+// --- Combined mock for CategorizeService ---
+// Implements the subset of ports.ContentRepository that categorize needs.
+type mockCategorizeContent struct {
 	added             map[uuid.UUID][]string
+	uncategorized     []domain.GeneratedContent
 	listUserCats      []string
 	listUserCatsErr   error
 	addCategoryErr    error
+	queryErr          error
 }
 
-func (m *mockCategorizer) AddCategory(_ context.Context, id uuid.UUID, category string) error {
+func (m *mockCategorizeContent) AddCategory(_ context.Context, id uuid.UUID, category string) error {
 	if m.addCategoryErr != nil {
 		return m.addCategoryErr
 	}
-
 	if m.added == nil {
 		m.added = make(map[uuid.UUID][]string)
 	}
 	m.added[id] = append(m.added[id], category)
 	return nil
 }
-func (m *mockCategorizer) RemoveCategory(_ context.Context, _ uuid.UUID, _ string) error  { return nil }
-func (m *mockCategorizer) SetCategories(_ context.Context, _ uuid.UUID, _ []string) error { return nil }
-func (m *mockCategorizer) ListUserCategories(_ context.Context, _ uuid.UUID) ([]string, error) {
+func (m *mockCategorizeContent) RemoveCategory(_ context.Context, _ uuid.UUID, _ string) error  { return nil }
+func (m *mockCategorizeContent) SetCategories(_ context.Context, _ uuid.UUID, _ []string) error { return nil }
+func (m *mockCategorizeContent) ListUserCategories(_ context.Context, _ uuid.UUID) ([]string, error) {
 	return m.listUserCats, m.listUserCatsErr
 }
-
-type mockCategorizeQueries struct {
-	uncategorized []domain.GeneratedContent
-	categories    []string
-	err           error
+func (m *mockCategorizeContent) ExistsByURL(_ context.Context, _ uuid.UUID, _ string) (bool, error) { return false, nil }
+func (m *mockCategorizeContent) ListWithoutCategory(_ context.Context, _ uuid.UUID, _ int) ([]domain.GeneratedContent, error) {
+	return m.uncategorized, m.queryErr
 }
-
-func (m *mockCategorizeQueries) ExistsByURL(_ context.Context, _ uuid.UUID, _ string) (bool, error) { return false, nil }
-func (m *mockCategorizeQueries) ListWithoutCategory(_ context.Context, _ uuid.UUID, _ int) ([]domain.GeneratedContent, error) {
-	return m.uncategorized, m.err
-}
-func (m *mockCategorizeQueries) GetDigestStats(_ context.Context, _ uuid.UUID) (*ports.DigestStats, error) {
+func (m *mockCategorizeContent) GetDigestStats(_ context.Context, _ uuid.UUID) (*ports.DigestStats, error) {
 	return &ports.DigestStats{}, nil
 }
+func (m *mockCategorizeContent) GetByID(_ context.Context, _ uuid.UUID) (*domain.GeneratedContent, error) { return nil, nil }
+func (m *mockCategorizeContent) ListByUser(_ context.Context, _ uuid.UUID) ([]domain.GeneratedContent, error) { return nil, nil }
+func (m *mockCategorizeContent) ListByUserFiltered(_ context.Context, _ uuid.UUID, _, _ *string) ([]domain.GeneratedContent, error) { return nil, nil }
+func (m *mockCategorizeContent) Create(_ context.Context, _ *domain.GeneratedContent) error { return nil }
+func (m *mockCategorizeContent) UpdateBody(_ context.Context, _ uuid.UUID, _, _ *string) error { return nil }
+func (m *mockCategorizeContent) UpdateOutline(_ context.Context, _ uuid.UUID, _ *string) error { return nil }
+func (m *mockCategorizeContent) UpdateStatus(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error { return nil }
+func (m *mockCategorizeContent) UpdateStatusWithPublishedAt(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error { return nil }
+func (m *mockCategorizeContent) SoftDelete(_ context.Context, _ uuid.UUID) error { return nil }
+func (m *mockCategorizeContent) AddTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockCategorizeContent) RemoveTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockCategorizeContent) ListUserTags(_ context.Context, _ uuid.UUID) ([]string, error) { return nil, nil }
 
 // We use the mockLLM from discovery_test (defined in that file, same package)
 
@@ -58,25 +64,23 @@ func (m *mockCategorizeQueries) GetDigestStats(_ context.Context, _ uuid.UUID) (
 
 func TestCategorizeService_Run_HappyPath_SingleCategory(t *testing.T) {
 	articleID := uuid.New()
-	writer := &mockCategorizer{}
+	mockContent := &mockCategorizeContent{
+		uncategorized: []domain.GeneratedContent{
+			{ID: articleID, Title: lib.StrPtr("test")},
+		},
+	}
 	svc := &CategorizeService{
 		cheapLLM: &mockLLM{response: &domain.LLMResponse{
 			Content: `{"` + articleID.String() + `": ["AI"]}`,
 		}},
-		categorizer:   writer,
-		digestQueries: &mockCategorizeQueries{
-			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: lib.StrPtr("test")},
-			},
-		},
-		userID: uuid.New(),
+		content: mockContent, userID:  uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	cats, ok := writer.added[articleID]
+	cats, ok := mockContent.added[articleID]
 	if !ok {
 		t.Fatal("article was not updated")
 	}
@@ -87,25 +91,23 @@ func TestCategorizeService_Run_HappyPath_SingleCategory(t *testing.T) {
 
 func TestCategorizeService_Run_MultipleCategories(t *testing.T) {
 	articleID := uuid.New()
-	writer := &mockCategorizer{}
+	mockContent := &mockCategorizeContent{
+		uncategorized: []domain.GeneratedContent{
+			{ID: articleID, Title: lib.StrPtr("test")},
+		},
+	}
 	svc := &CategorizeService{
 		cheapLLM: &mockLLM{response: &domain.LLMResponse{
 			Content: `{"` + articleID.String() + `": ["AI", "Web", "Systems"]}`,
 		}},
-		categorizer:   writer,
-		digestQueries: &mockCategorizeQueries{
-			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: lib.StrPtr("test")},
-			},
-		},
-		userID: uuid.New(),
+		content: mockContent, userID:  uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	cats, ok := writer.added[articleID]
+	cats, ok := mockContent.added[articleID]
 	if !ok {
 		t.Fatal("article was not updated")
 	}
@@ -117,9 +119,7 @@ func TestCategorizeService_Run_MultipleCategories(t *testing.T) {
 func TestCategorizeService_Run_EmptyList(t *testing.T) {
 	svc := &CategorizeService{
 		cheapLLM:      &mockLLM{},
-		categorizer:   &mockCategorizer{},
-		digestQueries: &mockCategorizeQueries{},
-		userID:        uuid.New(),
+		content: &mockCategorizeContent{}, userID:        uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err != nil {
@@ -132,13 +132,11 @@ func TestCategorizeService_Run_InvalidJSON(t *testing.T) {
 		cheapLLM: &mockLLM{response: &domain.LLMResponse{
 			Content: `not json`,
 		}},
-		categorizer: &mockCategorizer{},
-		digestQueries: &mockCategorizeQueries{
+		content: &mockCategorizeContent{
 			uncategorized: []domain.GeneratedContent{
 				{ID: uuid.New(), Title: lib.StrPtr("test")},
 			},
-		},
-		userID: uuid.New(),
+		}, userID: uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err == nil {
@@ -149,13 +147,11 @@ func TestCategorizeService_Run_InvalidJSON(t *testing.T) {
 func TestCategorizeService_Run_LLMError(t *testing.T) {
 	svc := &CategorizeService{
 		cheapLLM: &mockLLM{err: errors.New("LLM unavailable")},
-		categorizer: &mockCategorizer{},
-		digestQueries: &mockCategorizeQueries{
+		content: &mockCategorizeContent{
 			uncategorized: []domain.GeneratedContent{
 				{ID: uuid.New(), Title: lib.StrPtr("test")},
 			},
-		},
-		userID: uuid.New(),
+		}, userID: uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err == nil {
@@ -166,9 +162,7 @@ func TestCategorizeService_Run_LLMError(t *testing.T) {
 func TestCategorizeService_Run_QueryError(t *testing.T) {
 	svc := &CategorizeService{
 		cheapLLM:      &mockLLM{},
-		categorizer:   &mockCategorizer{},
-		digestQueries: &mockCategorizeQueries{err: errors.New("DB error")},
-		userID:        uuid.New(),
+		content: &mockCategorizeContent{queryErr: errors.New("DB error")}, userID:        uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err == nil {
@@ -178,27 +172,25 @@ func TestCategorizeService_Run_QueryError(t *testing.T) {
 
 func TestCategorizeService_Run_WithExistingCategories(t *testing.T) {
 	articleID := uuid.New()
-	writer := &mockCategorizer{
+	mockContent := &mockCategorizeContent{
 		listUserCats: []string{"AI", "Machine Learning"},
+		uncategorized: []domain.GeneratedContent{
+			{ID: articleID, Title: lib.StrPtr("test")},
+		},
 	}
 	svc := &CategorizeService{
 		cheapLLM: &mockLLM{response: &domain.LLMResponse{
 			Content: `{"` + articleID.String() + `": ["AI", "Databases"]}`,
 		}},
-		categorizer:   writer,
-		digestQueries: &mockCategorizeQueries{
-			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: lib.StrPtr("test")},
-			},
-		},
-		userID: uuid.New(),
+		content: mockContent,
+		userID:  uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	cats, ok := writer.added[articleID]
+	cats, ok := mockContent.added[articleID]
 	if !ok {
 		t.Fatal("article was not updated")
 	}
@@ -209,27 +201,25 @@ func TestCategorizeService_Run_WithExistingCategories(t *testing.T) {
 
 func TestCategorizeService_Run_ListExistingCategoriesError(t *testing.T) {
 	articleID := uuid.New()
-	writer := &mockCategorizer{
+	mockContent := &mockCategorizeContent{
 		listUserCatsErr: errors.New("list error"),
+		uncategorized: []domain.GeneratedContent{
+			{ID: articleID, Title: lib.StrPtr("test")},
+		},
 	}
 	svc := &CategorizeService{
 		cheapLLM: &mockLLM{response: &domain.LLMResponse{
 			Content: `{"` + articleID.String() + `": ["AI"]}`,
 		}},
-		categorizer:   writer,
-		digestQueries: &mockCategorizeQueries{
-			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: lib.StrPtr("test")},
-			},
-		},
-		userID: uuid.New(),
+		content: mockContent,
+		userID:  uuid.New(),
 	}
 
 	// Should NOT fail — just log a warning and proceed without vocabulary
 	if err := svc.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	cats, ok := writer.added[articleID]
+	cats, ok := mockContent.added[articleID]
 	if !ok {
 		t.Fatal("article was not updated despite list categories error")
 	}
@@ -241,19 +231,18 @@ func TestCategorizeService_Run_ListExistingCategoriesError(t *testing.T) {
 func TestCategorizeService_Run_MissingArticleInResponse(t *testing.T) {
 	articleID1 := uuid.New()
 	articleID2 := uuid.New()
-	writer := &mockCategorizer{}
+	mockContent := &mockCategorizeContent{
+		uncategorized: []domain.GeneratedContent{
+			{ID: articleID1, Title: lib.StrPtr("article 1")},
+			{ID: articleID2, Title: lib.StrPtr("article 2")},
+		},
+	}
 	svc := &CategorizeService{
 		cheapLLM: &mockLLM{response: &domain.LLMResponse{
 			Content: `{"` + articleID1.String() + `": ["AI"]}`,
 		}},
-		categorizer:   writer,
-		digestQueries: &mockCategorizeQueries{
-			uncategorized: []domain.GeneratedContent{
-				{ID: articleID1, Title: lib.StrPtr("article 1")},
-				{ID: articleID2, Title: lib.StrPtr("article 2")},
-			},
-		},
-		userID: uuid.New(),
+		content: mockContent,
+		userID:  uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err != nil {
@@ -261,61 +250,59 @@ func TestCategorizeService_Run_MissingArticleInResponse(t *testing.T) {
 	}
 
 	// articleID1 should have categories
-	if _, ok := writer.added[articleID1]; !ok {
+	if _, ok := mockContent.added[articleID1]; !ok {
 		t.Error("articleID1 should have been categorized")
 	}
 	// articleID2 should NOT have categories (missing from LLM response)
-	if _, ok := writer.added[articleID2]; ok {
+	if _, ok := mockContent.added[articleID2]; ok {
 		t.Error("articleID2 should NOT have been categorized (missing from LLM response)")
 	}
 }
 
 func TestCategorizeService_Run_EmptyCategoriesArray(t *testing.T) {
 	articleID := uuid.New()
-	writer := &mockCategorizer{}
+	mockContent := &mockCategorizeContent{
+		uncategorized: []domain.GeneratedContent{
+			{ID: articleID, Title: lib.StrPtr("test")},
+		},
+	}
 	svc := &CategorizeService{
 		cheapLLM: &mockLLM{response: &domain.LLMResponse{
 			Content: `{"` + articleID.String() + `": []}`,
 		}},
-		categorizer:   writer,
-		digestQueries: &mockCategorizeQueries{
-			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: lib.StrPtr("test")},
-			},
-		},
-		userID: uuid.New(),
+		content: mockContent,
+		userID:  uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, ok := writer.added[articleID]; ok {
+	if _, ok := mockContent.added[articleID]; ok {
 		t.Error("article should NOT have been categorized with empty category array")
 	}
 }
 
 func TestCategorizeService_Run_WhitespaceCategories(t *testing.T) {
 	articleID := uuid.New()
-	writer := &mockCategorizer{}
+	mockContent := &mockCategorizeContent{
+		uncategorized: []domain.GeneratedContent{
+			{ID: articleID, Title: lib.StrPtr("test")},
+		},
+	}
 	svc := &CategorizeService{
 		cheapLLM: &mockLLM{response: &domain.LLMResponse{
 			Content: `{"` + articleID.String() + `": ["  AI  ", "  ", "ML"]}`,
 		}},
-		categorizer:   writer,
-		digestQueries: &mockCategorizeQueries{
-			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: lib.StrPtr("test")},
-			},
-		},
-		userID: uuid.New(),
+		content: mockContent,
+		userID:  uuid.New(),
 	}
 
 	if err := svc.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	cats, ok := writer.added[articleID]
+	cats, ok := mockContent.added[articleID]
 	if !ok {
 		t.Fatal("article was not updated")
 	}
@@ -463,8 +450,7 @@ func TestNewCategorizeService(t *testing.T) {
 	userID := uuid.New()
 	svc := NewCategorizeService(
 		&mockLLM{},
-		&mockCategorizer{},
-		&mockCategorizeQueries{},
+		&mockCategorizeContent{},
 		userID,
 	)
 
@@ -477,27 +463,24 @@ func TestNewCategorizeService(t *testing.T) {
 	if svc.cheapLLM == nil {
 		t.Error("expected cheapLLM to be set")
 	}
-	if svc.categorizer == nil {
-		t.Error("expected categorizer to be set")
+	if svc.content == nil {
+		t.Error("expected content to be set")
 	}
 }
 
 func TestCategorizeService_Run_AddCategoryError(t *testing.T) {
 	articleID := uuid.New()
-	writer := &mockCategorizer{
+	mockContent := &mockCategorizeContent{
 		addCategoryErr: errors.New("category insert failed"),
+		uncategorized: []domain.GeneratedContent{
+			{ID: articleID, Title: lib.StrPtr("test")},
+		},
 	}
 	svc := &CategorizeService{
 		cheapLLM: &mockLLM{response: &domain.LLMResponse{
 			Content: `{"` + articleID.String() + `": ["AI", "ML"]}`,
 		}},
-		categorizer:   writer,
-		digestQueries: &mockCategorizeQueries{
-			uncategorized: []domain.GeneratedContent{
-				{ID: articleID, Title: lib.StrPtr("test")},
-			},
-		},
-		userID: uuid.New(),
+		content: mockContent, userID: uuid.New(),
 	}
 
 	// Should log warning but not return error

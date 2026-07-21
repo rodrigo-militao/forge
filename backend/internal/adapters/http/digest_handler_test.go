@@ -85,6 +85,9 @@ func (m *mockContentRepoWithDigestStatsErr) UpdateOutline(_ context.Context, _ u
 func (m *mockContentRepoWithDigestStatsErr) UpdateStatus(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error {
 	return nil
 }
+func (m *mockContentRepoWithDigestStatsErr) UpdateStatusWithPublishedAt(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error {
+	return nil
+}
 func (m *mockContentRepoWithDigestStatsErr) SoftDelete(_ context.Context, _ uuid.UUID) error {
 	return nil
 }

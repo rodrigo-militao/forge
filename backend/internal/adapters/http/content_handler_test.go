@@ -114,7 +114,7 @@ func TestContentHandler_List(t *testing.T) {
 			{ID: uuid.New(), UserID: uid, Product: domain.ProductDigest, Title: lib.StrPtr("test")},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
@@ -139,7 +139,7 @@ func TestContentHandler_Delete_Owned(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String(), nil)
 	r = addChiURLParam(r, "id", cid.String())
@@ -161,7 +161,7 @@ func TestContentHandler_Delete_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String(), nil)
 	r = addChiURLParam(r, "id", cid.String())
@@ -176,7 +176,7 @@ func TestContentHandler_Delete_NotOwned(t *testing.T) {
 
 func TestContentHandler_Delete_NotFound(t *testing.T) {
 	uid := uuid.New()
-	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{}, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+uuid.New().String(), nil)
 	r = addChiURLParam(r, "id", uuid.New().String())
@@ -197,7 +197,7 @@ func TestContentHandler_UpdateCategories(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"categories":["AI","Web"]}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/categories", strings.NewReader(body))
@@ -226,7 +226,7 @@ func TestContentHandler_UpdateStatus(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentReady},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"status":"published"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/status", strings.NewReader(body))
@@ -253,7 +253,7 @@ func TestContentHandler_UpdateStatus_Invalid(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentDraft},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"status":"invalid"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/status", strings.NewReader(body))
@@ -276,7 +276,7 @@ func TestContentHandler_UpdateStatus_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest, Status: domain.ContentDraft},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"status":"published"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/status", strings.NewReader(body))
@@ -292,7 +292,7 @@ func TestContentHandler_UpdateStatus_NotOwned(t *testing.T) {
 
 func TestContentHandler_UpdateStatus_NotFound(t *testing.T) {
 	uid := uuid.New()
-	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{}, &mockSourceLinker{})}
 
 	body := `{"status":"published"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+uuid.New().String()+"/status", strings.NewReader(body))
@@ -329,7 +329,7 @@ func TestContentHandler_Save(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"title":"New Title","body_markdown":"New Body"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String(), strings.NewReader(body))
@@ -356,7 +356,7 @@ func TestContentHandler_Save_InvalidBody(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{invalid json`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String(), strings.NewReader(body))
@@ -372,7 +372,7 @@ func TestContentHandler_Save_InvalidBody(t *testing.T) {
 
 func TestContentHandler_Save_NotFound(t *testing.T) {
 	uid := uuid.New()
-	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{}, &mockSourceLinker{})}
 
 	body := `{"title":"test"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+uuid.New().String(), strings.NewReader(body))
@@ -395,7 +395,7 @@ func TestContentHandler_Save_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"title":"test"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String(), strings.NewReader(body))
@@ -416,7 +416,7 @@ func TestContentHandler_Save_NotOwned(t *testing.T) {
 func TestContentHandler_ListCategories(t *testing.T) {
 	uid := uuid.New()
 	content := &mockContentRepo{}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content/categories", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
@@ -436,7 +436,7 @@ func (m *errListCategoriesRepo) ListUserCategories(ctx context.Context, userID u
 
 func TestContentHandler_ListCategories_Error(t *testing.T) {
 	uid := uuid.New()
-	svc := application.NewContentService(&errListCategoriesRepo{}, &errListCategoriesRepo{}, &errListCategoriesRepo{}, &errListCategoriesRepo{}, &mockSourceLinker{})
+	svc := application.NewContentService(&errListCategoriesRepo{}, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content/categories", nil)
@@ -457,7 +457,7 @@ func (m *nilCategoriesRepo) ListUserCategories(ctx context.Context, userID uuid.
 
 func TestContentHandler_ListCategories_Nil(t *testing.T) {
 	uid := uuid.New()
-	svc := application.NewContentService(&nilCategoriesRepo{}, &nilCategoriesRepo{}, &nilCategoriesRepo{}, &nilCategoriesRepo{}, &mockSourceLinker{})
+	svc := application.NewContentService(&nilCategoriesRepo{}, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content/categories", nil)
@@ -487,7 +487,7 @@ func TestContentHandler_AddCategory(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"category":"AI"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/categories", strings.NewReader(body))
@@ -514,7 +514,7 @@ func TestContentHandler_AddCategory_InvalidBody(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `not json`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/categories", strings.NewReader(body))
@@ -536,7 +536,7 @@ func TestContentHandler_AddCategory_EmptyCategory(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"category":"  "}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/categories", strings.NewReader(body))
@@ -559,7 +559,7 @@ func TestContentHandler_AddCategory_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"category":"AI"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/categories", strings.NewReader(body))
@@ -585,7 +585,7 @@ func TestContentHandler_RemoveCategory(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest, Categories: []string{"AI"}},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String()+"/categories/AI", nil)
 	r = addChiURLParam(r, "id", cid.String())
@@ -612,7 +612,7 @@ func TestContentHandler_RemoveCategory_InvalidParam(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String()+"/categories/invalid", nil)
 	r = addChiURLParam(r, "id", cid.String())
@@ -635,7 +635,7 @@ func TestContentHandler_RemoveCategory_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String()+"/categories/AI", nil)
 	r = addChiURLParam(r, "id", cid.String())
@@ -656,7 +656,7 @@ func TestContentHandler_RemoveCategory_NotOwned(t *testing.T) {
 func TestContentHandler_ListTags(t *testing.T) {
 	uid := uuid.New()
 	content := &mockContentRepo{}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content/tags", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
@@ -676,7 +676,7 @@ func (m *errListTagsRepo) ListUserTags(ctx context.Context, userID uuid.UUID) ([
 
 func TestContentHandler_ListTags_Error(t *testing.T) {
 	uid := uuid.New()
-	svc := application.NewContentService(&errListTagsRepo{}, &errListTagsRepo{}, &errListTagsRepo{}, &errListTagsRepo{}, &mockSourceLinker{})
+	svc := application.NewContentService(&errListTagsRepo{}, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content/tags", nil)
@@ -697,7 +697,7 @@ func (m *nilTagsRepo) ListUserTags(ctx context.Context, userID uuid.UUID) ([]str
 
 func TestContentHandler_ListTags_Nil(t *testing.T) {
 	uid := uuid.New()
-	svc := application.NewContentService(&nilTagsRepo{}, &nilTagsRepo{}, &nilTagsRepo{}, &nilTagsRepo{}, &mockSourceLinker{})
+	svc := application.NewContentService(&nilTagsRepo{}, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content/tags", nil)
@@ -727,7 +727,7 @@ func TestContentHandler_AddTag(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"tag":"golang"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/tags", strings.NewReader(body))
@@ -754,7 +754,7 @@ func TestContentHandler_AddTag_InvalidBody(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `not json`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/tags", strings.NewReader(body))
@@ -776,7 +776,7 @@ func TestContentHandler_AddTag_EmptyTag(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"tag":"  "}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/tags", strings.NewReader(body))
@@ -799,7 +799,7 @@ func TestContentHandler_AddTag_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"tag":"golang"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/tags", strings.NewReader(body))
@@ -825,7 +825,7 @@ func TestContentHandler_RemoveTag(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String()+"/tags/golang", nil)
 	r = addChiURLParam(r, "id", cid.String())
@@ -853,7 +853,7 @@ func TestContentHandler_RemoveTag_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String()+"/tags/golang", nil)
 	r = addChiURLParam(r, "id", cid.String())
@@ -879,7 +879,7 @@ func TestContentHandler_UpdateOutline(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"outline":"1. Intro\n2. Body\n3. Conclusion"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/outline", strings.NewReader(body))
@@ -906,7 +906,7 @@ func TestContentHandler_UpdateOutline_InvalidBody(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `not json`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/outline", strings.NewReader(body))
@@ -929,7 +929,7 @@ func TestContentHandler_UpdateOutline_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"outline":"test"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+cid.String()+"/outline", strings.NewReader(body))
@@ -945,7 +945,7 @@ func TestContentHandler_UpdateOutline_NotOwned(t *testing.T) {
 
 func TestContentHandler_UpdateOutline_NotFound(t *testing.T) {
 	uid := uuid.New()
-	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(&mockContentRepo{}, &mockSourceLinker{})}
 
 	body := `{"outline":"test"}`
 	r := httptest.NewRequest(http.MethodPut, "/api/content/"+uuid.New().String()+"/outline", strings.NewReader(body))
@@ -972,7 +972,7 @@ func TestContentHandler_LinkSource(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"source_id":"` + sourceID.String() + `"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/link-source", strings.NewReader(body))
@@ -999,7 +999,7 @@ func TestContentHandler_LinkSource_InvalidBody(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `not json`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/link-source", strings.NewReader(body))
@@ -1021,7 +1021,7 @@ func TestContentHandler_LinkSource_InvalidSourceID(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"source_id":"not-a-uuid"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/link-source", strings.NewReader(body))
@@ -1045,7 +1045,7 @@ func TestContentHandler_Transition_Valid(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentBuilding},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"to":"review"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/transition", strings.NewReader(body))
@@ -1067,7 +1067,7 @@ func TestContentHandler_Transition_Invalid(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentBuilding},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"to":"ready"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/transition", strings.NewReader(body))
@@ -1090,7 +1090,7 @@ func TestContentHandler_Transition_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest, Status: domain.ContentBuilding},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"to":"review"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/transition", strings.NewReader(body))
@@ -1112,7 +1112,7 @@ func TestContentHandler_LegacyUpdateStatus_CannotBypassLifecycle(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentBuilding},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	// Legacy endpoint sends building → ready (invalid in Sprint 1 lifecycle)
 	body := `{"status":"ready"}`
@@ -1135,7 +1135,7 @@ func TestContentHandler_LegacyUpdateStatus_ValidTransitionWorks(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentBuilding},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	// Legacy endpoint sends building → review (valid in Sprint 1 lifecycle)
 	body := `{"status":"review"}`
@@ -1160,7 +1160,7 @@ func TestContentHandler_LinkSource_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductDigest},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	body := `{"source_id":"` + sourceID.String() + `"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/content/"+cid.String()+"/link-source", strings.NewReader(body))
@@ -1179,7 +1179,7 @@ func TestContentHandler_LinkSource_NotOwned(t *testing.T) {
 func TestContentHandler_Create_ReturnsDefaults(t *testing.T) {
 	uid := uuid.New()
 	content := &mockContentRepo{}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodPost, "/api/content", nil)
 	r = r.WithContext(context.WithValue(r.Context(), userIDKey, uid))
@@ -1220,7 +1220,7 @@ func TestContentHandler_GetByID_Success(t *testing.T) {
 			{ID: cid, UserID: uid, Product: domain.ProductCompose, Type: domain.ContentTypeArticle, Status: domain.ContentBuilding},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content/"+cid.String(), nil)
 	r = addChiURLParam(r, "id", cid.String())

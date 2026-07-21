@@ -141,3 +141,6 @@ type GeneratedContent struct {
 	CreatedAt    time.Time       `json:"created_at"`
 	UpdatedAt    time.Time       `json:"updated_at"`
 }
+
+func (c *GeneratedContent) GetUserID() uuid.UUID { return c.UserID }
+

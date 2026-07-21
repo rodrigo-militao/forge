@@ -2,7 +2,6 @@ package http
 
 import (
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -16,24 +15,8 @@ import (
 )
 
 // contentOpError maps ContentService errors to HTTP status codes.
-//   - domain.ErrNotFound → 404
-//   - domain.ErrNotOwned → 403
-//   - other errors → 500 (logged)
 func contentOpError(w http.ResponseWriter, err error) bool {
-	if err == nil {
-		return true
-	}
-	if errors.Is(err, domain.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "content not found")
-	} else if errors.Is(err, domain.ErrNotOwned) {
-		writeError(w, http.StatusForbidden, "not your content")
-	} else if errors.Is(err, domain.ErrInvalidInput) {
-		writeError(w, http.StatusBadRequest, err.Error())
-	} else {
-		slog.Error("content operation failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "operation failed")
-	}
-	return false
+	return !writeDomainError(w, err)
 }
 
 type ContentHandler struct {

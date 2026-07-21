@@ -2,7 +2,6 @@ package http
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -225,22 +224,7 @@ func (h *ReferenceHandler) DetachFromContent(w http.ResponseWriter, r *http.Requ
 
 // refError maps ReferenceService errors to HTTP status codes.
 func refError(w http.ResponseWriter, err error) {
-	if err == nil {
-		return
-	}
-	if errors.Is(err, domain.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "not found")
-		return
-	}
-	if errors.Is(err, domain.ErrNotOwned) {
-		writeError(w, http.StatusForbidden, "not your content")
-		return
-	}
-	if errors.Is(err, domain.ErrInvalidInput) {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	writeError(w, http.StatusInternalServerError, "operation failed")
+	writeDomainError(w, err)
 }
 
 // parseUUID extracts and parses a UUID path parameter.

@@ -1,40 +1,10 @@
 import { test } from "poku";
 import assert from "node:assert/strict";
 
-// tsx compiles JSX to React.createElement (classic transform),
-// so we need React on globalThis before importing .tsx components.
-const ReactMod = await import("react");
-(globalThis as any).React = ReactMod.default || ReactMod;
+import { setupTestEnvironment, setupTestI18n } from "../../test/setup";
 
-const { JSDOM } = await import("jsdom");
-const dom = new JSDOM('<!DOCTYPE html><html><body><div id="root"></div></body></html>', {
-  url: "http://localhost",
-  pretendToBeVisual: true,
-});
-(globalThis as any).document = dom.window.document;
-(globalThis as any).window = dom.window;
-(globalThis as any).HTMLElement = dom.window.HTMLHtmlElement;
-(globalThis as any).Node = dom.window.Node;
-(globalThis as any).self = dom.window;
-
-// Setup minimal i18n instance so useTranslation works in components
-const i18n = await import("i18next");
-const { initReactI18next } = await import("react-i18next");
-const defaultInst = i18n.default || i18n;
-defaultInst.use(initReactI18next).init({
-  lng: "en",
-  resources: {
-    en: {
-      translation: {
-        editor: {
-          cancel: "Cancel",
-          confirm: "Confirm",
-        },
-      },
-    },
-  },
-  interpolation: { escapeValue: false },
-});
+const dom = await setupTestEnvironment();
+await setupTestI18n({ editor: { cancel: "Cancel", confirm: "Confirm" } });
 
 const { createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");

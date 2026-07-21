@@ -385,32 +385,6 @@ func (q *Queries) GetTagByLabel(ctx context.Context, arg GetTagByLabelParams) (T
 	return i, err
 }
 
-const listAllCategoriesByUser = `-- name: ListAllCategoriesByUser :many
-SELECT DISTINCT label FROM categories
-WHERE user_id = $1
-ORDER BY label
-`
-
-func (q *Queries) ListAllCategoriesByUser(ctx context.Context, userID pgtype.UUID) ([]string, error) {
-	rows, err := q.db.Query(ctx, listAllCategoriesByUser, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var label string
-		if err := rows.Scan(&label); err != nil {
-			return nil, err
-		}
-		items = append(items, label)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listArticleCategories = `-- name: ListArticleCategories :many
 SELECT c.label FROM article_categories ac
 JOIN categories c ON c.id = ac.category_id

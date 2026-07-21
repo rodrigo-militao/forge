@@ -25,7 +25,7 @@ func (m *errListContentRepo) ListByUser(ctx context.Context, userID uuid.UUID) (
 
 func TestContentHandler_List_RepoError(t *testing.T) {
 	uid := uuid.New()
-	svc := application.NewContentService(&errListContentRepo{}, &errListContentRepo{}, &errListContentRepo{}, &errListContentRepo{}, &mockSourceLinker{})
+	svc := application.NewContentService(&errListContentRepo{}, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content", nil)
@@ -42,7 +42,7 @@ func TestContentHandler_List_RepoError(t *testing.T) {
 
 func TestContentHandler_Delete_InvalidUUID(t *testing.T) {
 	uid := uuid.New()
-	svc := application.NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
+	svc := application.NewContentService(&mockContentRepo{}, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/not-a-uuid", nil)
@@ -79,7 +79,7 @@ func TestContentHandler_Save_RepoError(t *testing.T) {
 			},
 		},
 	}
-	svc := application.NewContentService(repo, repo, repo, repo, &mockSourceLinker{})
+	svc := application.NewContentService(repo, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	body := `{"title":"New Title","body_markdown":"New Body"}`
@@ -112,7 +112,7 @@ func TestContentHandler_Delete_RepoError(t *testing.T) {
 			},
 		},
 	}
-	svc := application.NewContentService(repo, repo, repo, repo, &mockSourceLinker{})
+	svc := application.NewContentService(repo, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String(), nil)
@@ -133,9 +133,6 @@ func TestContentHandler_UpdateCategories_InvalidBody(t *testing.T) {
 	cid := uuid.New()
 	svc := application.NewContentService(
 		&mockContentRepo{items: []domain.GeneratedContent{{ID: cid, UserID: uid, Product: domain.ProductDigest}}},
-		&mockContentRepo{},
-		&mockContentRepo{},
-		&mockContentRepo{},
 		&mockSourceLinker{},
 	)
 	h := &ContentHandler{svc: svc}
@@ -167,7 +164,7 @@ func TestContentHandler_UpdateCategories_RepoError(t *testing.T) {
 			},
 		},
 	}
-	svc := application.NewContentService(repo, repo, repo, repo, &mockSourceLinker{})
+	svc := application.NewContentService(repo, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	body := `{"categories":["AI","Web"]}`
@@ -184,7 +181,7 @@ func TestContentHandler_UpdateCategories_RepoError(t *testing.T) {
 
 func TestContentHandler_UpdateCategories_InvalidUUID(t *testing.T) {
 	uid := uuid.New()
-	svc := application.NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{})
+	svc := application.NewContentService(&mockContentRepo{}, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	body := `{"categories":["AI","Web"]}`
@@ -211,9 +208,6 @@ func TestContentHandler_RemoveTag_InvalidParam(t *testing.T) {
 	cid := uuid.New()
 	svc := application.NewContentService(
 		&mockContentRepo{items: []domain.GeneratedContent{{ID: cid, UserID: uid, Product: domain.ProductDigest}}},
-		&mockContentRepo{},
-		&mockContentRepo{},
-		&mockContentRepo{},
 		&mockSourceLinker{},
 	)
 	h := &ContentHandler{svc: svc}
@@ -246,7 +240,7 @@ func TestContentHandler_RemoveTag_RepoError(t *testing.T) {
 			},
 		},
 	}
-	svc := application.NewContentService(repo, repo, repo, repo, &mockSourceLinker{})
+	svc := application.NewContentService(repo, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String()+"/tags/golang", nil)
@@ -279,7 +273,7 @@ func TestContentHandler_AddCategory_RepoError(t *testing.T) {
 			},
 		},
 	}
-	svc := application.NewContentService(repo, repo, repo, repo, &mockSourceLinker{})
+	svc := application.NewContentService(repo, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	body := `{"category":"AI"}`
@@ -312,7 +306,7 @@ func TestContentHandler_RemoveCategory_RepoError(t *testing.T) {
 			},
 		},
 	}
-	svc := application.NewContentService(repo, repo, repo, repo, &mockSourceLinker{})
+	svc := application.NewContentService(repo, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/content/"+cid.String()+"/categories/AI", nil)
@@ -345,7 +339,7 @@ func TestContentHandler_AddTag_RepoError(t *testing.T) {
 			},
 		},
 	}
-	svc := application.NewContentService(repo, repo, repo, repo, &mockSourceLinker{})
+	svc := application.NewContentService(repo, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	body := `{"tag":"golang"}`
@@ -385,9 +379,6 @@ func TestContentHandler_LinkSource_RepoError(t *testing.T) {
 	sourceID := uuid.New()
 	svc := application.NewContentService(
 		&mockContentRepo{items: []domain.GeneratedContent{{ID: cid, UserID: uid, Product: domain.ProductDigest}}},
-		&mockContentRepo{},
-		&mockContentRepo{},
-		&mockContentRepo{},
 		&errSourceLinker{},
 	)
 	h := &ContentHandler{svc: svc}
@@ -411,9 +402,6 @@ func TestContentHandler_UpdateStatus_InvalidBody(t *testing.T) {
 	cid := uuid.New()
 	svc := application.NewContentService(
 		&mockContentRepo{items: []domain.GeneratedContent{{ID: cid, UserID: uid, Product: domain.ProductDigest, Status: domain.ContentDraft}}},
-		&mockContentRepo{},
-		&mockContentRepo{},
-		&mockContentRepo{},
 		&mockSourceLinker{},
 	)
 	h := &ContentHandler{svc: svc}
@@ -448,7 +436,7 @@ func TestContentHandler_UpdateStatus_RepoError(t *testing.T) {
 			},
 		},
 	}
-	svc := application.NewContentService(repo, repo, repo, repo, &mockSourceLinker{})
+	svc := application.NewContentService(repo, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	body := `{"status":"published"}`
@@ -481,7 +469,7 @@ func TestContentHandler_UpdateOutline_RepoError(t *testing.T) {
 			},
 		},
 	}
-	svc := application.NewContentService(repo, repo, repo, repo, &mockSourceLinker{})
+	svc := application.NewContentService(repo, &mockSourceLinker{})
 	h := &ContentHandler{svc: svc}
 
 	body := `{"outline":"1. Intro"}`
@@ -499,7 +487,7 @@ func TestContentHandler_UpdateOutline_RepoError(t *testing.T) {
 func TestGetByID_NotFound(t *testing.T) {
 	uid := uuid.New()
 	content := &mockContentRepo{}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content/"+uuid.New().String(), nil)
 	r = addChiURLParam(r, "id", uuid.New().String())
@@ -521,7 +509,7 @@ func TestGetByID_NotOwned(t *testing.T) {
 			{ID: cid, UserID: otherID, Product: domain.ProductCompose},
 		},
 	}
-	h := &ContentHandler{svc: application.NewContentService(content, content, content, content, &mockSourceLinker{})}
+	h := &ContentHandler{svc: application.NewContentService(content, &mockSourceLinker{})}
 
 	r := httptest.NewRequest(http.MethodGet, "/api/content/"+cid.String(), nil)
 	r = addChiURLParam(r, "id", cid.String())

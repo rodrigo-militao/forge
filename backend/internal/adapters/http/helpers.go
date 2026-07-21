@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -89,6 +90,25 @@ func enqueueJobInner(w http.ResponseWriter, r *http.Request, jobs ports.JobRepos
 			"job_id": job.ID.String(),
 			"status": "enqueued",
 		})
+}
+
+// writeDomainError maps common domain errors to HTTP responses.
+// Returns true if the error was handled (caller should stop processing).
+func writeDomainError(w http.ResponseWriter, err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, domain.ErrNotOwned) {
+		writeError(w, http.StatusForbidden, "forbidden")
+	} else if errors.Is(err, domain.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "not found")
+	} else if errors.Is(err, domain.ErrInvalidInput) {
+		writeError(w, http.StatusBadRequest, err.Error())
+	} else {
+		slog.Error("operation failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "operation failed")
+	}
+	return true
 }
 
 // compile-time check that uuid is used (required by domain.Job.UserID type)

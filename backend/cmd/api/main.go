@@ -16,6 +16,7 @@ import (
 	"github.com/rodrigo-militao/forge/internal/adapters/events"
 	"github.com/rodrigo-militao/forge/internal/adapters/llm"
 	"github.com/rodrigo-militao/forge/internal/core/application"
+	digestApp "github.com/rodrigo-militao/forge/internal/digest/application"
 	"github.com/rodrigo-militao/forge/internal/wiring"
 )
 
@@ -57,24 +58,24 @@ func main() {
 	aiSvc := application.NewAIService(llmClient, c.Content, c.References, c.AIAnalyses)
 
 	// Router
-	contentSvc := application.NewContentService(c.Content, c.Content, c.Content, c.Content, c.SourceTrack)
+	contentSvc := application.NewContentService(c.Content, c.SourceTrack)
+	editionSvc := digestApp.NewEditionService(c.Editions, c.Jobs, c.Usages, c.Plans)
 	router := handler.NewRouter(handler.RouterConfig{
-		Users:         c.Users,
-		Usages:        c.Usages,
-		Content:       c.Content,
-		ContentReader: c.Content,
-		ContentWriter: c.Content,
-		Jobs:          c.Jobs,
-		Interests:     c.Interests,
-		Sources:       c.Sources,
-		Editions:      c.Editions,
-		Hub:           c.Hub,
-		Plans:         c.Plans,
-		ContentSvc:    contentSvc,
-		Ideas:         c.Ideas,
-		SourceTrack:   c.SourceTrack,
-		References:    c.References,
-		AISvc:         aiSvc,
+		Users:       c.Users,
+		Usages:      c.Usages,
+		Content:     c.Content,
+		Jobs:        c.Jobs,
+		Interests:   c.Interests,
+		Sources:     c.Sources,
+		Editions:    c.Editions,
+		EditionSvc:  editionSvc,
+		Hub:         c.Hub,
+		Plans:       c.Plans,
+		ContentSvc:  contentSvc,
+		Ideas:       c.Ideas,
+		SourceTrack: c.SourceTrack,
+		References:  c.References,
+		AISvc:       aiSvc,
 	})
 
 	srv := &http.Server{

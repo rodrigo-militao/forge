@@ -10,16 +10,14 @@ import (
 
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	"github.com/rodrigo-militao/forge/internal/core/domain"
-	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
 type IdeasHandler struct {
-	svc      ports.IdeaRepository
-	ideasSvc *application.IdeasService
+	svc *application.IdeasService
 }
 
-func NewIdeasHandler(svc ports.IdeaRepository, ideasSvc *application.IdeasService) *IdeasHandler {
-	return &IdeasHandler{svc: svc, ideasSvc: ideasSvc}
+func NewIdeasHandler(svc *application.IdeasService) *IdeasHandler {
+	return &IdeasHandler{svc: svc}
 }
 
 func (h *IdeasHandler) Routes() chi.Router {
@@ -51,7 +49,7 @@ func (h *IdeasHandler) ideaID(r *http.Request) (uuid.UUID, bool) {
 }
 
 func (h *IdeasHandler) List(w http.ResponseWriter, r *http.Request) {
-	ideas, err := h.svc.ListByUser(r.Context(), h.userID(r))
+	ideas, err := h.svc.List(r.Context(), h.userID(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list ideas")
 		return
@@ -65,9 +63,13 @@ func (h *IdeasHandler) Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid idea id")
 		return
 	}
-	idea, err := h.svc.GetByID(r.Context(), id)
+	idea, err := h.svc.Get(r.Context(), id, h.userID(r))
 	if err != nil {
-		writeError(w, http.StatusNotFound, "idea not found")
+		if errors.Is(err, domain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "idea not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, "failed to get idea")
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, idea)
@@ -117,9 +119,13 @@ func (h *IdeasHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid idea id")
 		return
 	}
-	existing, err := h.svc.GetByID(r.Context(), id)
+	existing, err := h.svc.Get(r.Context(), id, h.userID(r))
 	if err != nil {
-		writeError(w, http.StatusNotFound, "idea not found")
+		if errors.Is(err, domain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "idea not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, "failed to get idea")
+		}
 		return
 	}
 	var req struct {
@@ -152,7 +158,7 @@ func (h *IdeasHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Status != nil {
 		existing.Status = domain.IdeaStatus(*req.Status)
 	}
-	if err := h.svc.Update(r.Context(), existing); err != nil {
+	if err := h.svc.Update(r.Context(), existing, h.userID(r)); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update idea")
 		return
 	}
@@ -165,8 +171,12 @@ func (h *IdeasHandler) Archive(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid idea id")
 		return
 	}
-	if err := h.svc.Archive(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to archive idea")
+	if err := h.svc.Archive(r.Context(), id, h.userID(r)); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "idea not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, "failed to archive idea")
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "archived"})
@@ -185,8 +195,12 @@ func (h *IdeasHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	if err := h.svc.AddTag(r.Context(), id, req.Label, h.userID(r)); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to add tag")
+	if err := h.svc.AddTag(r.Context(), id, h.userID(r), req.Label); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "idea not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, "failed to add tag")
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "tag added"})
@@ -199,8 +213,12 @@ func (h *IdeasHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tag := chi.URLParam(r, "tag")
-	if err := h.svc.RemoveTag(r.Context(), id, tag, h.userID(r)); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to remove tag")
+	if err := h.svc.RemoveTag(r.Context(), id, h.userID(r), tag); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "idea not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, "failed to remove tag")
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "tag removed"})
@@ -212,7 +230,7 @@ func (h *IdeasHandler) Promote(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid idea id")
 		return
 	}
-	article, err := h.ideasSvc.PromoteToArticle(r.Context(), id, h.userID(r))
+	article, err := h.svc.PromoteToArticle(r.Context(), id, h.userID(r))
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "idea not found")

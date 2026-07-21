@@ -36,3 +36,5 @@ type Idea struct {
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 }
+func (i *Idea) GetUserID() uuid.UUID { return i.UserID }
+

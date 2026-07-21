@@ -49,6 +49,19 @@ func (m *mockContentWriter) UpdateStatusWithPublishedAt(_ context.Context, _ uui
 	return nil
 }
 func (m *mockContentWriter) SoftDelete(_ context.Context, _ uuid.UUID) error { return nil }
+func (m *mockContentWriter) GetByID(_ context.Context, _ uuid.UUID) (*coredomain.GeneratedContent, error) { return nil, nil }
+func (m *mockContentWriter) ListByUser(_ context.Context, _ uuid.UUID) ([]coredomain.GeneratedContent, error) { return nil, nil }
+func (m *mockContentWriter) ListByUserFiltered(_ context.Context, _ uuid.UUID, _, _ *string) ([]coredomain.GeneratedContent, error) { return nil, nil }
+func (m *mockContentWriter) AddCategory(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockContentWriter) RemoveCategory(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockContentWriter) SetCategories(_ context.Context, _ uuid.UUID, _ []string) error { return nil }
+func (m *mockContentWriter) ListUserCategories(_ context.Context, _ uuid.UUID) ([]string, error) { return nil, nil }
+func (m *mockContentWriter) ExistsByURL(_ context.Context, _ uuid.UUID, _ string) (bool, error) { return false, nil }
+func (m *mockContentWriter) ListWithoutCategory(_ context.Context, _ uuid.UUID, _ int) ([]coredomain.GeneratedContent, error) { return nil, nil }
+func (m *mockContentWriter) GetDigestStats(_ context.Context, _ uuid.UUID) (*ports.DigestStats, error) { return nil, nil }
+func (m *mockContentWriter) AddTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockContentWriter) RemoveTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockContentWriter) ListUserTags(_ context.Context, _ uuid.UUID) ([]string, error) { return nil, nil }
 
 func TestTransformService_Run_expand(t *testing.T) {
 	llm := &mockLLMClient{
@@ -218,8 +231,21 @@ func (e *errorContentWriter) UpdateStatusWithPublishedAt(_ context.Context, _ uu
 	return nil
 }
 func (e *errorContentWriter) SoftDelete(_ context.Context, _ uuid.UUID) error { return nil }
+func (e *errorContentWriter) GetByID(_ context.Context, _ uuid.UUID) (*coredomain.GeneratedContent, error) { return nil, nil }
+func (e *errorContentWriter) ListByUser(_ context.Context, _ uuid.UUID) ([]coredomain.GeneratedContent, error) { return nil, nil }
+func (e *errorContentWriter) ListByUserFiltered(_ context.Context, _ uuid.UUID, _, _ *string) ([]coredomain.GeneratedContent, error) { return nil, nil }
+func (e *errorContentWriter) AddCategory(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (e *errorContentWriter) RemoveCategory(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (e *errorContentWriter) SetCategories(_ context.Context, _ uuid.UUID, _ []string) error { return nil }
+func (e *errorContentWriter) ListUserCategories(_ context.Context, _ uuid.UUID) ([]string, error) { return nil, nil }
+func (e *errorContentWriter) ExistsByURL(_ context.Context, _ uuid.UUID, _ string) (bool, error) { return false, nil }
+func (e *errorContentWriter) ListWithoutCategory(_ context.Context, _ uuid.UUID, _ int) ([]coredomain.GeneratedContent, error) { return nil, nil }
+func (e *errorContentWriter) GetDigestStats(_ context.Context, _ uuid.UUID) (*ports.DigestStats, error) { return nil, nil }
+func (e *errorContentWriter) AddTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (e *errorContentWriter) RemoveTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (e *errorContentWriter) ListUserTags(_ context.Context, _ uuid.UUID) ([]string, error) { return nil, nil }
 
 // Verify mockContentWriter implements the interface.
-var _ ports.ContentWriter = (*mockContentWriter)(nil)
-var _ ports.ContentWriter = (*errorContentWriter)(nil)
+var _ ports.ContentRepository = (*mockContentWriter)(nil)
+var _ ports.ContentRepository = (*errorContentWriter)(nil)
 var _ ports.LLMClient = (*mockLLMClient)(nil)

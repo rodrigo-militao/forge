@@ -2,11 +2,9 @@ package http
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/rodrigo-militao/forge/internal/core/application"
-	"github.com/rodrigo-militao/forge/internal/core/domain"
 )
 
 // AIHandler manages AI-powered editorial assistance endpoints (Sprint 4-5).
@@ -85,20 +83,5 @@ func (h *AIHandler) ImproveText(w http.ResponseWriter, r *http.Request) {
 
 // aiError maps AIService errors to HTTP status codes.
 func aiError(w http.ResponseWriter, err error) {
-	if err == nil {
-		return
-	}
-	if errors.Is(err, domain.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "not found")
-		return
-	}
-	if errors.Is(err, domain.ErrNotOwned) {
-		writeError(w, http.StatusForbidden, "not your content")
-		return
-	}
-	if errors.Is(err, domain.ErrInvalidInput) {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	writeError(w, http.StatusInternalServerError, "ai operation failed")
+	writeDomainError(w, err)
 }

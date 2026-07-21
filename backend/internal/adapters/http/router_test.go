@@ -20,9 +20,9 @@ func TestNewRouter(t *testing.T) {
 		Editions:    &mockEditionRepo{},
 		Hub:         &events.Hub{},
 		Plans:       plansWithMaxGenerations(uid, 5),
-		ContentSvc:  application.NewContentService(&mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockContentRepo{}, &mockSourceLinker{}),
+		ContentSvc:  application.NewContentService(&mockContentRepo{}, &mockSourceLinker{}),
 		Ideas:       &mockIdeaRepo{},
-		SourceTrack: nil,
+		SourceTrack: &mockSourceLinker{},
 	})
 	if r == nil {
 		t.Fatal("expected non-nil router")

@@ -35,10 +35,11 @@ func (f *fakeSource) Name() string                                          { re
 func (f *fakeSource) Fetch(_ context.Context) ([]digest.SourceItem, error)  { return f.articles, f.err }
 
 type mockContentWriter struct {
-	created    []*domain.GeneratedContent
-	err        error
-	failAfter  int // fail after N successful Create calls (0 = never fail by count)
-	callCount  int
+	created     []*domain.GeneratedContent
+	err         error
+	failAfter   int // fail after N successful Create calls (0 = never fail by count)
+	callCount   int
+	existsByURL map[string]bool
 }
 
 func (m *mockContentWriter) Create(_ context.Context, content *domain.GeneratedContent) error {
@@ -58,6 +59,24 @@ func (m *mockContentWriter) UpdateOutline(_ context.Context, _ uuid.UUID, _ *str
 func (m *mockContentWriter) UpdateStatus(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error { return nil }
 func (m *mockContentWriter) UpdateStatusWithPublishedAt(_ context.Context, _ uuid.UUID, _ domain.ContentStatus) error { return nil }
 func (m *mockContentWriter) SoftDelete(_ context.Context, _ uuid.UUID) error   { return nil }
+func (m *mockContentWriter) AddCategory(_ context.Context, _ uuid.UUID, _ string) error  { return nil }
+func (m *mockContentWriter) RemoveCategory(_ context.Context, _ uuid.UUID, _ string) error  { return nil }
+func (m *mockContentWriter) SetCategories(_ context.Context, _ uuid.UUID, _ []string) error { return nil }
+func (m *mockContentWriter) ListUserCategories(_ context.Context, _ uuid.UUID) ([]string, error) { return nil, nil }
+func (m *mockContentWriter) ExistsByURL(_ context.Context, _ uuid.UUID, url string) (bool, error) {
+	if m.existsByURL == nil {
+		return false, nil
+	}
+	return m.existsByURL[url], nil
+}
+func (m *mockContentWriter) ListWithoutCategory(_ context.Context, _ uuid.UUID, _ int) ([]domain.GeneratedContent, error) { return nil, nil }
+func (m *mockContentWriter) GetDigestStats(_ context.Context, _ uuid.UUID) (*ports.DigestStats, error) { return &ports.DigestStats{}, nil }
+func (m *mockContentWriter) AddTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockContentWriter) RemoveTag(_ context.Context, _ uuid.UUID, _ string) error { return nil }
+func (m *mockContentWriter) ListUserTags(_ context.Context, _ uuid.UUID) ([]string, error) { return nil, nil }
+func (m *mockContentWriter) GetByID(_ context.Context, _ uuid.UUID) (*domain.GeneratedContent, error) { return nil, nil }
+func (m *mockContentWriter) ListByUser(_ context.Context, _ uuid.UUID) ([]domain.GeneratedContent, error) { return nil, nil }
+func (m *mockContentWriter) ListByUserFiltered(_ context.Context, _ uuid.UUID, _, _ *string) ([]domain.GeneratedContent, error) { return nil, nil }
 
 type mockDigestQueries struct {
 	existsByURL map[string]bool
@@ -89,7 +108,6 @@ func TestNewDiscoveryService(t *testing.T) {
 		&mockLLM{},
 		[]digest.ContentSource{&fakeSource{name: "src1"}},
 		&mockContentWriter{},
-		&mockDigestQueries{},
 		userID,
 		[]string{"AI", "Go"},
 	)
@@ -127,7 +145,6 @@ func TestDiscoveryService_Run_HappyPath(t *testing.T) {
 		llm:            llm,
 		sources:        sources,
 		content:        writer,
-		digestQueries:  &mockDigestQueries{},
 		userID:         userID,
 		interestLabels: nil,
 	}
@@ -156,8 +173,8 @@ func TestDiscoveryService_Run_HappyPath(t *testing.T) {
 	if first.Product != domain.ProductDigest {
 		t.Errorf("expected product digest, got %v", first.Product)
 	}
-	if first.Status != domain.ContentDraft {
-		t.Errorf("expected status draft, got %v", first.Status)
+	if first.Status != domain.ContentBuilding {
+		t.Errorf("expected status building, got %v", first.Status)
 	}
 	if first.UserID != userID {
 		t.Errorf("expected userID %v, got %v", userID, first.UserID)
@@ -190,7 +207,6 @@ func TestDiscoveryService_Run_NoArticles(t *testing.T) {
 		llm:           &mockLLM{},
 		sources:       []digest.ContentSource{&fakeSource{name: "empty", articles: nil}},
 		content:       &mockContentWriter{},
-		digestQueries: &mockDigestQueries{},
 		userID:        uuid.New(),
 	}
 
@@ -210,7 +226,6 @@ func TestDiscoveryService_Run_LLMError(t *testing.T) {
 			},
 		},
 		content:       &mockContentWriter{},
-		digestQueries: &mockDigestQueries{},
 		userID:        uuid.New(),
 	}
 
@@ -239,7 +254,6 @@ func TestDiscoveryService_Run_NoHighMedium(t *testing.T) {
 			},
 		},
 		content:       writer,
-		digestQueries: &mockDigestQueries{},
 		userID:        uuid.New(),
 	}
 
@@ -269,8 +283,7 @@ func TestDiscoveryService_Run_DedupURL(t *testing.T) {
 			Content: "1 | HIGH | Great article\n",
 		},
 	}
-	writer := &mockContentWriter{}
-	queries := &mockDigestQueries{
+	writer := &mockContentWriter{
 		existsByURL: map[string]bool{"https://example.com/dup": true},
 	}
 	svc := &DiscoveryService{
@@ -282,7 +295,6 @@ func TestDiscoveryService_Run_DedupURL(t *testing.T) {
 			},
 		},
 		content:       writer,
-		digestQueries: queries,
 		userID:        userID,
 	}
 
@@ -305,9 +317,6 @@ func TestDiscoveryService_Run_DedupCheckError(t *testing.T) {
 		},
 	}
 	writer := &mockContentWriter{}
-	queries := &mockDigestQueries{
-		err: errors.New("DB unavailable"),
-	}
 	svc := &DiscoveryService{
 		llm:     llm,
 		sources: []digest.ContentSource{
@@ -317,7 +326,6 @@ func TestDiscoveryService_Run_DedupCheckError(t *testing.T) {
 			},
 		},
 		content:       writer,
-		digestQueries: queries,
 		userID:        uuid.New(),
 	}
 
@@ -346,7 +354,6 @@ func TestDiscoveryService_Run_PersistError(t *testing.T) {
 			},
 		},
 		content:       writer,
-		digestQueries: &mockDigestQueries{},
 		userID:        uuid.New(),
 	}
 
@@ -379,7 +386,6 @@ func TestDiscoveryService_Run_PersistError_MediumLoop(t *testing.T) {
 			},
 		},
 		content:       writer,
-		digestQueries: &mockDigestQueries{},
 		userID:        uuid.New(),
 	}
 

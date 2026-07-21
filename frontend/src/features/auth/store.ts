@@ -1,11 +1,6 @@
 import { create } from "zustand";
 import { api, type AuthResponse } from "../../api/client";
-
-function applyTheme(theme: string) {
-  if (typeof document !== "undefined") {
-    document.documentElement.dataset.theme = theme;
-  }
-}
+import { applyTheme } from "../../lib/theme";
 
 interface AuthState {
   user: AuthResponse | null;

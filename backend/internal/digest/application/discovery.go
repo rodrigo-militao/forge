@@ -20,19 +20,17 @@ import (
 type DiscoveryService struct {
 	llm            ports.LLMClient
 	sources        []digest.ContentSource
-	content        ports.ContentWriter
-	digestQueries  ports.ContentDigestReader
+	content        ports.ContentRepository
 	userID         uuid.UUID
 	interestLabels []string
 }
 
 // NewDiscoveryService creates a discovery service.
-func NewDiscoveryService(llm ports.LLMClient, sources []digest.ContentSource, content ports.ContentWriter, digestQueries ports.ContentDigestReader, userID uuid.UUID, interestLabels []string) *DiscoveryService {
+func NewDiscoveryService(llm ports.LLMClient, sources []digest.ContentSource, content ports.ContentRepository, userID uuid.UUID, interestLabels []string) *DiscoveryService {
 	return &DiscoveryService{
 		llm:            llm,
 		sources:        sources,
 		content:        content,
-		digestQueries:  digestQueries,
 		userID:         userID,
 		interestLabels: interestLabels,
 	}
@@ -87,7 +85,7 @@ func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult,
 
 		// Skip if URL already exists for this user (dedup across runs)
 		if item.URL != "" {
-			exists, err := s.digestQueries.ExistsByURL(ctx, s.userID, item.URL)
+			exists, err := s.content.ExistsByURL(ctx, s.userID, item.URL)
 			if err != nil {
 				slog.Warn("url dedup check failed, proceeding anyway",
 					"url", item.URL, "error", err)
@@ -101,7 +99,8 @@ func (s *DiscoveryService) Run(ctx context.Context, date time.Time) (*RunResult,
 		return s.content.Create(ctx, &domain.GeneratedContent{
 			UserID:       s.userID,
 			Product:      domain.ProductDigest,
-			Status:       domain.ContentDraft,
+			Type:         domain.ContentTypeArticle,
+			Status:       domain.ContentBuilding,
 			SourceType:   lib.StrPtr("discovery"),
 			Title:        &item.Title,
 			BodyMarkdown: &summary,

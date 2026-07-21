@@ -16,24 +16,23 @@ import (
 // It uses the existing LLMClient port and never modifies article content automatically.
 type AIService struct {
 	llm      ports.LLMClient
-	content  ports.ContentReader
+	content  ports.ContentRepository
 	refs     ports.ReferenceRepository
 	analysis ports.AIAnalysisRepository
 }
 
-func NewAIService(llm ports.LLMClient, content ports.ContentReader, refs ports.ReferenceRepository, analysis ports.AIAnalysisRepository) *AIService {
+func NewAIService(llm ports.LLMClient, content ports.ContentRepository, refs ports.ReferenceRepository, analysis ports.AIAnalysisRepository) *AIService {
 	return &AIService{llm: llm, content: content, refs: refs, analysis: analysis}
 }
 
 // AnalyzeArticle runs an AI analysis on the user's article, including reference context.
 // It persists the result and never modifies the article.
 func (s *AIService) AnalyzeArticle(ctx context.Context, contentID, userID uuid.UUID) (*domain.AIAnalysis, error) {
-	article, err := s.content.GetByID(ctx, contentID)
+	article, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.GeneratedContent, error) {
+		return s.content.GetByID(ctx, contentID)
+	}, userID)
 	if err != nil {
-		return nil, fmt.Errorf("get content: %w", err)
-	}
-	if article.UserID != userID {
-		return nil, fmt.Errorf("%w: content %s", domain.ErrNotOwned, contentID)
+		return nil, err
 	}
 
 	body := ""
@@ -138,12 +137,10 @@ func (s *AIService) ImproveText(ctx context.Context, contentID, userID uuid.UUID
 		return nil, fmt.Errorf("%w: instruction is required", domain.ErrInvalidInput)
 	}
 
-	article, err := s.content.GetByID(ctx, contentID)
-	if err != nil {
-		return nil, fmt.Errorf("get content: %w", err)
-	}
-	if article.UserID != userID {
-		return nil, fmt.Errorf("%w: content %s", domain.ErrNotOwned, contentID)
+	if _, err := domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.GeneratedContent, error) {
+		return s.content.GetByID(ctx, contentID)
+	}, userID); err != nil {
+		return nil, err
 	}
 
 	systemPrompt := `You are an expert editorial assistant. Improve the given text according to the instruction. Return a JSON object with exactly these fields:

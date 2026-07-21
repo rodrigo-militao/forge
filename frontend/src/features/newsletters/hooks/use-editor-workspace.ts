@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
-import { api, type ArticleRef } from "../../../api/client";
+import { api } from "../../../api/client";
 import { queryKeys } from "../../../lib/queryKeys";
 import { useAutosave } from "../../../hooks/useAutosave";
 import { useAITransform } from "../../../hooks/useAITransform";
+import { useEditorQueries } from "./use-editor-queries";
 
 export type SidebarTab = "ai" | "articles";
 
@@ -34,14 +35,15 @@ export function useEditorWorkspace(editionId: string) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const q = useEditorQueries(editionId);
 
-  // State
+  // Editor state
   const [editTitle, setEditTitle] = useState("");
   const [editSubtitle, setEditSubtitle] = useState("");
   const [editBody, setEditBody] = useState("");
   const [bodyVersion, setBodyVersion] = useState(0);
   const [generating, setGenerating] = useState(false);
-  const [articles, setArticles] = useState<ArticleRef[]>([]);
+  const [articles, setArticles] = useState<typeof q.editionArticles>([]);
   const [removingArticle, setRemovingArticle] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -49,68 +51,42 @@ export function useEditorWorkspace(editionId: string) {
 
   const { handleTransform } = useAITransform();
 
-  // Queries
-  const { data: edition, isLoading } = useQuery({
-    queryKey: queryKeys.editions.detail(editionId),
-    queryFn: () => api.newsletters.get(editionId),
-  });
-
-  const { data: editionArticles } = useQuery({
-    queryKey: queryKeys.editions.articles(editionId),
-    queryFn: () => api.newsletters.articles(editionId),
-  });
-
-  const { data: allContent } = useQuery({
-    queryKey: queryKeys.content.all,
-    queryFn: api.content.list,
-  });
-
-  const { data: articleIDsInAnyNewsletter } = useQuery({
-    queryKey: queryKeys.articleNewsletterIds.all,
-    queryFn: api.digest.articleNewsletterIDs,
-  });
-
-  const { data: availableTags } = useQuery({
-    queryKey: queryKeys.tags.all,
-    queryFn: api.content.listTags,
-  });
-
-  // Set edit fields when edition loads — bump bodyVersion to remount editor
+  // Set edit fields when edition loads
   useEffect(() => {
-    if (edition) {
-      setEditTitle(edition.title);
-      const [subtitle, body] = extractSubtitle(edition.body_html);
+    if (q.edition) {
+      setEditTitle(q.edition.title);
+      const [subtitle, body] = extractSubtitle(q.edition.body_html);
       setEditSubtitle(subtitle);
       setEditBody(body);
       setBodyVersion((v) => v + 1);
     }
-  }, [edition?.id, edition?.body_html]);
+  }, [q.edition?.id, q.edition?.body_html]);
 
   // Sync articles
   useEffect(() => {
-    if (editionArticles) {
-      setArticles(editionArticles);
+    if (q.editionArticles) {
+      setArticles(q.editionArticles);
     }
-  }, [editionArticles]);
+  }, [q.editionArticles]);
 
   // Save handler for autosave
   const handleSave = useCallback(async () => {
-    if (!edition) return;
+    if (!q.edition) return;
     const subtitleHtml = editSubtitle
       ? `<p data-subtitle="">${htmlEncode(editSubtitle)}</p>`
       : "";
-    await api.newsletters.updateBody(edition.id, {
+    await api.newsletters.updateBody(q.edition.id, {
       title: editTitle,
       body_html: subtitleHtml + editBody,
     });
     queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
     queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
-  }, [edition, editTitle, editSubtitle, editBody, queryClient, editionId]);
+  }, [q.edition, editTitle, editSubtitle, editBody, queryClient, editionId]);
 
   const { isSynced, isSaving, error: saveError } = useAutosave({
     save: handleSave,
-    deps: [editBody, editTitle, editSubtitle, edition?.id],
-    enabled: !!edition,
+    deps: [editBody, editTitle, editSubtitle, q.edition?.id],
+    enabled: !!q.edition,
   });
 
   // Actions
@@ -119,81 +95,81 @@ export function useEditorWorkspace(editionId: string) {
   }, [navigate]);
 
   const handleStatusChange = useCallback(async (status: string) => {
-    if (!edition) return;
+    if (!q.edition) return;
     try {
-      await api.newsletters.updateStatus(edition.id, status);
+      await api.newsletters.updateStatus(q.edition.id, status);
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
       toast.success(t("editor.statusUpdated"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
-  }, [edition, editionId, queryClient, t]);
+  }, [q.edition, editionId, queryClient, t]);
 
   const handleDuplicate = useCallback(async () => {
-    if (!edition) return;
+    if (!q.edition) return;
     try {
-      const dup = await api.newsletters.duplicate(edition.id);
+      const dup = await api.newsletters.duplicate(q.edition.id);
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
       toast.success(t("newsletters.newsletterDuplicated"));
       navigate({ to: `/content/newsletters/${dup.id}/edit` });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
-  }, [edition, editionId, queryClient, t, navigate]);
+  }, [q.edition, editionId, queryClient, t, navigate]);
 
   const handleUnarchive = useCallback(async () => {
-    if (!edition) return;
+    if (!q.edition) return;
     try {
-      await api.newsletters.updateStatus(edition.id, "building");
+      await api.newsletters.updateStatus(q.edition.id, "building");
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
       toast.success(t("editor.statusUpdated"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
-  }, [edition, editionId, queryClient, t]);
+  }, [q.edition, editionId, queryClient, t]);
 
   const handleCategoryChange = useCallback(async (category: string | null) => {
-    if (!edition) return;
+    if (!q.edition) return;
     try {
-      await api.newsletters.updateCategory(edition.id, category);
+      await api.newsletters.updateCategory(q.edition.id, category);
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
-  }, [edition, editionId, queryClient, t]);
+  }, [q.edition, editionId, queryClient, t]);
 
   const handleAddTag = useCallback(async (tag: string) => {
-    if (!edition) return;
+    if (!q.edition) return;
     try {
-      await api.newsletters.addTag(edition.id, tag);
+      await api.newsletters.addTag(q.edition.id, tag);
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.tags.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
-  }, [edition, editionId, queryClient, t]);
+  }, [q.edition, editionId, queryClient, t]);
 
   const handleRemoveTag = useCallback(async (tag: string) => {
-    if (!edition) return;
+    if (!q.edition) return;
     try {
-      await api.newsletters.removeTag(edition.id, tag);
+      await api.newsletters.removeTag(q.edition.id, tag);
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.tags.all });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
-  }, [edition, editionId, queryClient, t]);
+  }, [q.edition, editionId, queryClient, t]);
 
   const handleRemoveArticle = useCallback(async (contentID: string) => {
-    if (!edition) return;
+    if (!q.edition) return;
     setRemovingArticle(contentID);
     try {
-      await api.newsletters.removeArticle(edition.id, contentID);
+      await api.newsletters.removeArticle(q.edition.id, contentID);
       setArticles((prev) => prev.filter((a) => a.content_id !== contentID));
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
@@ -204,12 +180,12 @@ export function useEditorWorkspace(editionId: string) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
     setRemovingArticle(null);
-  }, [edition, editionId, queryClient, t]);
+  }, [q.edition, editionId, queryClient, t]);
 
   const handleAddArticle = useCallback(async (contentID: string) => {
-    if (!edition) return;
+    if (!q.edition) return;
     try {
-      await api.newsletters.addArticle(edition.id, contentID);
+      await api.newsletters.addArticle(q.edition.id, contentID);
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.articles(editionId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.editions.detail(editionId) });
@@ -218,19 +194,19 @@ export function useEditorWorkspace(editionId: string) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
     }
-  }, [edition, editionId, queryClient, t]);
+  }, [q.edition, editionId, queryClient, t]);
 
   const handleGenerateIntro = useCallback(async () => {
-    if (!edition || generating) return;
+    if (!q.edition || generating) return;
     setGenerating(true);
     try {
-      await api.newsletters.generateIntro(edition.id);
+      await api.newsletters.generateIntro(q.edition.id);
       toast.success(t("newsletters.introQueued"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("newsletters.failed"));
       setGenerating(false);
     }
-  }, [edition, generating, t]);
+  }, [q.edition, generating, t]);
 
   // Wait for intro generation
   useEffect(() => {
@@ -240,11 +216,11 @@ export function useEditorWorkspace(editionId: string) {
   }, [generating]);
 
   useEffect(() => {
-    if (!generating || !edition) return;
+    if (!generating || !q.edition) return;
     const checkUpdate = async () => {
       try {
-        const updated = await api.newsletters.get(edition.id);
-        if (updated.body_html !== edition.body_html) {
+        const updated = await api.newsletters.get(q.edition.id);
+        if (updated.body_html !== q.edition.body_html) {
           setGenerating(false);
           setEditBody(updated.body_html);
           setBodyVersion((v) => v + 1);
@@ -256,16 +232,9 @@ export function useEditorWorkspace(editionId: string) {
     };
     const interval = setInterval(checkUpdate, 2000);
     return () => clearInterval(interval);
-  }, [generating, edition, t]);
+  }, [generating, q.edition, t]);
 
-  // Derive available articles (not in any newsletter)
-  const articleIDsInEdition = new Set(articles.map((a) => a.content_id));
-  const usedIDs = new Set([...articleIDsInEdition, ...(articleIDsInAnyNewsletter ?? [])]);
-  const availableArticles = (allContent ?? []).filter(
-    (c) => c.deleted_at === null && !usedIDs.has(c.id)
-  );
-
-  // Escape key closes sidebar, then navigates back
+  // Escape key: close sidebar first, then navigate back
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -281,9 +250,8 @@ export function useEditorWorkspace(editionId: string) {
   }, [navigate, sidebarVisible]);
 
   return {
-    // State
-    edition,
-    isLoading,
+    edition: q.edition,
+    isLoading: q.isLoading,
     editTitle,
     editSubtitle,
     editBody,
@@ -300,16 +268,12 @@ export function useEditorWorkspace(editionId: string) {
     setSidebarVisible,
     sidebarTab,
     setSidebarTab,
-    availableArticles,
-    availableTags: availableTags ?? [],
+    availableArticles: q.availableArticles,
+    availableTags: q.availableTags,
     isSynced,
     isSaving,
     saveError,
-
-    // Refs
     editionId,
-
-    // Actions
     handleBack,
     handleStatusChange,
     handleDuplicate,

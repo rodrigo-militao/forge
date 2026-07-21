@@ -20,29 +20,21 @@ type SourceLinker interface {
 // user owns the content before proceeding. Plan limit enforcement is handled
 // by Plans.
 type ContentService struct {
-	reader      ports.ContentReader
-	writer      ports.ContentWriter
-	categorizer ports.ContentCategorizer
-	tagger      ports.ContentTagger
-	source      SourceLinker
+	content ports.ContentRepository
+	source  SourceLinker
 }
 
 // NewContentService creates a content service.
-func NewContentService(reader ports.ContentReader, writer ports.ContentWriter, categorizer ports.ContentCategorizer, tagger ports.ContentTagger, source SourceLinker) *ContentService {
-	return &ContentService{reader: reader, writer: writer, categorizer: categorizer, tagger: tagger, source: source}
+func NewContentService(content ports.ContentRepository, source SourceLinker) *ContentService {
+	return &ContentService{content: content, source: source}
 }
 
 // requireOwnership fetches content and verifies the requesting user owns it.
 // Returns the content if owned, or wraps domain.ErrNotFound or domain.ErrNotOwned.
 func (s *ContentService) requireOwnership(ctx context.Context, id, userID uuid.UUID) (*domain.GeneratedContent, error) {
-	content, err := s.reader.GetByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("get content: %w", err)
-	}
-	if content.UserID != userID {
-		return nil, fmt.Errorf("%w: content %s", domain.ErrNotOwned, id)
-	}
-	return content, nil
+	return domain.RequireOwnership(ctx, func(ctx context.Context) (*domain.GeneratedContent, error) {
+		return s.content.GetByID(ctx, id)
+	}, userID)
 }
 
 // GetOwnedContent fetches content and verifies the requesting user owns it.
@@ -51,25 +43,25 @@ func (s *ContentService) GetOwnedContent(ctx context.Context, id uuid.UUID, user
 }
 
 func (s *ContentService) ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
-	return s.reader.ListByUser(ctx, userID)
+	return s.content.ListByUser(ctx, userID)
 }
 
 func (s *ContentService) ListByUserFiltered(ctx context.Context, userID uuid.UUID, product, status *string) ([]domain.GeneratedContent, error) {
-	return s.reader.ListByUserFiltered(ctx, userID, product, status)
+	return s.content.ListByUserFiltered(ctx, userID, product, status)
 }
 
 func (s *ContentService) UpdateBody(ctx context.Context, id, userID uuid.UUID, title, bodyMarkdown *string) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err
 	}
-	return s.writer.UpdateBody(ctx, id, title, bodyMarkdown)
+	return s.content.UpdateBody(ctx, id, title, bodyMarkdown)
 }
 
 func (s *ContentService) UpdateOutline(ctx context.Context, id, userID uuid.UUID, outline *string) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err
 	}
-	return s.writer.UpdateOutline(ctx, id, outline)
+	return s.content.UpdateOutline(ctx, id, outline)
 }
 
 func (s *ContentService) LinkSource(ctx context.Context, contentID, sourceID, userID uuid.UUID) error {
@@ -90,7 +82,7 @@ func (s *ContentService) CreateBlankArticle(ctx context.Context, userID uuid.UUI
 		Origin:   domain.OriginManual,
 		Metadata: json.RawMessage("{}"),
 	}
-	if err := s.writer.Create(ctx, article); err != nil {
+	if err := s.content.Create(ctx, article); err != nil {
 		return nil, fmt.Errorf("create article: %w", err)
 	}
 	return article, nil
@@ -109,9 +101,9 @@ func (s *ContentService) TransitionStatus(ctx context.Context, id, userID uuid.U
 	}
 	// Set published_at on first publish
 	if target == domain.ContentPublished && content.Status != domain.ContentPublished {
-		return s.writer.UpdateStatusWithPublishedAt(ctx, id, target)
+		return s.content.UpdateStatusWithPublishedAt(ctx, id, target)
 	}
-	return s.writer.UpdateStatus(ctx, id, target)
+	return s.content.UpdateStatus(ctx, id, target)
 }
 
 // UpdateStatus updates content status directly.
@@ -120,56 +112,56 @@ func (s *ContentService) UpdateStatus(ctx context.Context, id, userID uuid.UUID,
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err
 	}
-	return s.writer.UpdateStatus(ctx, id, status)
+	return s.content.UpdateStatus(ctx, id, status)
 }
 
 func (s *ContentService) SoftDelete(ctx context.Context, id, userID uuid.UUID) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err
 	}
-	return s.writer.SoftDelete(ctx, id)
+	return s.content.SoftDelete(ctx, id)
 }
 
 func (s *ContentService) AddCategory(ctx context.Context, id, userID uuid.UUID, category string) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err
 	}
-	return s.categorizer.AddCategory(ctx, id, category)
+	return s.content.AddCategory(ctx, id, category)
 }
 
 func (s *ContentService) RemoveCategory(ctx context.Context, id, userID uuid.UUID, category string) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err
 	}
-	return s.categorizer.RemoveCategory(ctx, id, category)
+	return s.content.RemoveCategory(ctx, id, category)
 }
 
 func (s *ContentService) SetCategories(ctx context.Context, id, userID uuid.UUID, categories []string) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err
 	}
-	return s.categorizer.SetCategories(ctx, id, categories)
+	return s.content.SetCategories(ctx, id, categories)
 }
 
 func (s *ContentService) ListCategories(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	return s.categorizer.ListUserCategories(ctx, userID)
+	return s.content.ListUserCategories(ctx, userID)
 }
 
 func (s *ContentService) AddTag(ctx context.Context, id, userID uuid.UUID, tag string) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err
 	}
-	return s.tagger.AddTag(ctx, id, tag)
+	return s.content.AddTag(ctx, id, tag)
 }
 
 func (s *ContentService) RemoveTag(ctx context.Context, id, userID uuid.UUID, tag string) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err
 	}
-	return s.tagger.RemoveTag(ctx, id, tag)
+	return s.content.RemoveTag(ctx, id, tag)
 }
 
 func (s *ContentService) ListTags(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	return s.tagger.ListUserTags(ctx, userID)
+	return s.content.ListUserTags(ctx, userID)
 }
 

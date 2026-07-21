@@ -11,41 +11,70 @@ import (
 
 	"github.com/rodrigo-militao/forge/internal/core/application"
 	coredomain "github.com/rodrigo-militao/forge/internal/core/domain"
-	"github.com/rodrigo-militao/forge/internal/core/ports"
+	digestapp "github.com/rodrigo-militao/forge/internal/digest/application"
 	"github.com/rodrigo-militao/forge/internal/digest/domain"
 )
 
+// isPlanLimit checks whether err is a plan limit error.
+func isPlanLimit(err error) bool {
+	var lim *application.LimitError
+	return errors.As(err, &lim)
+}
+
 // EditionHandler serves the /api/editions endpoints (ADR 0042, ADR 0046).
 type EditionHandler struct {
-	editions domain.EditionRepository
-	jobs     ports.JobRepository
-	usages   ports.UsageCounterRepository
-	plans    *application.Plans
+	svc *digestapp.EditionService
 }
 
-func NewEditionHandler(editions domain.EditionRepository, jobs ports.JobRepository, usages ports.UsageCounterRepository, plans *application.Plans) *EditionHandler {
-	return &EditionHandler{editions: editions, jobs: jobs, usages: usages, plans: plans}
+func NewEditionHandler(svc *digestapp.EditionService) *EditionHandler {
+	return &EditionHandler{svc: svc}
 }
 
-// editionFromRequest fetches the edition by URL param {id} and checks ownership.
-// On failure it writes an error response and returns nil.
-func (h *EditionHandler) editionFromRequest(w http.ResponseWriter, r *http.Request) *domain.Edition {
-	userID, _ := UserIDFromContext(r.Context())
+// editionFromRequest parses {id} and fetches via the service (which checks ownership).
+func (h *EditionHandler) editionFromRequest(w http.ResponseWriter, r *http.Request) (*domain.Edition, bool) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return nil, false
+	}
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid id")
-		return nil
+		return nil, false
 	}
-	edition, err := h.editions.GetByID(r.Context(), id)
+	edition, err := h.svc.GetByID(r.Context(), id, userID)
 	if err != nil {
-		writeNotFoundOrErr(w, err)
-		return nil
+		if errors.Is(err, coredomain.ErrNotOwned) {
+			writeError(w, http.StatusForbidden, "forbidden")
+		} else if errors.Is(err, coredomain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "not found")
+		} else {
+			slog.Error("edition fetch failed", "error", err)
+			writeError(w, http.StatusInternalServerError, "internal error")
+		}
+		return nil, false
 	}
-	if edition.UserID != userID {
+	return edition, true
+}
+
+// writeEditionErr checks domain errors for edition operations
+// and writes the appropriate HTTP response. Returns true if the error
+// was handled (caller should stop processing).
+func writeEditionErr(w http.ResponseWriter, err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, coredomain.ErrNotOwned) {
 		writeError(w, http.StatusForbidden, "forbidden")
-		return nil
+	} else if errors.Is(err, coredomain.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "not found")
+	} else if errors.Is(err, coredomain.ErrInvalidInput) {
+		writeError(w, http.StatusBadRequest, err.Error())
+	} else {
+		slog.Error("edition operation failed", "error", err)
+	writeError(w, http.StatusInternalServerError, "operation failed")
 	}
-	return edition
+	return true
 }
 
 // GET /api/editions
@@ -56,52 +85,31 @@ func (h *EditionHandler) List(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	tagID := r.URL.Query().Get("tag_id")
 
-	var statusPtr, categoryPtr *string
+	var statusPtr, categoryPtr, tagPtr *string
 	if status != "" {
 		statusPtr = &status
 	}
 	if category != "" {
 		categoryPtr = &category
 	}
-
-	var editions []domain.Edition
-	var err error
-
 	if tagID != "" {
-		// tag filter: fetch all and filter in memory
-		all, listErr := h.editions.ListByUserFiltered(r.Context(), userID, statusPtr, categoryPtr)
-		if listErr != nil {
-			slog.Error("editions: list failed", "error", listErr)
-			writeError(w, http.StatusInternalServerError, "failed to list editions")
-			return
-		}
-		for _, e := range all {
-			for _, t := range e.Tags {
-				if t == tagID {
-					editions = append(editions, e)
-					break
-				}
-			}
-		}
-	} else {
-		editions, err = h.editions.ListByUserFiltered(r.Context(), userID, statusPtr, categoryPtr)
-		if err != nil {
-			slog.Error("editions: list failed", "error", err)
-			writeError(w, http.StatusInternalServerError, "failed to list editions")
-			return
-		}
+		tagPtr = &tagID
 	}
 
+	editions, err := h.svc.List(r.Context(), userID, statusPtr, categoryPtr, tagPtr)
+	if err != nil {
+	writeEditionErr(w, err)
+		return
+	}
 	if editions == nil {
 		editions = []domain.Edition{}
 	}
 
-	// Load article counts in batch
 	ids := make([]uuid.UUID, len(editions))
 	for i, e := range editions {
 		ids[i] = e.ID
 	}
-	counts, _ := h.editions.ListArticleCounts(r.Context(), ids)
+	counts, _ := h.svc.ListArticleCounts(r.Context(), ids)
 
 	result := make([]editionResponse, len(editions))
 	for i, e := range editions {
@@ -124,19 +132,9 @@ func (h *EditionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	edition := &domain.Edition{
-		UserID:      userID,
-		Title:       req.Title,
-		Status:      domain.EditionBuilding,
-		Destination: req.Destination,
-	}
-	if req.Category != nil && *req.Category != "" {
-		edition.Category = req.Category
-	}
-
-	if err := h.editions.Create(r.Context(), edition); err != nil {
-		slog.Error("editions: create failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to create edition")
+	edition, err := h.svc.Create(r.Context(), userID, req.Title, req.Category, req.Destination)
+	if err != nil {
+	writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, editionToResponse(*edition, 0))
@@ -144,18 +142,20 @@ func (h *EditionHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/editions/{id}
 func (h *EditionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	edition, ok := h.editionFromRequest(w, r)
+	if !ok {
 		return
 	}
-	counts, _ := h.editions.ListArticleCounts(r.Context(), []uuid.UUID{edition.ID})
+	counts, _ := h.svc.ListArticleCounts(r.Context(), []uuid.UUID{edition.ID})
 	writeJSON(w, http.StatusOK, editionToResponse(*edition, counts[edition.ID]))
 }
 
 // PUT /api/editions/{id}/body
 func (h *EditionHandler) UpdateBody(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 
@@ -168,9 +168,8 @@ func (h *EditionHandler) UpdateBody(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.editions.UpdateBody(r.Context(), edition.ID, req.Title, req.Body); err != nil {
-		slog.Error("editions: update body failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to update body")
+	if err := h.svc.UpdateBody(r.Context(), id, userID, req.Title, req.Body); err != nil {
+		writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
@@ -178,8 +177,10 @@ func (h *EditionHandler) UpdateBody(w http.ResponseWriter, r *http.Request) {
 
 // PUT /api/editions/{id}/status
 func (h *EditionHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 
@@ -191,15 +192,13 @@ func (h *EditionHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s := domain.EditionStatus(req.Status)
-	if err := edition.Status.ValidateTransition(s); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	if err := h.editions.UpdateStatus(r.Context(), edition.ID, s); err != nil {
-		slog.Error("editions: update status failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to update status")
+	if err := h.svc.UpdateStatus(r.Context(), id, userID, domain.EditionStatus(req.Status)); err != nil {
+		if errors.Is(err, coredomain.ErrInvalidInput) {
+			writeError(w, http.StatusBadRequest, err.Error())
+		} else {
+			slog.Error("editions: update status failed", "error", err)
+			writeError(w, http.StatusInternalServerError, "failed to update status")
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
@@ -207,8 +206,10 @@ func (h *EditionHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 // PUT /api/editions/{id}/category
 func (h *EditionHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 
@@ -224,9 +225,8 @@ func (h *EditionHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) 
 	if cat != nil && *cat == "" {
 		cat = nil
 	}
-	if err := h.editions.UpdateCategory(r.Context(), edition.ID, cat); err != nil {
-		slog.Error("editions: update category failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to update category")
+	if err := h.svc.UpdateCategory(r.Context(), id, userID, cat); err != nil {
+	writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
@@ -234,8 +234,10 @@ func (h *EditionHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) 
 
 // POST /api/editions/{id}/tags/{tag}
 func (h *EditionHandler) AddTag(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 	tag := chi.URLParam(r, "tag")
@@ -243,10 +245,8 @@ func (h *EditionHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "tag required")
 		return
 	}
-
-	if err := h.editions.AddTag(r.Context(), edition.ID, tag); err != nil {
-		slog.Error("editions: add tag failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to add tag")
+	if err := h.svc.AddTag(r.Context(), id, userID, tag); err != nil {
+	writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "tag added"})
@@ -254,8 +254,10 @@ func (h *EditionHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /api/editions/{id}/tags/{tag}
 func (h *EditionHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 	tag := chi.URLParam(r, "tag")
@@ -263,10 +265,8 @@ func (h *EditionHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "tag required")
 		return
 	}
-
-	if err := h.editions.RemoveTag(r.Context(), edition.ID, tag); err != nil {
-		slog.Error("editions: remove tag failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to remove tag")
+	if err := h.svc.RemoveTag(r.Context(), id, userID, tag); err != nil {
+	writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "tag removed"})
@@ -279,32 +279,26 @@ func (h *EditionHandler) GenerateIntro(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 
-	if err := h.plans.CheckMonthGenerationQuota(r.Context(), userID, h.usages); err != nil {
-		writeErrorWithCode(w, http.StatusTooManyRequests, err)
+	job, err := h.svc.GenerateIntro(r.Context(), id, userID)
+	if err != nil {
+		if errors.Is(err, coredomain.ErrNotOwned) {
+			writeError(w, http.StatusForbidden, "forbidden")
+		} else if errors.Is(err, coredomain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "not found")
+		} else if isPlanLimit(err) {
+			writeErrorWithCode(w, http.StatusTooManyRequests, err)
+		} else {
+			slog.Error("editions: generate intro failed", "error", err)
+			writeError(w, http.StatusInternalServerError, "operation failed")
+		}
 		return
 	}
-
-	payload, _ := json.Marshal(map[string]string{"edition_id": edition.ID.String()})
-	job := &coredomain.Job{
-		UserID:  userID,
-		Type:    "generate_edition_intro",
-		Payload: payload,
-	}
-	if err := h.jobs.Create(r.Context(), job); err != nil {
-		slog.Error("editions: enqueue intro failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to enqueue")
-		return
-	}
-
-	if _, incErr := h.usages.Increment(r.Context(), userID, ""); incErr != nil {
-		slog.Warn("usage counter increment failed", "error", incErr)
-	}
-
 	writeJSON(w, http.StatusAccepted, map[string]any{
 		"job_id": job.ID.String(),
 		"status": "enqueued",
@@ -313,8 +307,10 @@ func (h *EditionHandler) GenerateIntro(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/editions/{id}/articles
 func (h *EditionHandler) AddArticle(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 
@@ -331,9 +327,8 @@ func (h *EditionHandler) AddArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.editions.AddArticle(r.Context(), edition.ID, contentID); err != nil {
-		slog.Error("editions: add article failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to add article")
+	if err := h.svc.AddArticle(r.Context(), id, userID, contentID); err != nil {
+	writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "article added"})
@@ -341,15 +336,13 @@ func (h *EditionHandler) AddArticle(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/editions/{id}/articles
 func (h *EditionHandler) ListArticles(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	edition, ok := h.editionFromRequest(w, r)
+	if !ok {
 		return
 	}
-
-	articles, err := h.editions.ListArticles(r.Context(), edition.ID)
+	articles, err := h.svc.ListArticles(r.Context(), edition.ID, edition.UserID)
 	if err != nil {
-		slog.Error("editions: list articles failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to list articles")
+	writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, articles)
@@ -357,8 +350,10 @@ func (h *EditionHandler) ListArticles(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /api/editions/{id}/articles/{contentID}
 func (h *EditionHandler) RemoveArticle(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 	contentID, err := uuid.Parse(chi.URLParam(r, "contentID"))
@@ -366,10 +361,8 @@ func (h *EditionHandler) RemoveArticle(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid contentID")
 		return
 	}
-
-	if err := h.editions.RemoveArticle(r.Context(), edition.ID, contentID); err != nil {
-		slog.Error("editions: remove article failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to remove article")
+	if err := h.svc.RemoveArticle(r.Context(), id, userID, contentID); err != nil {
+	writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "article removed"})
@@ -377,15 +370,15 @@ func (h *EditionHandler) RemoveArticle(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/editions/{id}/duplicate
 func (h *EditionHandler) Duplicate(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
-
-	dup, err := h.editions.Duplicate(r.Context(), edition.ID)
+	dup, err := h.svc.Duplicate(r.Context(), id, userID)
 	if err != nil {
-		slog.Error("editions: duplicate failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to duplicate")
+	writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, editionToResponse(*dup, 0))
@@ -393,8 +386,10 @@ func (h *EditionHandler) Duplicate(w http.ResponseWriter, r *http.Request) {
 
 // PUT /api/editions/{id}/destination
 func (h *EditionHandler) UpdateDestination(w http.ResponseWriter, r *http.Request) {
-	edition := h.editionFromRequest(w, r)
-	if edition == nil {
+	userID, _ := UserIDFromContext(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 
@@ -405,14 +400,12 @@ func (h *EditionHandler) UpdateDestination(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-
 	dest := req.Destination
 	if dest != nil && *dest == "" {
 		dest = nil
 	}
-	if err := h.editions.UpdateDestination(r.Context(), edition.ID, dest); err != nil {
-		slog.Error("editions: update destination failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to update destination")
+	if err := h.svc.UpdateDestination(r.Context(), id, userID, dest); err != nil {
+	writeEditionErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
@@ -421,11 +414,9 @@ func (h *EditionHandler) UpdateDestination(w http.ResponseWriter, r *http.Reques
 // GET /api/editions/destinations
 func (h *EditionHandler) ListDestinations(w http.ResponseWriter, r *http.Request) {
 	userID, _ := UserIDFromContext(r.Context())
-
-	dests, err := h.editions.ListUsedDestinations(r.Context(), userID)
+	dests, err := h.svc.ListDestinations(r.Context(), userID)
 	if err != nil {
-		slog.Error("editions: list destinations failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to list destinations")
+	writeEditionErr(w, err)
 		return
 	}
 	if dests == nil {
@@ -434,29 +425,19 @@ func (h *EditionHandler) ListDestinations(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, dests)
 }
 
-// writeNotFoundOrErr writes 404 if err is ErrNotFound, else 500.
-func writeNotFoundOrErr(w http.ResponseWriter, err error) bool {
-	if errors.Is(err, coredomain.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "not found")
-		return true
-	}
-	writeError(w, http.StatusInternalServerError, "internal error")
-	return false
-}
-
 // Response DTO
 type editionResponse struct {
-	ID            uuid.UUID `json:"id"`
-	UserID        uuid.UUID `json:"user_id"`
-	Title         string    `json:"title"`
-	BodyHTML      string    `json:"body_html"`
-	Category      *string   `json:"category"`
-	Status        string    `json:"status"`
-	Destination   *string   `json:"destination"`
-	Tags          []string  `json:"tags"`
-	ArticleCount  int       `json:"article_count"`
-	CreatedAt     string    `json:"created_at"`
-	UpdatedAt     string    `json:"updated_at"`
+	ID           uuid.UUID `json:"id"`
+	UserID       uuid.UUID `json:"user_id"`
+	Title        string    `json:"title"`
+	BodyHTML     string    `json:"body_html"`
+	Category     *string   `json:"category"`
+	Status       string    `json:"status"`
+	Destination  *string   `json:"destination"`
+	Tags         []string  `json:"tags"`
+	ArticleCount int       `json:"article_count"`
+	CreatedAt    string    `json:"created_at"`
+	UpdatedAt    string    `json:"updated_at"`
 }
 
 func editionToResponse(e domain.Edition, articleCount int) editionResponse {

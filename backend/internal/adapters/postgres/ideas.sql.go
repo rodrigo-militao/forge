@@ -135,40 +135,6 @@ func (q *Queries) GetIdeaByID(ctx context.Context, id pgtype.UUID) (Idea, error)
 	return i, err
 }
 
-const listIdeaArticles = `-- name: ListIdeaArticles :many
-SELECT gc.id, gc.title, gc.body_markdown
-FROM idea_articles ia
-JOIN generated_content gc ON gc.id = ia.content_id
-WHERE ia.idea_id = $1
-ORDER BY gc.created_at DESC
-`
-
-type ListIdeaArticlesRow struct {
-	ID           pgtype.UUID
-	Title        *string
-	BodyMarkdown *string
-}
-
-func (q *Queries) ListIdeaArticles(ctx context.Context, ideaID pgtype.UUID) ([]ListIdeaArticlesRow, error) {
-	rows, err := q.db.Query(ctx, listIdeaArticles, ideaID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListIdeaArticlesRow
-	for rows.Next() {
-		var i ListIdeaArticlesRow
-		if err := rows.Scan(&i.ID, &i.Title, &i.BodyMarkdown); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listIdeaTagsByIdeaID = `-- name: ListIdeaTagsByIdeaID :many
 SELECT t.label FROM idea_tags it
 JOIN tags t ON t.id = it.tag_id

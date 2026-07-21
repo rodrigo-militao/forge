@@ -15,40 +15,26 @@ type UsageCounterRepository interface {
 	Increment(ctx context.Context, userID uuid.UUID, month string) (int, error)
 }
 
-// ContentReader persists user-generated content (digest items, articles, editions).
-type ContentReader interface {
+// ContentRepository is the unified persistence interface for GeneratedContent,
+// covering CRUD, lifecycle, categories, tags, digest queries, and ownership checks.
+// A single concrete type (*postgres.ContentRepository) implements all methods.
+type ContentRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.GeneratedContent, error)
 	ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error)
 	ListByUserFiltered(ctx context.Context, userID uuid.UUID, product, status *string) ([]domain.GeneratedContent, error)
-}
-
-// ContentWriter creates, updates, and soft-deletes content.
-type ContentWriter interface {
 	Create(ctx context.Context, content *domain.GeneratedContent) error
 	UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error
 	UpdateOutline(ctx context.Context, id uuid.UUID, outline *string) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error
 	UpdateStatusWithPublishedAt(ctx context.Context, id uuid.UUID, status domain.ContentStatus) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
-}
-
-// ContentCategorizer manages categories on content items (ADR 0045).
-type ContentCategorizer interface {
 	AddCategory(ctx context.Context, id uuid.UUID, category string) error
 	RemoveCategory(ctx context.Context, id uuid.UUID, category string) error
 	SetCategories(ctx context.Context, id uuid.UUID, categories []string) error
 	ListUserCategories(ctx context.Context, userID uuid.UUID) ([]string, error)
-}
-
-// ContentDigestReader contains Digest-specific read queries.
-type ContentDigestReader interface {
 	ExistsByURL(ctx context.Context, userID uuid.UUID, url string) (bool, error)
 	ListWithoutCategory(ctx context.Context, userID uuid.UUID, limit int) ([]domain.GeneratedContent, error)
 	GetDigestStats(ctx context.Context, userID uuid.UUID) (*DigestStats, error)
-}
-
-// ContentTagger manages tags on content items.
-type ContentTagger interface {
 	AddTag(ctx context.Context, id uuid.UUID, tag string) error
 	RemoveTag(ctx context.Context, id uuid.UUID, tag string) error
 	ListUserTags(ctx context.Context, userID uuid.UUID) ([]string, error)

@@ -462,10 +462,4 @@ func contentFromModel(c GeneratedContent) *domain.GeneratedContent {
 	}
 }
 
-var (
-	_ ports.ContentReader         = (*ContentRepository)(nil)
-	_ ports.ContentWriter         = (*ContentRepository)(nil)
-	_ ports.ContentCategorizer    = (*ContentRepository)(nil)
-	_ ports.ContentDigestReader   = (*ContentRepository)(nil)
-	_ ports.ContentTagger         = (*ContentRepository)(nil)
-)
+var _ ports.ContentRepository = (*ContentRepository)(nil)

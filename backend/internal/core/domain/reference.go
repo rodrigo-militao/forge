@@ -55,6 +55,8 @@ type Reference struct {
 	UpdatedAt     time.Time     `json:"updated_at"`
 }
 
+func (r *Reference) GetUserID() uuid.UUID { return r.UserID }
+
 // ValidateReference returns an error if the reference input is invalid.
 // It checks URL format, URL requirement, and reference type.
 // It does not perform network requests.

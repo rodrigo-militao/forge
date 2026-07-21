@@ -17,12 +17,12 @@ import (
 	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
-// mockContentWriter is a minimal ContentWriter stub for test Promote flows.
+// mockContentWriter is a minimal ContentRepository stub for test Promote flows.
 type mockContentWriter struct {
-	ports.ContentWriter
+	ports.ContentRepository
 }
 
-var _ ports.ContentWriter = (*mockContentWriter)(nil)
+var _ ports.ContentRepository = (*mockContentWriter)(nil)
 
 func (m *mockContentWriter) Create(ctx context.Context, content *domain.GeneratedContent) error {
 	content.ID = uuid.New()
@@ -40,7 +40,7 @@ func (m *mockContentWriter) UpdateOutline(_ context.Context, _ uuid.UUID, _ *str
 
 // newIdeasHandler creates an IdeasHandler with a mock IdeasService for tests.
 func newIdeasHandler(repo ports.IdeaRepository) *IdeasHandler {
-	return NewIdeasHandler(repo, application.NewIdeasService(repo, &mockContentWriter{}))
+	return NewIdeasHandler(application.NewIdeasService(repo, &mockContentWriter{}))
 }
 
 type mockIdeaRepo struct {
@@ -483,9 +483,8 @@ func TestIdeasHandler_Archive_RepoError(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Archive(w, r)
 
-	// Archive on empty repo returns 500 because Archive returns ErrNotFound
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("expected 500, got %d", w.Code)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
 	}
 }
 
@@ -776,7 +775,6 @@ func TestIdeasHandler_Update_AllFields(t *testing.T) {
 
 func TestIdeasHandler_AddTag_RepoError(t *testing.T) {
 	uid := uuid.New()
-	// Empty repo — AddTag returns ErrNotFound for non-existent idea
 	repo := &mockIdeaRepo{}
 	h := newIdeasHandler(repo)
 
@@ -788,13 +786,8 @@ func TestIdeasHandler_AddTag_RepoError(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.AddTag(w, r)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())
-	}
-	var resp apiError
-	json.NewDecoder(w.Body).Decode(&resp)
-	if resp.Error != "failed to add tag" {
-		t.Errorf("expected 'failed to add tag', got %q", resp.Error)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -815,12 +808,7 @@ func TestIdeasHandler_RemoveTag_RepoError(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.RemoveTag(w, r)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())
-	}
-	var resp apiError
-	json.NewDecoder(w.Body).Decode(&resp)
-	if resp.Error != "failed to remove tag" {
-		t.Errorf("expected 'failed to remove tag', got %q", resp.Error)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
 	}
 }

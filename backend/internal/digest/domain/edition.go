@@ -39,26 +39,27 @@ const (
 //   - ready → archived      (archive a ready newsletter)
 //   - archived → building   (unarchive — reopen for editing)
 func (s EditionStatus) CanTransitionTo(target EditionStatus) bool {
-	transitions := map[EditionStatus]map[EditionStatus]bool{
-		EditionBuilding: {
-			EditionReview: true,
-		},
-		EditionReview: {
-			EditionBuilding: true,
-			EditionReady:    true,
-		},
+	transitions := core.CommonLifecycle(EditionBuilding, EditionReview, EditionReady, EditionPublished)
+
+	// Add archived transitions on top of the common lifecycle.
+	extras := map[EditionStatus]map[EditionStatus]bool{
 		EditionReady: {
-			EditionBuilding:  true,
-			EditionPublished: true,
-			EditionArchived:  true,
+			EditionArchived: true,
 		},
 		EditionPublished: {
-			EditionBuilding: true, // deliberate reopen
-			EditionArchived: true, // archive
+			EditionArchived: true,
 		},
 		EditionArchived: {
 			EditionBuilding: true, // unarchive
 		},
+	}
+	for from, targets := range extras {
+		if transitions[from] == nil {
+			transitions[from] = make(map[EditionStatus]bool)
+		}
+		for t := range targets {
+			transitions[from][t] = true
+		}
 	}
 
 	if allowed, ok := transitions[s][target]; ok {
@@ -97,6 +98,8 @@ type Edition struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
+
+func (e *Edition) GetUserID() uuid.UUID { return e.UserID }
 
 // ArticleRef is a reference to a digest article linked to a newsletter.
 type ArticleRef struct {
