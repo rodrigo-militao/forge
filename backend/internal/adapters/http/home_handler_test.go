@@ -29,6 +29,9 @@ type mockHomeContent struct {
 func (m *mockHomeContent) ListByUser(_ context.Context, _ uuid.UUID) ([]domain.GeneratedContent, error) {
 	return m.contents, m.err
 }
+func (m *mockHomeContent) ListByUserFiltered(_ context.Context, _ uuid.UUID, _, _ *string) ([]domain.GeneratedContent, error) {
+	return m.contents, m.err
+}
 
 type mockHomeEditions struct {
 	editions []digest.Edition

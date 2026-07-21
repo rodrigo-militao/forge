@@ -34,6 +34,9 @@ func (m *mockContentRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Ge
 func (m *mockContentRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error) {
 	return m.items, nil
 }
+func (m *mockContentRepo) ListByUserFiltered(ctx context.Context, userID uuid.UUID, product, status *string) ([]domain.GeneratedContent, error) {
+	return m.items, nil
+}
 func (m *mockContentRepo) Create(ctx context.Context, content *domain.GeneratedContent) error { return nil }
 func (m *mockContentRepo) UpdateBody(ctx context.Context, id uuid.UUID, title, body *string) error { return nil }
 func (m *mockContentRepo) UpdateOutline(ctx context.Context, id uuid.UUID, outline *string) error { return nil }

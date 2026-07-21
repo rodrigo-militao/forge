@@ -4,7 +4,10 @@ import type { AIAnalysisResult, AITextSuggestion, ContentItem } from "./types";
 export const content = {
   create: () => request<ContentItem>("/content", { method: "POST" }),
   get: (id: string) => request<ContentItem>(`/content/${id}`),
-  list: () => request<ContentItem[]>("/content"),
+  list: (params?: { product?: string; status?: string }) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return request<ContentItem[]>("/content" + qs);
+  },
   delete: (id: string) => request<{ status: string }>("/content/" + id, { method: "DELETE" }),
   save: (id: string, data: { title?: string; body_markdown?: string }) =>
     request<{ status: string }>(`/content/${id}`, { method: "PUT", body: JSON.stringify(data) }),

@@ -272,7 +272,7 @@ export function useHomePage() {
   const handleContinueWriting = useCallback(
     (item: HomeItem) => {
       if (item.type === "article") {
-        navigate({ to: "/library", search: { selected: item.id } });
+        navigate({ to: `/content/articles/${item.id}/edit` });
       } else if (item.type === "newsletter" && item.editionId) {
         navigate({ to: `/content/newsletters/${item.editionId}/edit` });
       }

@@ -54,6 +54,10 @@ func (s *ContentService) ListByUser(ctx context.Context, userID uuid.UUID) ([]do
 	return s.reader.ListByUser(ctx, userID)
 }
 
+func (s *ContentService) ListByUserFiltered(ctx context.Context, userID uuid.UUID, product, status *string) ([]domain.GeneratedContent, error) {
+	return s.reader.ListByUserFiltered(ctx, userID, product, status)
+}
+
 func (s *ContentService) UpdateBody(ctx context.Context, id, userID uuid.UUID, title, bodyMarkdown *string) error {
 	if _, err := s.requireOwnership(ctx, id, userID); err != nil {
 		return err

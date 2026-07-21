@@ -9,8 +9,7 @@ import { AppShell } from "../components/layout/app-shell";
 import { LoginPage } from "../routes/login";
 import { RegisterPage } from "../routes/register";
 import { DigestPage } from "../features/digest/page";
-import { ComposePage } from "../features/compose/page";
-import { LibraryPage } from "../features/library/page";
+import { ArticleWorkspace } from "../features/articles/ArticleWorkspace";
 import { SettingsPage } from "../features/settings/page";
 import { NewslettersPage } from "../features/newsletters/page";
 import { EditorialWorkspace } from "../features/newsletters/editorial-workspace";
@@ -79,7 +78,7 @@ const digestLegacyRoute = createRoute({
 const articlesRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "/content/articles",
-  component: ComposePage,
+  component: ArticleWorkspace,
 });
 
 const articleNewRoute = createRoute({
@@ -138,7 +137,9 @@ const composeLegacyRoute = createRoute({
 const libraryRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "/library",
-  component: LibraryPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/content/articles" });
+  },
 });
 
 const settingsRoute = createRoute({

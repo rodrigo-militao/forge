@@ -75,6 +75,28 @@ func (h *ContentHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (h *ContentHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID, _ := UserIDFromContext(r.Context())
+
+	product := r.URL.Query().Get("product")
+	status := r.URL.Query().Get("status")
+
+	// Use filtered query when any param is present, otherwise fall back to full list
+	if product != "" || status != "" {
+		var productPtr, statusPtr *string
+		if product != "" {
+			productPtr = &product
+		}
+		if status != "" {
+			statusPtr = &status
+		}
+		items, err := h.svc.ListByUserFiltered(r.Context(), userID, productPtr, statusPtr)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to list content")
+			return
+		}
+		writeJSON(w, http.StatusOK, items)
+		return
+	}
+
 	items, err := h.svc.ListByUser(r.Context(), userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list content")

@@ -52,6 +52,10 @@ func (m *mockContentRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]d
 	return m.contents, m.listByUserErr
 }
 
+func (m *mockContentRepo) ListByUserFiltered(ctx context.Context, userID uuid.UUID, product, status *string) ([]domain.GeneratedContent, error) {
+	return m.contents, m.listByUserErr
+}
+
 func (m *mockContentRepo) UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error {
 	return m.updateBodyErr
 }

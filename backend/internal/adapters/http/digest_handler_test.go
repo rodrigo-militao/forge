@@ -70,6 +70,9 @@ func (m *mockContentRepoWithDigestStatsErr) GetByID(_ context.Context, _ uuid.UU
 func (m *mockContentRepoWithDigestStatsErr) ListByUser(_ context.Context, _ uuid.UUID) ([]domain.GeneratedContent, error) {
 	return nil, nil
 }
+func (m *mockContentRepoWithDigestStatsErr) ListByUserFiltered(_ context.Context, _ uuid.UUID, _, _ *string) ([]domain.GeneratedContent, error) {
+	return nil, nil
+}
 func (m *mockContentRepoWithDigestStatsErr) Create(_ context.Context, _ *domain.GeneratedContent) error {
 	return nil
 }

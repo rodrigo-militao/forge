@@ -75,6 +75,22 @@ func (r *ContentRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([
 	return result, nil
 }
 
+func (r *ContentRepository) ListByUserFiltered(ctx context.Context, userID uuid.UUID, product, status *string) ([]domain.GeneratedContent, error) {
+	rows, err := r.q.ListContentByUserFiltered(ctx, ListContentByUserFilteredParams{
+		UserID:        uuidToPgtype(userID),
+		ProductFilter: product,
+		StatusFilter:  status,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]domain.GeneratedContent, len(rows))
+	for i, c := range rows {
+		result[i] = *contentFromModel(c)
+	}
+	return result, nil
+}
+
 func (r *ContentRepository) UpdateBody(ctx context.Context, id uuid.UUID, title, bodyMarkdown *string) error {
 	_, err := r.q.UpdateContentBody(ctx, UpdateContentBodyParams{
 		ID:           uuidToPgtype(id),

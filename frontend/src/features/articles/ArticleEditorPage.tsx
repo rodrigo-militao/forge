@@ -342,7 +342,7 @@ export function ArticleEditorPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-2 border-b border-[var(--tt-border-color-tint)] shrink-0">
         <button
-          onClick={() => navigate({ to: "/library" })}
+          onClick={() => navigate({ to: "/content/articles" })}
           className="flex items-center gap-1 text-xs text-[var(--tt-color-text-gray)] hover:text-[var(--tt-theme-text)] transition-colors"
         >
           <ArrowLeft size={14} /> {t("articles.back_to_library")}

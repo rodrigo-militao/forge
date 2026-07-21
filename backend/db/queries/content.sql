@@ -13,6 +13,14 @@ SELECT * FROM generated_content
 WHERE user_id = $1
 ORDER BY created_at DESC;
 
+-- name: ListContentByUserFiltered :many
+SELECT * FROM generated_content
+WHERE user_id = $1
+  AND (sqlc.narg('product_filter')::TEXT IS NULL OR product = sqlc.narg('product_filter'))
+  AND (sqlc.narg('status_filter')::TEXT IS NULL OR status = sqlc.narg('status_filter'))
+  AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
 -- name: UpdateContentBody :one
 UPDATE generated_content
 SET title = COALESCE($2, title), body_markdown = COALESCE($3, body_markdown), updated_at = now()

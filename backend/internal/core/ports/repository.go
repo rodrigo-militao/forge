@@ -19,6 +19,7 @@ type UsageCounterRepository interface {
 type ContentReader interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.GeneratedContent, error)
 	ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.GeneratedContent, error)
+	ListByUserFiltered(ctx context.Context, userID uuid.UUID, product, status *string) ([]domain.GeneratedContent, error)
 }
 
 // ContentWriter creates, updates, and soft-deletes content.

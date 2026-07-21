@@ -484,6 +484,61 @@ func (q *Queries) ListContentByUser(ctx context.Context, userID pgtype.UUID) ([]
 	return items, nil
 }
 
+const listContentByUserFiltered = `-- name: ListContentByUserFiltered :many
+SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline, source_digest_article_id, content_type, published_at FROM generated_content
+WHERE user_id = $1
+  AND ($2::TEXT IS NULL OR product = $2)
+  AND ($3::TEXT IS NULL OR status = $3)
+  AND deleted_at IS NULL
+ORDER BY created_at DESC
+`
+
+type ListContentByUserFilteredParams struct {
+	UserID        pgtype.UUID
+	ProductFilter *string
+	StatusFilter  *string
+}
+
+func (q *Queries) ListContentByUserFiltered(ctx context.Context, arg ListContentByUserFilteredParams) ([]GeneratedContent, error) {
+	rows, err := q.db.Query(ctx, listContentByUserFiltered, arg.UserID, arg.ProductFilter, arg.StatusFilter)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GeneratedContent
+	for rows.Next() {
+		var i GeneratedContent
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Product,
+			&i.Status,
+			&i.SourceType,
+			&i.Title,
+			&i.BodyMarkdown,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Origin,
+			&i.DeletedAt,
+			&i.Category,
+			&i.Tags,
+			&i.Categories,
+			&i.Outline,
+			&i.SourceDigestArticleID,
+			&i.ContentType,
+			&i.PublishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listContentWithoutCategory = `-- name: ListContentWithoutCategory :many
 SELECT id, user_id, product, status, source_type, title, body_markdown, metadata, created_at, updated_at, origin, deleted_at, category, tags, categories, outline, source_digest_article_id, content_type, published_at FROM generated_content
 WHERE user_id = $1 AND product = 'digest' AND categories = '{}' AND deleted_at IS NULL
