@@ -59,10 +59,10 @@ export function ArticleCard({
   return (
     <div
       onClick={() => onClick(item.id)}
-      className={`cursor-pointer rounded-lg bg-white/5 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.08] ${
+      className={`group cursor-pointer rounded-xl border p-4 text-left transition-all duration-[var(--duration-base)] ${
         isSelected
-          ? "border border-[var(--color-accent-primary)] ring-1 ring-[var(--color-accent-primary)]/30"
-          : "border border-transparent"
+          ? "border-[var(--color-accent-primary)]/50 bg-white/[0.08] ring-2 ring-[var(--color-accent-primary)]/25 shadow-lg shadow-[var(--color-accent-primary)]/8"
+          : "border-[var(--color-border)]/10 bg-white/[0.02] hover:border-[var(--color-accent-primary)]/25 hover:bg-white/[0.05] hover:shadow-md hover:shadow-black/5"
       } ${isUsed ? "opacity-60" : ""}`}
     >
       <div className="flex items-start gap-3">
@@ -110,47 +110,49 @@ export function ArticleCard({
               {item.body_markdown}
             </p>
           )}
+        </div>
+      </div>
 
-          {/* Categories + Tags badges */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            {/* Category badges — orange pills */}
-            {item.categories &&
-              item.categories.map((cat) => (
-                <span
-                  key={cat}
-                  className="rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent-primary)]"
-                >
-                  {cat}
-                </span>
-              ))}
-            {/* Tag badges — muted monospace with # */}
-            {(item.tags || []).slice(0, 3).map((tag) => (
+      {/* Bottom row: tags + actions */}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          {/* Category badges — orange pills */}
+          {item.categories &&
+            item.categories.map((cat) => (
               <span
-                key={tag}
-                className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]"
+                key={cat}
+                className="rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent-primary)]"
               >
-                #{tag}
+                {cat}
               </span>
             ))}
-            {(item.tags || []).length > 3 && (
-              <span className="text-[10px] text-[var(--color-text-muted)]">
-                +{item.tags.length - 3}
-              </span>
-            )}
-          </div>
+          {/* Tag badges — muted monospace with # */}
+          {(item.tags || []).slice(0, 3).map((tag) => (
+            <span
+              key={tag}
+              className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]"
+            >
+              #{tag}
+            </span>
+          ))}
+          {(item.tags || []).length > 3 && (
+            <span className="text-[10px] text-[var(--color-text-muted)]">
+              +{item.tags.length - 3}
+            </span>
+          )}
         </div>
 
         {/* Action icons */}
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1 opacity-40 transition-opacity duration-[var(--duration-fast)] group-hover:opacity-100">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onCreateArticle(item);
             }}
             title={t("digest.createArticleAction")}
-            className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-primary)] active:scale-[0.92]"
+            className="cursor-pointer rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-primary)]"
           >
-            <PenLine size={14} />
+            <PenLine size={13} />
           </button>
           <button
             onClick={(e) => {
@@ -158,9 +160,9 @@ export function ArticleCard({
               onCreateIdea(item);
             }}
             title={t("digest.createIdeaAction")}
-            className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-primary)] active:scale-[0.92]"
+            className="cursor-pointer rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-primary)]"
           >
-            <Lightbulb size={14} />
+            <Lightbulb size={13} />
           </button>
           <button
             onClick={(e) => {
@@ -168,9 +170,9 @@ export function ArticleCard({
               onAddToNewsletter(item.id, e);
             }}
             title={t("digest.addToNewsletterLabel")}
-            className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)] active:scale-[0.92]"
+            className="cursor-pointer rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-bg-surface)]"
           >
-            <Mail size={14} />
+            <Mail size={13} />
           </button>
           <div className="relative">
             <button
@@ -179,9 +181,9 @@ export function ArticleCard({
                 setShowDeleteConfirm(!showDeleteConfirm);
               }}
               title={t("digest.delete")}
-              className="cursor-pointer rounded-md p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-danger)] active:scale-[0.92]"
+              className="cursor-pointer rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-accent-danger)]"
             >
-              <Trash2 size={14} />
+              <Trash2 size={13} />
             </button>
             {showDeleteConfirm && (
               <div

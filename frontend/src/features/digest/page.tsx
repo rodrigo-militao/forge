@@ -69,7 +69,7 @@ export function DigestPage() {
       {/* Header */}
       <div className="mt-6 flex items-center justify-between">
         <div>
-          <h1 className="font-[var(--font-display)] text-2xl text-[var(--color-bg-surface)]">
+          <h1 className="font-[var(--font-display)] text-3xl font-bold leading-tight text-[var(--color-bg-surface)]">
             {t("digest.title")}
           </h1>
           <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">
