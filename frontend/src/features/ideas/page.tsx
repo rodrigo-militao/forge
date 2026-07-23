@@ -141,7 +141,7 @@ export function IdeasPage() {
   // Create/Edit form
   if (creating || editing) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="mx-auto max-w-2xl space-y-6 px-8">
         <div className="flex items-center justify-between">
           <h1 className="font-[var(--font-display)] text-2xl text-[var(--color-bg-surface)]">
             {editing ? "Edit idea" : t("ideas.createNew")}
@@ -192,7 +192,7 @@ export function IdeasPage() {
 
   // List view
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-8">
       <div className="flex items-center justify-between">
         <h1 className="font-[var(--font-display)] text-2xl text-[var(--color-bg-surface)]">{t("ideas.title")}</h1>
         <button onClick={() => setCreating(true)} className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-primary)] px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 cursor-pointer">

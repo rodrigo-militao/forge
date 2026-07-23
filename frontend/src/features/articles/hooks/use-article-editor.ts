@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -6,6 +6,9 @@ import toast from "react-hot-toast";
 import { api, type AITextSuggestion } from "../../../api/client";
 import { queryKeys } from "../../../lib/queryKeys";
 import { useAutosave } from "../../../hooks/useAutosave";
+import { detectFormat, htmlToMarkdown } from "../../../lib/markdown";
+
+export type EditorMode = "visual" | "markdown" | "split" | "preview";
 
 export function useArticleEditor() {
   const { id } = useParams({ strict: false });
@@ -42,23 +45,37 @@ export function useArticleEditor() {
   /* ───── Editor state ───── */
   const [contentLoaded, setContentLoaded] = useState(false);
   const [editTitle, setEditTitle] = useState("");
-  const [editBody, setEditBody] = useState("");
+  const [editBody, setEditBody] = useState(""); // Markdown canonical
   const [contentVersion, setContentVersion] = useState(0);
 
+  /* ───── Mode state ───── */
+  const [editorMode, setEditorMode] = useState<EditorMode>("visual");
+  const [focusMode, setFocusMode] = useState(false);
+  const toggleFocusMode = useCallback(() => setFocusMode((v) => !v), []);
+
+  /* ───── Load article content ───── */
   useEffect(() => {
     if (article) {
       setEditTitle(article.title ?? "");
-      setEditBody(article.body_markdown ?? "");
+      const raw = article.body_markdown ?? "";
+      // body_markdown might be HTML (legacy) or Markdown — convert to Markdown
+      setEditBody(detectFormat(raw) === "html" ? htmlToMarkdown(raw) : raw);
       setContentLoaded(true);
     }
   }, [article]);
+
+  /* ───── Visual mode: convert Tiptap HTML → Markdown ───── */
+  const handleBodyHtmlChange = useCallback((html: string) => {
+    const md = htmlToMarkdown(html);
+    setEditBody(md);
+  }, []);
 
   /* ───── Autosave ───── */
   const handleSave = useCallback(async () => {
     if (!article) return;
     await api.content.save(article.id, {
       title: editTitle || undefined,
-      body_markdown: editBody || undefined,
+      body_markdown: editBody || undefined, // editBody is already Markdown
     });
     queryClient.invalidateQueries({ queryKey: queryKeys.content.byId(article.id) });
   }, [article, editTitle, editBody, queryClient]);
@@ -68,6 +85,16 @@ export function useArticleEditor() {
     deps: [editBody, editTitle],
     delay: 1500,
   });
+
+  /* ───── Dirty tracking ───── */
+  const [dirty, setDirty] = useState(false);
+  const titleRef = useRef(editTitle);
+  const bodyRef = useRef(editBody);
+  useEffect(() => {
+    titleRef.current = editTitle;
+    bodyRef.current = editBody;
+    setDirty(!isSynced);
+  }, [editTitle, editBody, isSynced]);
 
   /* ───── Lifecycle transitions ───── */
   const [transitioning, setTransitioning] = useState<string | null>(null);
@@ -164,10 +191,16 @@ export function useArticleEditor() {
     setSentOriginal(selection?.text ?? "");
     setContentChanged(false);
     try {
-      const start = Math.max(0, selection.from - 100);
-      const end = Math.min(editBody.length, selection.to + 100);
-      const ctxBefore = editBody.slice(start, selection.from);
-      const ctxAfter = editBody.slice(selection.to, end);
+      // Find selected text in canonical Markdown body (not position-based)
+      let ctxBefore = "";
+      let ctxAfter = "";
+      const mdIdx = editBody.indexOf(selection.text);
+      if (mdIdx >= 0) {
+        const start = Math.max(0, mdIdx - 100);
+        const end = Math.min(editBody.length, mdIdx + selection.text.length + 100);
+        ctxBefore = editBody.slice(start, mdIdx);
+        ctxAfter = editBody.slice(mdIdx + selection.text.length, end);
+      }
       const result = await api.content.ai.improve(
         article.id, selection.text, improveInstruction, ctxBefore, ctxAfter,
       );
@@ -224,8 +257,13 @@ export function useArticleEditor() {
     editTitle, setEditTitle,
     editBody, setEditBody,
     contentLoaded, contentVersion,
+    handleBodyHtmlChange,
+    /* Mode */
+    editorMode, setEditorMode,
+    focusMode, toggleFocusMode,
     /* Autosave */
-    isSynced, isSaving, saveError,
+    isSynced, isSaving, saveError, dirty,
+    handleSave,
     /* Transitions */
     transitioning, doTransition,
     /* References */

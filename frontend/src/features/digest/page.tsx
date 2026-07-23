@@ -40,7 +40,7 @@ export function DigestPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-3xl px-8">
         <div className="flex items-center justify-between">
           <div className="skeleton skeleton-title" />
           <div className="flex gap-2">
@@ -65,7 +65,7 @@ export function DigestPage() {
   /* ───── render ───── */
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col px-8">
       {/* Header */}
       <div className="mt-6 flex items-center justify-between">
         <div>

@@ -124,9 +124,9 @@ export function TiptapEditor({
   return (
     <div className={`simple-editor-wrapper flex min-h-0 flex-1 flex-col ${className}`}>
       <EditorContext.Provider value={{ editor }}>
-        {/* Toolbar — sticky at top */}
-        <div className="sticky top-0 z-[1] shrink-0 bg-[var(--color-bg-base)]">
-          <Toolbar ref={toolbarRef} role="toolbar" aria-label="Text formatting">
+        {/* Toolbar — discreet, like Notion/Substack */}
+        <div className="sticky top-0 z-[1] shrink-0">
+          <Toolbar variant="fixed" ref={toolbarRef} role="toolbar" aria-label="Text formatting" className="px-3 py-1 gap-2 justify-center flex-wrap">
             <Spacer />
 
             <ToolbarGroup>
