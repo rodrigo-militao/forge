@@ -255,25 +255,33 @@ export function LibraryPage() {
             key={item.id}
             onClick={() => { setSelectedItem(item); setEditTitle(item.title ?? ""); setEditBody(item.body_markdown ?? ""); }}
             style={{ animationDelay: `${idx * 50}ms` }}
-            className={`cursor-pointer rounded-lg border bg-white/5 p-4 transition-all duration-200 opacity-0 animate-[fadeIn_400ms_ease-out_forwards] hover:bg-white/[0.08] ${
+            className={`cursor-pointer border-b border-[var(--color-border)]/10 py-3 transition-all duration-200 opacity-0 animate-[fadeIn_400ms_ease-out_forwards] hover:bg-white/[0.03] ${
               item.deleted_at
-                ? "border-[var(--color-accent-danger)]/20 opacity-60"
-                : "border-[var(--color-border)]/20"
+                ? "opacity-60"
+                : ""
             }`}
           >
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="truncate font-medium text-[var(--color-bg-surface)]">{item.title || "(no title)"}</h3>
-                {item.product === "digest" && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">{t("library.sourceBadge")}</span>}
-                {item.categories && item.categories.length > 0 && item.categories.map((cat) => (
-                  <span key={cat} className="shrink-0 rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-primary)]">{cat}</span>
+                {item.product === "digest" && <span className="shrink-0 text-xs text-[var(--color-text-muted)]">{t("library.sourceBadge")}</span>}
+                {item.categories && item.categories.length > 0 && item.categories.map((cat, ci) => (
+                  <span key={cat}>
+                    {ci > 0 && <span className="text-xs text-[var(--color-text-muted)]">·</span>}
+                    <span className="text-xs text-[var(--color-text-secondary)]">{cat}</span>
+                  </span>
                 ))}
-                {item.status === "published" && <span className="shrink-0 rounded bg-[var(--color-accent-primary)]/20 px-1.5 py-0.5 text-xs text-[var(--color-accent-primary)]">{t("library.published")}</span>}
-                {item.status === "discarded" && <span className="shrink-0 rounded bg-[var(--color-accent-danger)]/20 px-1.5 py-0.5 text-xs text-[var(--color-accent-danger)]">{t("library.discarded")}</span>}
+                {item.status === "published" && <span className="shrink-0 text-xs text-[var(--color-text-secondary)]">{t("library.published")}</span>}
+                {item.status === "discarded" && <span className="shrink-0 text-xs text-[var(--color-text-muted)]">{t("library.discarded")}</span>}
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                {item.deleted_at && <span className="inline-block rounded bg-[var(--color-accent-danger)]/20 px-2 py-0.5 text-xs text-[var(--color-accent-danger)]">Deleted</span>}
-                {(item.tags || []).map((tag) => <span key={tag} className="rounded bg-white/10 px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">#{tag}</span>)}
+                {item.deleted_at && <span className="inline-block text-xs text-[var(--color-text-muted)]">Deleted</span>}
+                {(item.tags || []).map((tag, ti) => (
+                  <span key={tag}>
+                    {ti > 0 && <span className="text-xs text-[var(--color-text-muted)]">·</span>}
+                    <span className="text-xs text-[var(--color-text-muted)]">#{tag}</span>
+                  </span>
+                ))}
               </div>
             </div>
             {item.type === "article" && (

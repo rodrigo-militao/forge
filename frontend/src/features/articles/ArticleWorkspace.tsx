@@ -225,13 +225,13 @@ export function ArticleWorkspace() {
 
       {/* Articles list */}
       {articles.length > 0 && (
-        <div className="flex-1 space-y-2.5 overflow-y-auto pr-1">
+        <div className="flex-1 overflow-y-auto pr-1">
           {articles.map((article, idx) => {
             const meta = statusMeta[article.status] ?? statusMeta.building;
             return (
               <div
                 key={article.id}
-                className="group w-full rounded-xl border border-[var(--color-border)]/10 bg-white/[0.02] p-4 text-left transition-all duration-[var(--duration-base)] hover:border-[var(--color-accent-primary)]/25 hover:bg-white/[0.05] hover:shadow-md hover:shadow-black/5 cursor-pointer animate-[fadeIn_400ms_ease-out_forwards]"
+                className="group w-full border-b border-[var(--color-border)]/10 py-3 text-left transition-all duration-[var(--duration-base)] hover:bg-white/[0.03] cursor-pointer animate-[fadeIn_400ms_ease-out_forwards]"
                 onClick={() => handleOpenEditor(article.id)}
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
@@ -263,13 +263,13 @@ export function ArticleWorkspace() {
 
                 {/* Tags */}
                 {article.tags.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {article.tags.slice(0, 3).map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-[var(--color-accent-primary)]/15 px-1.5 py-0.5 text-[10px] text-[var(--color-accent-primary)]"
-                      >
-                        {tag}
+                  <div className="mt-2 flex flex-wrap items-center gap-1">
+                    {article.tags.slice(0, 3).map((tag, ti) => (
+                      <span key={tag} className="flex items-center gap-1">
+                        {ti > 0 && <span className="text-xs text-[var(--color-text-muted)]">·</span>}
+                        <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                          #{tag}
+                        </span>
                       </span>
                     ))}
                     {article.tags.length > 3 && (

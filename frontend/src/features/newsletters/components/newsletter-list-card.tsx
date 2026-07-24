@@ -35,10 +35,10 @@ export function NewsletterListCard({ item, isSelected, onClick, onEdit, onDuplic
   return (
     <div
       onClick={() => onClick(item)}
-      className={`group cursor-pointer rounded-xl border p-4 text-left transition-all duration-[var(--duration-base)] ${
+      className={`group cursor-pointer border-b border-[var(--color-border)]/10 py-3 text-left transition-all duration-[var(--duration-base)] ${
         isSelected
-          ? "border-[var(--color-accent-primary)]/50 bg-white/[0.08] ring-2 ring-[var(--color-accent-primary)]/25 shadow-lg shadow-[var(--color-accent-primary)]/8"
-          : "border-[var(--color-border)]/10 bg-white/[0.02] hover:border-[var(--color-accent-primary)]/25 hover:bg-white/[0.05] hover:shadow-md hover:shadow-black/5"
+          ? "bg-white/[0.06]"
+          : "bg-transparent hover:bg-white/[0.03]"
       }`}
     >
       {/* Top row: status dot + name (left) | compact progress bar (right) */}
@@ -82,13 +82,13 @@ export function NewsletterListCard({ item, isSelected, onClick, onEdit, onDuplic
 
       {/* Tags */}
       {item.tags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {item.tags.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full bg-[var(--color-accent-primary)]/15 px-1.5 py-0.5 text-[10px] text-[var(--color-accent-primary)]"
-            >
-              {tag}
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {item.tags.slice(0, 3).map((tag, ti) => (
+            <span key={tag} className="flex items-center gap-1">
+              {ti > 0 && <span className="text-xs text-[var(--color-text-muted)]">·</span>}
+              <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                #{tag}
+              </span>
             </span>
           ))}
           {item.tags.length > 3 && (

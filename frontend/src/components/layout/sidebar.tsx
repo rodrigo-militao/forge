@@ -50,7 +50,7 @@ export function Sidebar() {
     const itemHeight = "py-[9px]";
     return `flex items-center gap-3 rounded-lg px-3 ${itemHeight} text-sm transition-colors cursor-pointer ${
       isActive
-        ? "bg-[var(--color-active-subtle)] text-[var(--color-accent-primary)]"
+        ? "text-[var(--color-accent-primary)]"
         : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-subtle)] hover:text-[var(--color-bg-surface)]"
     } ${collapsed ? "justify-center px-0" : ""}`;
   };

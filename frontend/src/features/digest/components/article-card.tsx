@@ -59,10 +59,10 @@ export function ArticleCard({
   return (
     <div
       onClick={() => onClick(item.id)}
-      className={`group cursor-pointer rounded-xl border p-4 text-left transition-all duration-[var(--duration-base)] ${
+      className={`group cursor-pointer border-b border-[var(--color-border)]/10 py-3 text-left transition-all duration-[var(--duration-base)] ${
         isSelected
-          ? "border-[var(--color-accent-primary)]/50 bg-white/[0.08] ring-2 ring-[var(--color-accent-primary)]/25 shadow-lg shadow-[var(--color-accent-primary)]/8"
-          : "border-[var(--color-border)]/10 bg-white/[0.02] hover:border-[var(--color-accent-primary)]/25 hover:bg-white/[0.05] hover:shadow-md hover:shadow-black/5"
+          ? "bg-white/[0.06]"
+          : "bg-transparent hover:bg-white/[0.03]"
       } ${isUsed ? "opacity-60" : ""}`}
     >
       <div className="flex items-start gap-3">
@@ -88,12 +88,16 @@ export function ArticleCard({
               href={sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="truncate font-[var(--font-display)] text-sm font-semibold text-[var(--color-bg-surface)] transition-colors hover:text-[var(--color-accent-primary)]"
+              className={`truncate text-sm font-semibold transition-colors hover:text-[var(--color-accent-primary)] ${
+                isSelected
+                  ? "text-[var(--color-accent-primary)]"
+                  : "text-[var(--color-bg-surface)]"
+              }`}
             >
               {item.title || t("digest.noTitle")}
             </a>
             {isUsed && (
-              <span className="shrink-0 rounded bg-[var(--color-accent-success)]/20 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent-success)]">
+              <span className="shrink-0 text-[10px] font-medium text-[var(--color-accent-success)]">
                 {t("digest.detailUsed")}
               </span>
             )}
@@ -121,16 +125,19 @@ export function ArticleCard({
             item.categories.map((cat) => (
               <span
                 key={cat}
-                className="rounded-full bg-[var(--color-accent-primary)]/20 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent-primary)]"
+                className="text-xs text-[var(--color-text-secondary)]"
               >
                 {cat}
               </span>
             ))}
+          {item.categories?.length > 0 && item.tags?.length > 0 && (
+            <span className="text-xs text-[var(--color-text-muted)]">·</span>
+          )}
           {/* Tag badges — muted monospace with # */}
           {(item.tags || []).slice(0, 3).map((tag) => (
             <span
               key={tag}
-              className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]"
+              className="font-mono text-[10px] text-[var(--color-text-muted)]"
             >
               #{tag}
             </span>
