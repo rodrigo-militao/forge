@@ -117,6 +117,14 @@ A restrained palette of warm charcoal, warm off-white, and burnt orange. Neutral
 
 **The Tonal Layer Rule.** Depth is conveyed through lightness difference, not shadow. Elevated surfaces are brighter (higher lightness) than the base, on a single plane. Dark mode doesn't need drop shadows.
 
+**The Mode Distinction Rule.** The interface operates in two distinct modes — **Writing Mode** and **Management Mode** — each with its own visual language:
+- **Writing Mode** (editors: Article compose, Newsletter editor): Minimal chrome. The navigation sidebar is not visible. Metadata (word count, status, date) lives in a discrete header with small text and/or a collapsible side panel that is **closed by default**, opened on demand. No cards, no badges. The writing surface is the point.
+- **Management Mode** (Discover, Library, Article/Newsletter/Idea lists, Settings): May show data density (counts, dates, status), but still follows all other rules (One Voice, no colored pills in dense lists, hairline dividers).
+
+**The Plain Metadata Rule.** In dense list contexts (Discover article list, Library, Article list, Newsletter list, Ideas list), tags, categories, and status render as plain text (`text-secondary`/`text-muted`), separated by `·`, never as colored badges/pills with background tint.
+
+**The Hairline List Rule.** Dense lists of items use a **hairline divider** (1px `border-bottom` at `/10` opacity) between rows, not card per item. The card visual (`rounded-xl border p-4 bg`) is reserved for detail panels, focused single-item views, and empty states — never for each row in a list.
+
 ## 3. Typography
 
 **Display Font:** Fraunces (with Georgia, serif fallback)
@@ -164,6 +172,7 @@ No `box-shadow` on any surface at rest. No floating UI (no floating action butto
 - **Style:** Semi-transparent background on dark (`rgba(255,255,255,0.1)`), muted text.
 - **Active/Filter:** Burnt orange background for active filter pills.
 - **Removable:** Tags include an X icon button for removal, colored to match.
+- **Dense list context:** In lists (Discover, Library, Newsletters, Articles, Ideas), tags/categories/status render as **plain text** (`text-secondary`/`text-muted`) separated by `·`, never as pills or badges with background.
 
 ### Cards / Containers
 - **Corner Style:** Rounded (12px radius).
@@ -172,6 +181,7 @@ No `box-shadow` on any surface at rest. No floating UI (no floating action butto
 - **Shadow:** None (follows Flat-By-Default Rule).
 - **Internal Padding:** 16px.
 - **States:** Selected cards get a 1px ring in burnt orange. Used/in-edition cards get 60% opacity + "Used" badge.
+- **Hairline list variant:** In dense list contexts, items use a **hairline divider row** instead of a card: no background at rest, `border-bottom: 1px` at `/10` opacity, `py-2` to `py-3` vertical padding, hover adds subtle background tint, selected state uses accent text color.
 
 ### Inputs / Fields
 - **Shape:** Rounded (8px radius).
@@ -186,8 +196,16 @@ No `box-shadow` on any surface at rest. No floating UI (no floating action butto
 - **Item typography:** DM Sans 500, 0.875rem / 14px.
 - **Default:** Muted secondary text.
 - **Hover:** Subtle background fill + brightens text.
-- **Active:** Brighter background + burnt orange text color.
+- **Active:** Burnt orange text color only, no background block. The active route is identified by the color of the text alone.
 - **Collapsed mode:** 64px wide, shows icons only. Animates width at 200ms.
+
+### Metadata Panel (Editor — Article & Newsletter)
+- **Placement:** Right side of the editor workspace, toggled via an icon button in the toolbar corner (e.g., `PanelRight` / `layout-sidebar-right`).
+- **Default state:** Closed. The icon button is always visible; clicking it opens the panel.
+- **When open:** Shows outline, document stats (word count, reading time, character count, headings), article status, and AI editorial assistance panels.
+- **Panels:** Each section is a `CollapsiblePanel` — the stats section is closed by default, other sections are open by default.
+- **Visual:** `w-72`, `border-l` at `/10` opacity, surface `bg-[var(--color-bg-surface-elevated)]`.
+- **Motion:** Width transition at `300ms ease-out`, content fades in.
 
 ### Tabs
 - **Step flow tabs** (used in Digest assemble flow): Burnt orange for active step, muted gray for future, moss green checkmark for completed.
@@ -218,3 +236,6 @@ No `box-shadow` on any surface at rest. No floating UI (no floating action butto
 - **Don't** use right-aligned text in left-to-right interfaces.
 - **Don't** create identical card grids — vary content density and layout rhythm.
 - **Don't** use the hero-metric template (big number, small label, supporting stats).
+- **Don't** render tags, categories, or status as colored pills/badges in dense list contexts — use plain text with `·` separators instead.
+- **Don't** use the card visual (`rounded-xl border p-4 bg`) for every row in a dense list — use hairline dividers between rows.
+- **Don't** use a colored background block to indicate the active navigation item — text color alone is sufficient.
