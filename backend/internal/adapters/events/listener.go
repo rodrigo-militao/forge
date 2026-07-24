@@ -8,14 +8,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/rodrigo-militao/forge/internal/core/ports"
 )
 
 // ListenContentChanged connects to Postgres, runs LISTEN on content_changed,
-// and forwards notifications to the Hub. Reconnects automatically on connection
+// and forwards notifications to the notifier. Reconnects automatically on connection
 // errors. Runs until ctx is cancelled. Intended to be called in a goroutine.
-func ListenContentChanged(ctx context.Context, connString string, hub *Hub) error {
+func ListenContentChanged(ctx context.Context, connString string, notifier ports.Notifier) error {
 	for {
-		if err := listenOnce(ctx, connString, hub); err != nil {
+		if err := listenOnce(ctx, connString, notifier); err != nil {
 			if ctx.Err() != nil {
 				return err
 			}
@@ -29,7 +31,7 @@ func ListenContentChanged(ctx context.Context, connString string, hub *Hub) erro
 	}
 }
 
-func listenOnce(ctx context.Context, connString string, hub *Hub) error {
+func listenOnce(ctx context.Context, connString string, notifier ports.Notifier) error {
 	conn, err := pgx.Connect(ctx, connString)
 	if err != nil {
 		return fmt.Errorf("events: connect for LISTEN: %w", err)
@@ -54,6 +56,6 @@ func listenOnce(ctx context.Context, connString string, hub *Hub) error {
 			continue
 		}
 
-		hub.NotifyUser(userID, "content_changed", notification.Payload)
+		notifier.NotifyUser(userID, "content_changed", notification.Payload)
 	}
 }

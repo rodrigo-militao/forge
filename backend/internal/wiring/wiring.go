@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -82,32 +81,20 @@ func BuildWorkerHandlers(cfg WorkerConfig) map[string]worker.Handler {
 				}
 			}
 
-			if len(sources) == 0 {
-				if user.RestrictSearchToSources {
-					slog.Info("curate_digest: restrict_search enabled and no sources configured, skipping")
-					return nil
-				}
-				// Fallback: hardcoded defaults when user has no configured sources.
-				slog.Info("curate_digest: no configured sources, using defaults")
-				sources = []digestDomain.ContentSource{
+			return digestApp.RunDigestPipeline(ctx, digestApp.DigestPipelineParams{
+				UserID:            id,
+				LLM:               llmClient,
+				CheapLLM:          cheapLLM,
+				Content:           contentRepo,
+				Sources:           sources,
+				InterestLabels:    interestLabels,
+				RestrictToSources: user.RestrictSearchToSources,
+				FallbackSources: []digestDomain.ContentSource{
 					rss.NewFeed("Go Blog", "https://go.dev/blog/feed.atom"),
 					search.NewDuckDuckGo([]string{"golang best practices 2026"}),
-				}
-			}
-
-			svc := digestApp.NewDiscoveryService(llmClient, sources, contentRepo, id, interestLabels)
-			if _, err := svc.Run(ctx, time.Now()); err != nil {
-				return fmt.Errorf("digest run: %w", err)
-			}
-
-			// Categorize inline after discovery so articles appear with categories
-			catSvc := digestApp.NewCategorizeService(cheapLLM, contentRepo, id)
-			if err := catSvc.Run(ctx); err != nil {
-				slog.Warn("inline categorization failed", "error", err)
-			}
-			return nil
+				},
+			})
 		}),
-
 		"categorize_batch": parseUserID(func(ctx context.Context, id uuid.UUID, payload []byte) error {
 			svc := digestApp.NewCategorizeService(cheapLLM, contentRepo, id)
 			return svc.Run(ctx)

@@ -6,6 +6,7 @@ backend/.vite
 frontend/.next
 .impeccable
 .verboo
+.foglamp/
 
 # Coverage artifacts
 backend/coverage/

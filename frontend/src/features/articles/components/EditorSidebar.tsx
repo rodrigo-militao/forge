@@ -5,7 +5,7 @@ import type { Reference } from "../../../api/types";
 import { CollapsiblePanel } from "./CollapsiblePanel";
 import { OutlinePanel } from "./OutlinePanel";
 import { DocumentStatsPanel } from "./DocumentStatsPanel";
-import { ReferenceList, AttachReferenceModal } from "../../references/ReferencesPage";
+import { ReferenceList, AttachReferenceModal } from "../../../components/references";
 import type { OutlineItem } from "../hooks/use-outline";
 import type { DocumentStats } from "../hooks/use-document-stats";
 import { useRef, useState } from "react";
